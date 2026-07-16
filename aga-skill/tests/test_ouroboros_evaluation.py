@@ -166,7 +166,7 @@ def test_trusted_scorer_rejects_cherry_picked_measurement_selection() -> None:
 
 
 def test_real_bundle_path_remains_untrusted_and_disabled() -> None:
-    with pytest.raises(ValueError, match="unsupported/unconfigured"):
+    with pytest.raises(ValueError, match="real bundle scoring is forbidden"):
         evaluator.score_response_bundle(FIXTURE_BUNDLE, mode="real")
 
 

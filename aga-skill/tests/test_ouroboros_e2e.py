@@ -404,11 +404,84 @@ def test_task_failure_and_workspace_mutation_fail_without_evidence(
         assert not output.exists()
 
 
-def test_capture_scanner_rejects_provider_secret_and_local_home_path() -> None:
+def test_capture_scanner_rejects_provider_secret_and_absolute_local_paths() -> None:
     with pytest.raises(ValueError, match="credential"):
         e2e._assert_sanitized({"value": "sk-or-v1-" + "x" * 32})
-    with pytest.raises(ValueError, match="absolute local path"):
-        e2e._assert_sanitized({"value": "/Users/synthetic/private/repo"})
+    for path in (
+        "/Users/synthetic/private/repo",
+        "/",
+        "//server/share/private",
+        "///private/tmp/repo",
+        "////",
+        "/private/tmp/local/repo",
+        "/tmp/local/repo",
+        "/var/folders/local/repo",
+        "/opt/custom/repo",
+        "prefix /mnt/data/repo",
+        "prefix,/srv/local/repo",
+        "see)/Users/private/repo",
+        "see]/tmp/private",
+        "see}/home/private",
+        "see>/var/private",
+        "prefix-/etc/passwd",
+        r"prefix-\Windows\System32",
+        r"prefix-\\server\share\secret",
+        r"prefix-\\.\pipe\secret",
+        "-file:///etc/passwd",
+        "prefix#/etc/passwd",
+        ":\\\\server\\share\\secret",
+        "_/etc/passwd",
+        r"_\Windows\System32",
+        r"_\\server\share\secret",
+        "_file:///etc/passwd",
+        "C:\\local\\repo",
+        "D:/local/repo",
+        r"\\server\share\repo",
+        "\\\\\\server\\share\\repo",
+        r"\Users\private\repo",
+        "\\",
+        "file:///tmp/local/repo",
+    ):
+        with pytest.raises(ValueError, match="absolute local path"):
+            e2e._assert_sanitized({"value": path})
+
+
+def test_capture_scanner_preserves_semantic_slash_values_and_urls() -> None:
+    e2e._assert_sanitized(
+        {
+            "location": "/components/demo.synthetic",
+            "pointer": "/seaf.change.adr/demo.synthetic",
+            "endpoint": "/mcp",
+            "reference": "https://example.invalid/synthetic/path",
+            "artifact": "model/components.yaml",
+            "nested_artifact": "synthetic_only/value",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+        }
+    )
+    e2e._assert_sanitized({"artifact": "model_dir/synthetic_file.yaml"})
+    for path in (
+        "/private/tmp/repo",
+        "/components/../tmp/repo",
+        "/components/demo.synthetic /private/tmp/repo",
+        "/components/demo.synthetic\n/tmp/repo",
+        r"/components/C:\Users\private\repo",
+        "/components/~1private~1tmp~1repo",
+        "/components/~1~1server~1share~1private",
+        "/components/-~1etc~1passwd",
+    ):
+        with pytest.raises(ValueError, match="absolute local path"):
+            e2e._assert_sanitized({"location": path})
+
+    for key in (
+        "/etc/passwd",
+        r"C:\Windows\System32",
+        r"\\server\share\secret",
+        "file:///etc/passwd",
+    ):
+        with pytest.raises(ValueError, match="absolute local path"):
+            e2e._assert_sanitized({key: "safe"})
+    with pytest.raises(ValueError, match="non-string key"):
+        e2e._assert_sanitized({1: "safe"})
 
 
 def test_versioned_prompt_contains_no_frozen_case_id() -> None:

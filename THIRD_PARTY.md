@@ -19,6 +19,17 @@ tree. Local pin verification is required on every checkout. Recursive
 clean-clone verification remains pending until a permitted public remote URL
 exists.
 
+The pinned seaf-core v1.4.0 file
+`entities/ta/presentation/components.yaml` contains a duplicate
+`seaf.ta.components.server` presentation key. A project-owned Apache-2.0
+overlay replaces only that malformed import with a content-addressed copy in
+which the first, K8s Namespace block has its intended entity ID. Both AGA's
+strict loader and ArchTool therefore consume the same valid document. Exact
+source and effective hashes are recorded in the overlay README; the upstream
+submodule remains unmodified and all duplicate YAML keys remain hard failures.
+The wrapper flattens four import-only aggregator documents but preserves their
+ordered transitive leaf closure; an integration test checks that equivalence.
+
 "Exact" in this table means an exact declared version, not a verified package
 artifact. Python wheel/sdist hashes, GitHub Action SHAs, Docker base-image
 digests and reproducible OS-package sources remain a release-owner verification

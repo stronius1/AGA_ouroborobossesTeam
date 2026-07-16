@@ -9,8 +9,9 @@ non-empty diff. Both revisions load through the project SEAF-native adapter.
 This denominator is independent from the deterministic regression corpus.
 
 **Real status: not run.** `evaluation/gigaagent/results.json` remains a zero-
-denominator `mode: real` record because the official GigaAgent runtime contract
-and permitted credentials are not available locally. No network call was made.
+denominator `mode: real` record because the trusted pinned Ouroboros runtime is
+not available and no positive USD hard cap has been supplied. No model or
+provider request was made.
 
 The recorded local run is explicitly a synthetic fixture measurement:
 
@@ -19,12 +20,11 @@ The recorded local run is explicitly a synthetic fixture measurement:
 - status: `fixture_scored_non_release`;
 - `release_evidence: false`, `release_eligible: false`, `release_passed: false`.
 
-The CLI prevents fixture mode from writing the real `results.json`. Real-mode
-scoring and writes are currently rejected as unsupported/unconfigured: without
-an organiser-defined capture contract and a verified adapter, runtime/model
-labels and oracle-shaped normalized output cannot establish official
-provenance. Passing a bundle whose embedded mode does not equal the explicit
-CLI mode is also an error.
+The CLI prevents fixture mode from writing the real `results.json` and rejects
+caller-supplied real bundles: runtime/model labels and oracle-shaped normalized
+output cannot establish provenance. Trusted real responses are scored only by
+the in-process API used by the pinned Ouroboros runner. Passing a bundle whose
+embedded mode does not equal the explicit CLI mode is also an error.
 
 ## Frozen ground truth and structural correction
 
@@ -122,8 +122,9 @@ never release-eligible.
 
 Every threshold is evaluated separately for development, holdout and overall;
 all three scopes must pass. A future real release result additionally requires
-an authorised run through the organiser-defined capture contract and verified
-adapter; an input bundle's `mode: real` label is explicitly insufficient.
+the complete 16-case trusted Ouroboros path with verified task, model, MCP
+receipts and authoritative cost accounting; an input bundle's `mode: real`
+label is explicitly insufficient.
 
 ## Reproduction
 

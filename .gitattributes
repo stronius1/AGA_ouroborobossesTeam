@@ -1,0 +1,2 @@
+# Preserve the exact content-addressed seaf-core presentation derivative.
+architecture/overrides/seaf-core-v1.4.0/entities/ta/presentation/components.yaml -whitespace

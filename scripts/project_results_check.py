@@ -922,6 +922,11 @@ def main() -> int:
     commands = (
         [sys.executable, "scripts/check_secrets.py"],
         [sys.executable, "scripts/verify_pins.py"],
+        [
+            sys.executable,
+            "scripts/validate_architecture.py",
+            "architecture/dochub.yaml",
+        ],
         [sys.executable, "evaluation/gigaagent/runner.py", "--verify-only"],
     )
     for command in commands:

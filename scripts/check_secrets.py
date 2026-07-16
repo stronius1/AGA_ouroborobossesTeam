@@ -20,6 +20,9 @@ EXCLUDED_PARTS = {
     "node_modules",
     "seaf-archtool-core",  # audited upstream; scanned in its own supply chain
 }
+EXCLUDED_PREFIXES = (
+    Path("architecture/vendor/seaf-core"),  # audited pinned upstream submodule
+)
 TEXT_SUFFIXES = {
     "",
     ".css",
@@ -69,6 +72,11 @@ def _candidate_files() -> list[Path]:
             continue
         relative = path.relative_to(ROOT)
         if any(part in EXCLUDED_PARTS for part in relative.parts):
+            continue
+        if any(
+            relative == prefix or prefix in relative.parents
+            for prefix in EXCLUDED_PREFIXES
+        ):
             continue
         if path.suffix.lower() not in TEXT_SUFFIXES or path.stat().st_size > 5_000_000:
             continue

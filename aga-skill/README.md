@@ -53,7 +53,7 @@ python3 scripts/run_review.py --pr golden/prs/pr-01 --mode llm \
 # Fixture ответ помечен synthetic_fixture_non_release и не является
 # release-доказательством качества агента.
 python3 scripts/run_seaf_review.py --case demo-critical-dependency --mode offline
-# Реальный режим без verified adapter: incomplete, exit 2.
+# Реальный режим разрешён только через trusted Ouroboros runner: exit 2.
 python3 scripts/run_seaf_review.py --case demo-critical-dependency --mode gigaagent
 ```
 

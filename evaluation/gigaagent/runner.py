@@ -4,9 +4,9 @@
 The runner is deliberately transport-free: it never calls a model or an API.
 It accepts only an already captured, sanitized JSON response bundle, verifies
 that every response belongs to the frozen materialized Git revisions, and
-then produces deterministic per-case and aggregate fixture scores. Real-mode
-scoring fails closed until an official capture contract and verified adapter
-are integrated; caller-supplied identity labels are not provenance.
+then produces deterministic per-case and aggregate fixture scores. A
+caller-supplied bundle can never self-attest as real evidence; trusted real
+captures enter through the in-process Ouroboros scoring API instead.
 """
 
 from __future__ import annotations
@@ -90,9 +90,9 @@ SECRET_PATTERNS = (
     re.compile(r"\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{12,}"),
 )
 REAL_SCORING_UNSUPPORTED = (
-    "real bundle scoring is unsupported/unconfigured: this workspace has no "
-    "verified official GigaAgent capture contract or adapter; runtime/model "
-    "labels and normalized output cannot establish official provenance"
+    "real bundle scoring is forbidden: use the trusted in-process Ouroboros "
+    "scoring API; caller-supplied runtime/model labels and normalized output "
+    "cannot establish provenance"
 )
 _ALLOWED_GIT_ENV_OVERRIDES = frozenset(
     {"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"}
@@ -1134,9 +1134,8 @@ def _gate_scope(metrics: Mapping[str, Any], thresholds: Mapping[str, Any]) -> di
 def score_response_bundle(bundle_path: Path, *, mode: str) -> dict[str, Any]:
     if mode == "real":
         # No field inside a caller-supplied bundle can prove that an official
-        # runtime produced it.  Until an organiser-defined capture contract and
-        # verified adapter are present, accepting real mode would let a renamed
-        # fixture self-attest as release evidence.
+        # runtime produced it. Accepting real mode here would let a renamed
+        # fixture bypass the trusted in-process Ouroboros capture boundary.
         raise ValueError(REAL_SCORING_UNSUPPORTED)
     if mode != "fixture":
         raise ValueError(f"unsupported scoring mode: {mode!r}")

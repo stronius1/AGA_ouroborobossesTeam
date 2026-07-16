@@ -77,8 +77,42 @@ DEFAULT_MATERIALIZED_ROOT = (
 )
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
-ABSOLUTE_LOCAL_PATH_RE = re.compile(
-    r"(?:^|[\s\"'])(?:/Users/|/home/|[A-Za-z]:[\\/]Users[\\/])"
+POSIX_ABSOLUTE_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9/])/(?!/)(?:\S+|$)"
+)
+POSIX_NETWORK_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9/:])/{2,}(?:[^/\s]+(?:/\S*)?|$)"
+)
+WINDOWS_ABSOLUTE_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9/\\])[A-Za-z]:[\\/]"
+)
+WINDOWS_NETWORK_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9/\\])\\{2,}(?:[^\\/\s]+(?:[\\/]\S*)?|$)"
+)
+WINDOWS_ROOTED_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9/\\])\\(?!\\)(?:\S+|$)"
+)
+FILE_URI_RE = re.compile(r"(?i)(?<![A-Za-z0-9])file:/+")
+JSON_POINTER_RE = re.compile(r"^(?:/(?:[^~/\s]|~[01])+)+$")
+PROJECT_RELATIVE_PATH_RE = re.compile(
+    r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$"
+)
+SOURCE_REF_RE = re.compile(
+    r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*#(?:/(?:[^~/\s]|~[01])+)+$"
+)
+_JSON_POINTER_FIELDS = frozenset({"field", "location", "pointer"})
+_JSON_POINTER_ROOTS = frozenset(
+    {
+        "aga",
+        "agent",
+        "components",
+        "contexts",
+        "docs",
+        "entities",
+        "rules",
+        "seaf.app.integrations",
+        "seaf.change.adr",
+    }
 )
 MAX_CAPTURE_BYTES = 2_000_000
 MAX_TASK_TIMEOUT_SECONDS = 3_000.0
@@ -592,15 +626,92 @@ def _task_response(
 def _assert_sanitized(value: Any, *, forbidden_path: Path | None = None) -> None:
     evaluator._scan_sanitized(value, "capture")
 
-    def visit(item: Any) -> None:
+    def allowed_slash_value(item: str, field: str | None) -> bool:
+        if field == "endpoint" and item == MCP_ENDPOINT:
+            return True
+        if (
+            field not in _JSON_POINTER_FIELDS
+            or JSON_POINTER_RE.fullmatch(item) is None
+        ):
+            return False
+        parts = item[1:].split("/")
+        if not parts or parts[0] not in _JSON_POINTER_ROOTS:
+            return False
+        return all(part and part not in {".", ".."} for part in parts)
+
+    def contains_absolute_path(item: str) -> bool:
+        return bool(
+            POSIX_ABSOLUTE_PATH_RE.search(item)
+            or POSIX_NETWORK_PATH_RE.search(item)
+            or WINDOWS_ABSOLUTE_PATH_RE.search(item)
+            or WINDOWS_NETWORK_PATH_RE.search(item)
+            or WINDOWS_ROOTED_PATH_RE.search(item)
+            or FILE_URI_RE.search(item)
+        )
+
+    def semantic_slash_value_contains_path(item: str, field: str | None) -> bool:
+        if field == "endpoint":
+            return bool(
+                WINDOWS_ABSOLUTE_PATH_RE.search(item)
+                or WINDOWS_NETWORK_PATH_RE.search(item)
+                or WINDOWS_ROOTED_PATH_RE.search(item)
+                or FILE_URI_RE.search(item)
+            )
+        for token in item[1:].split("/"):
+            decoded = token.replace("~1", "/").replace("~0", "~")
+            if contains_absolute_path(decoded):
+                return True
+        return False
+
+    def allowed_source_ref(item: str, field: str | None) -> bool:
+        if field != "source_ref" or SOURCE_REF_RE.fullmatch(item) is None:
+            return False
+        relative, pointer = item.split("#", 1)
+        path = PurePosixPath(relative)
+        if (
+            path.is_absolute()
+            or path.as_posix() != relative
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            return False
+        parts = pointer[1:].split("/")
+        if not parts or parts[0] not in _JSON_POINTER_ROOTS:
+            return False
+        for token in parts:
+            decoded = token.replace("~1", "/").replace("~0", "~")
+            if not token or contains_absolute_path(decoded):
+                return False
+        return True
+
+    def allowed_artifact_path(item: str, field: str | None) -> bool:
+        if field != "artifact" or PROJECT_RELATIVE_PATH_RE.fullmatch(item) is None:
+            return False
+        path = PurePosixPath(item)
+        return (
+            not path.is_absolute()
+            and path.as_posix() == item
+            and all(part not in {"", ".", ".."} for part in path.parts)
+        )
+
+    def visit(item: Any, *, field: str | None = None) -> None:
         if isinstance(item, Mapping):
-            for child in item.values():
-                visit(child)
+            for key, child in item.items():
+                if not isinstance(key, str):
+                    raise TypeError("capture mapping keys must be strings")
+                visit(key)
+                visit(child, field=key)
         elif isinstance(item, list):
             for child in item:
-                visit(child)
+                visit(child, field=field)
         elif isinstance(item, str):
-            if ABSOLUTE_LOCAL_PATH_RE.search(item):
+            if allowed_source_ref(item, field) or allowed_artifact_path(item, field):
+                return
+            allowed_slash = allowed_slash_value(item, field)
+            if (
+                semantic_slash_value_contains_path(item, field)
+                if allowed_slash
+                else contains_absolute_path(item)
+            ):
                 raise ValueError("capture contains an absolute local path")
             if forbidden_path is not None and str(forbidden_path) in item:
                 raise ValueError("capture contains the materialized repository path")

@@ -1,0 +1,20 @@
+# Strict project-owned import overlay for the exact seaf-core v1.4.0 pin.
+# It flattens four import-only aggregators, preserving their ordered leaf
+# closure, and replaces one malformed presentation leaf with the
+# content-addressed derivative under overrides/.
+imports:
+  - vendor/seaf-core/functions/root.yaml
+  - vendor/seaf-core/entities/ba/root.yaml
+  - vendor/seaf-core/entities/app/root.yaml
+  - overrides/seaf-core-v1.4.0/entities/ta/presentation/components.yaml
+  - vendor/seaf-core/entities/ta/presentation/services.yaml
+  - vendor/seaf-core/entities/ta/presentation/ta.yaml
+  - vendor/seaf-core/entities/ta/menu/root.yaml
+  - vendor/seaf-core/entities/ta/functions/root.yaml
+  - vendor/seaf-core/entities/ta/services/root.yaml
+  - vendor/seaf-core/entities/ta/environments/root.yaml
+  - vendor/seaf-core/entities/ta/components/root.yaml
+  - vendor/seaf-core/entities/ta/rules/root.yaml
+  - vendor/seaf-core/entities/ia/root.yaml
+  - vendor/seaf-core/entities/change/root.yaml
+  - vendor/seaf-core/docs/root.yaml

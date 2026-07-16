@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -418,6 +419,106 @@ def test_import_graph_resource_limits_are_enforced(tmp_path):
     _write(tmp_path, "grandchild.yaml", "docs: {}\n")
     with _error("import_depth_limit"):
         DocHubImportResolver(tmp_path, max_depth=1).resolve("dochub.yaml")
+
+
+def test_exact_pinned_seaf_core_duplicate_remains_a_hard_failure(tmp_path):
+    relative = "vendor/seaf-core/entities/ta/presentation/components.yaml"
+    source = PKG_ROOT.parent / "architecture" / relative
+    pinned_text = source.read_text(encoding="utf-8")
+    _manifest(tmp_path, imports=(relative,))
+    _write(tmp_path, relative, pinned_text)
+
+    with _error("yaml_duplicate_key"):
+        DocHubImportResolver(tmp_path).resolve("dochub.yaml")
+    with _error("yaml_duplicate_key"):
+        DocHubImportResolver(
+            tmp_path,
+            trusted_dependencies={
+                "vendor/seaf-core": "60ce335832d2734814c020306a85d1e8b12cf67b"
+            },
+        ).resolve("dochub.yaml")
+
+
+def test_project_seaf_overlay_is_content_addressed_and_strictly_resolvable(tmp_path):
+    architecture_root = PKG_ROOT.parent / "architecture"
+    upstream = (
+        architecture_root
+        / "vendor/seaf-core/entities/ta/presentation/components.yaml"
+    )
+    overlay_relative = (
+        "overrides/seaf-core-v1.4.0/entities/ta/presentation/components.yaml"
+    )
+    overlay = architecture_root / overlay_relative
+
+    assert hashlib.sha256(upstream.read_bytes()).hexdigest() == (
+        "c784b57b54aa5f5ebab57f732d7088617661ac4d206493f39a4a6e9a6f628ad6"
+    )
+    assert hashlib.sha256(overlay.read_bytes()).hexdigest() == (
+        "0af3c2c90a3a31257b2f38ba577590f1f32da048a72e2264fb80793b415efb7c"
+    )
+    assert overlay.read_text(encoding="utf-8") == upstream.read_text(
+        encoding="utf-8"
+    ).replace(
+        "  seaf.ta.components.server:",
+        "  seaf.ta.components.k8s_namespace:",
+        1,
+    )
+    workspace = DocHubImportResolver(
+        architecture_root,
+        max_files=1024,
+        max_depth=64,
+        max_total_bytes=32 * 1024 * 1024,
+        max_yaml_nodes=750_000,
+    ).resolve("dochub.yaml")
+    assert overlay_relative in workspace.paths
+    assert (
+        "vendor/seaf-core/entities/ta/presentation/components.yaml"
+        not in workspace.paths
+    )
+
+    copied_root = tmp_path / "architecture"
+    shutil.copytree(architecture_root, copied_root)
+    copied_manifest = copied_root / "dochub.yaml"
+    copied_manifest.write_text(
+        copied_manifest.read_text(encoding="utf-8").replace(
+            "seaf-core-v1.4.0-overlay.yaml",
+            "vendor/seaf-core/dochub.yaml",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    copied_upstream = copied_root / (
+        "vendor/seaf-core/entities/ta/presentation/components.yaml"
+    )
+    copied_upstream.write_text(overlay.read_text(encoding="utf-8"), encoding="utf-8")
+    corrected_workspace = DocHubImportResolver(
+        copied_root,
+        max_files=1024,
+        max_depth=64,
+        max_total_bytes=32 * 1024 * 1024,
+        max_yaml_nodes=750_000,
+    ).resolve("dochub.yaml")
+
+    import_only_aggregators = {
+        "vendor/seaf-core/dochub.yaml",
+        "vendor/seaf-core/entities/root.yaml",
+        "vendor/seaf-core/entities/ta/root.yaml",
+        "vendor/seaf-core/entities/ta/presentation/root.yaml",
+    }
+
+    def leaf_closure(paths):
+        normalized = []
+        for path in paths:
+            if path in import_only_aggregators or path == "seaf-core-v1.4.0-overlay.yaml":
+                continue
+            normalized.append(
+                "vendor/seaf-core/entities/ta/presentation/components.yaml"
+                if path == overlay_relative
+                else path
+            )
+        return tuple(normalized)
+
+    assert leaf_closure(workspace.paths) == leaf_closure(corrected_workspace.paths)
 
 
 def test_repository_revision_is_serialisable():

@@ -78,7 +78,7 @@ Agent denominator не смешивается с этими числами.
 
 # Честный статус и следующие шаги
 
-Локально: 381 tests + 32 subtests (98 unittest), offline Git→SEAF→finding, MCP contracts,
+Локально: 489 tests + 32 subtests (98 unittest), offline Git→SEAF→finding, MCP contracts,
 regression и frozen basket. Ожидают разрешения: upstream submodules; внешне ещё
 нужны официальный GigaAgent trace, public repo, озвученное видео <180 s и
 исходный Project Proposal. Action/image/package digests и clean-clone CI —

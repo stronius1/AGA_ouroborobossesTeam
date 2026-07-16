@@ -12,11 +12,10 @@ aga:
   data_classification: synthetic-public
 
 imports:
-  - vendor/seaf-core/dochub.yaml
+  - seaf-core-v1.4.0-overlay.yaml
   - metamodel/aga-extension.yaml
   - model/components.yaml
   - model/integrations.yaml
   - model/adrs.yaml
   - model/contexts.yaml
   - model/ai-chat.yaml
-

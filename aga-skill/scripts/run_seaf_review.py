@@ -201,8 +201,8 @@ def run_demo(mode: str) -> tuple[dict[str, object], int]:
         {
             "agent_status": "not_configured",
             "reason": (
-                "No verified official GigaAgent adapter or permitted real-run evidence is "
-                "configured; refusing to synthesize semantic findings."
+                "Real semantic execution is available only through the trusted Ouroboros "
+                "runner; this offline CLI refuses to synthesize findings."
             ),
         }
     )

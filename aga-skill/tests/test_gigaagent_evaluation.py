@@ -263,7 +263,7 @@ def test_relabelled_fixture_cannot_self_attest_as_official_real_evidence(tmp_pat
     path = _write_bundle(tmp_path, bundle, name="unverified-real.json")
     output = tmp_path / "forged-real-results.json"
 
-    with pytest.raises(ValueError, match="unsupported/unconfigured"):
+    with pytest.raises(ValueError, match="real bundle scoring is forbidden"):
         runner.score_response_bundle(path, mode="real")
 
     completed = subprocess.run(
@@ -284,7 +284,7 @@ def test_relabelled_fixture_cannot_self_attest_as_official_real_evidence(tmp_pat
         check=False,
     )
     assert completed.returncode != 0
-    assert "unsupported/unconfigured" in completed.stderr
+    assert "real bundle scoring is forbidden" in completed.stderr
     assert not output.exists()
 
 

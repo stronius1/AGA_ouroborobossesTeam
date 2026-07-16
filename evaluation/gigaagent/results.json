@@ -1,7 +1,7 @@
 {
   "schema": "aga.gigaagent-results/v2",
   "status": "not_run",
-  "reason": "official_gigaagent_contract_and_credentials_required",
+  "reason": "trusted_ouroboros_all_case_run_not_executed",
   "mode": "real",
   "measurement_class": "unconfigured_real",
   "release_evidence": false,
@@ -29,7 +29,7 @@
     "evaluation_passed": false,
     "release_eligible": false,
     "release_passed": false,
-    "reason": "Official capture contract and verified adapter are not configured; real scoring is disabled."
+    "reason": "No trusted all-case Ouroboros capture exists; the pinned runtime and positive USD hard cap are not configured for a real run."
   },
   "runs": []
 }

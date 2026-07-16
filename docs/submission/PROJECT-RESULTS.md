@@ -93,7 +93,7 @@ chain evidence is not claimed.
 
 The recorded pre-integration baseline is **381 pytest tests and 32 subtests
 pass**; the independent unittest discovery reports **98 tests OK**. The
-post-integration offline verification on 2026-07-16 is **486 pytest tests and
+post-integration offline verification on 2026-07-16 is **489 pytest tests and
 32 subtests pass**, with the same **98 unittest tests OK**. This does not alter
 the real-agent denominator.
 
