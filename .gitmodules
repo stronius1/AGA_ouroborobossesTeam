@@ -1,0 +1,6 @@
+[submodule "seaf-archtool-core"]
+	path = seaf-archtool-core
+	url = https://gitverse.ru/seafteam/seaf-archtool-core.git
+[submodule "seaf-core"]
+	path = architecture/vendor/seaf-core
+	url = https://gitverse.ru/seafteam/seaf-core.git

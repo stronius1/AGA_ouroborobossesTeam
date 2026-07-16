@@ -92,16 +92,16 @@ use mutable tags, and Python artifacts lack hashes, so byte-reproducible supply
 chain evidence is not claimed.
 
 The recorded pre-integration baseline is **381 pytest tests and 32 subtests
-pass**; the independent unittest discovery reports **98 tests OK**. New
-Ouroboros components have also been exercised by offline contract tests, but
-that does not alter the recorded baseline evidence or the real-agent
-denominator.
+pass**; the independent unittest discovery reports **98 tests OK**. The
+post-integration offline verification on 2026-07-16 is **486 pytest tests and
+32 subtests pass**, with the same **98 unittest tests OK**. This does not alter
+the real-agent denominator.
 
-Upstream Node/SEAF validation is not claimed: the two exact GitVerse revisions
-have been inspected read-only, but the project paths have not yet been
-converted to pinned submodules and no clean recursive clone has been proven.
-The locally initialised root still has no project commit/`HEAD`; consequently
-the Compose registry has no root base/head pair to review yet.
+The two exact GitVerse revisions are recorded as pinned submodules and pass the
+local gitlink/checkout integrity contract. Upstream Node/SEAF build and UI
+validation are not yet claimed, and no recursive clean clone can be proven
+until a permitted public remote exists. The local test branch now has an
+immutable root history; no commit was pushed.
 
 Expected local commands:
 
@@ -118,7 +118,9 @@ make project-results-check
 runtime and complete owner configuration it fails closed as `not_configured`
 and creates no evidence. It is not run in public CI. A successful first smoke
 must stop at that one case; the full 16-case development/holdout evaluation
-requires a separate explicit confirmation.
+requires a separate explicit confirmation. The canonical release command is
+`OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all`; individual
+split commands produce non-release diagnostic evidence only.
 
 ## 5. Результаты на примерах — 20%
 
@@ -167,10 +169,10 @@ The local MVP is not Project Results complete. Remaining owner-controlled and
 external actions are:
 
 1. the original Project Proposal;
-2. convert the two reviewed GitVerse revisions into pinned submodules, then
-   verify ArchTool build/UI, SEAF validators and a clean recursive clone;
-3. create the already-authorised immutable synthetic root base/head commits
-   without push, then register their full SHAs for the local E2E;
+2. verify ArchTool build/UI and SEAF validators, then prove a recursive clean
+   clone after a permitted public remote exists;
+3. register only the full immutable synthetic base/head SHAs produced by the
+   trusted materializer for the local E2E;
 4. resolve the blocked Ouroboros runtime installation, configure the exact
    model routes, reviewed/enabled `aga_review` skill, isolated AGA MCP,
    Advisory enforcement, `OUROBOROS_TASK_REVIEW_MODE=off`, credential and an

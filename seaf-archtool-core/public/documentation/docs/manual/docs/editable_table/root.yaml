@@ -1,9 +1,0 @@
-imports:
-  - menu.yaml
-  - step_0_base/root.yaml
-  - step_1_acquaintance/root.yaml
-  - step_2_parameterization/root.yaml
-  - step_3_headers/root.yaml
-  - step_4_editing/root.yaml
-  - step_5_styles/root.yaml
-  - step_6_errors/root.yaml

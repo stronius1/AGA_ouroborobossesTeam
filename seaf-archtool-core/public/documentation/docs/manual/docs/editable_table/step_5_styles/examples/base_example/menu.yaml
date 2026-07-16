@@ -1,5 +1,0 @@
-docs:
-  archtool.plugins.editable-table.styles.base_example.menu:
-    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/5. Стилизация/1. Базовая стилизация
-    type: markdown
-    source: template.md

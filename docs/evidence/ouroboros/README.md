@@ -95,15 +95,20 @@ trusted blocker, `request_changes_escalate`, HITL required and no auto-merge.
 If the runtime, model, budget, MCP registry or credential is absent, the runner
 must fail non-zero with typed `not_configured` and must not create evidence.
 
-Stop after that one smoke. Run the two eight-case baskets only after a new,
-explicit owner confirmation of the spend and budget cap:
+Stop after that one smoke. Run any paid basket only after a new, explicit
+owner confirmation of the spend and budget cap. Development and holdout are
+non-release diagnostics; the canonical release measurement runs all 16 cases
+in one trusted in-process selection:
 
 ```bash
 OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development
 OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout
+OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all
 ```
 
-The environment gate is an accidental-run safeguard, not owner consent. The
+Do not run all three commands for one measurement: `evaluate-ouroboros-all`
+already contains both frozen splits. The environment gate is an accidental-run
+safeguard, not owner consent. The
 frozen holdout must not be used for prompt tuning. A transport/provider failure
 does not authorize an unrecorded repeat.
 

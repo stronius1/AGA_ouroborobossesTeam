@@ -1,4 +1,0 @@
-imports:
-  - menu.yaml
-  - settings/root.yaml
-  - agents/root.yaml

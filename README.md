@@ -25,9 +25,9 @@ sentinel, но fail-closed без валидного runtime/configuration.
 ## Слои продукта
 
 ```text
-SEAF.ArchTool runtime (target commit pin; checkout pending)
+SEAF.ArchTool runtime (pinned submodule)
         +
-SEAF framework/metamodel (target commit pin; checkout pending)
+SEAF framework/metamodel (pinned submodule)
         +
 architecture/ — synthetic SEAF-native objects
         |
@@ -39,10 +39,11 @@ trusted base/head Git diff → safe snapshot → AGA canonical model
 
 - [`architecture/`](architecture/) — синтетический Architecture-as-Code workspace.
 - [`aga-skill/`](aga-skill/) — review engine, rules, adapters, MCP и tests.
-- `seaf-archtool-core/` — текущий audited vendor snapshot и целевой путь
-  pinned upstream submodule; exact GitVerse pin проверен read-only, но
-  conversion/recursive checkout ещё не выполнены. Project-owned logic туда
-  не вносится.
+- `seaf-archtool-core/` — pinned GitVerse submodule
+  `83c82ab1673f1245b499c26b82d507fa602a11d6`.
+- `architecture/vendor/seaf-core/` — pinned GitVerse submodule
+  `60ce335832d2734814c020306a85d1e8b12cf67b`.
+  Project-owned logic в upstream trees не вносится.
 - [`docs/`](docs/) — контракты, evidence и Project Results.
 
 ## Быстрая локальная проверка
@@ -129,8 +130,9 @@ Real runner повторно валидирует и материализует 
 | `make ouroboros-materialize` | Создать ignored, locked synthetic-public Git fixture для smoke |
 | `make ouroboros-preflight` | Без model call проверить v6.64.1, все exact model routes, hard cap, review settings, reviewed/enabled skill и ровно 4 AGA tools |
 | `make demo-e2e` | Opt-in trusted Ouroboros smoke на `ga-05-critical-eliminate`; fail closed без configuration |
-| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development` | Real 8-case development basket; только после checkpoint approval |
-| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout` | Real frozen 8-case holdout; только после checkpoint approval |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development` | Non-release real 8-case development diagnostic; только после checkpoint approval |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout` | Non-release real frozen 8-case diagnostic; только после checkpoint approval |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all` | Canonical trusted 16-case release run; только после отдельного явного разрешения |
 | `make project-results-check` | Hygiene, evidence и C1–C6 consistency checks |
 
 Machine-readable deterministic evidence is frozen with hashes in
@@ -138,18 +140,14 @@ Machine-readable deterministic evidence is frozen with hashes in
 
 ## Troubleshooting
 
-- `.gitmodules is missing` / `dependency_not_initialized`: оба upstream дерева
-  ещё не преобразованы в submodules, хотя exact pins уже проверены
-  read-only. Нужно завершить conversion, затем выполнить
-  `git submodule update --init --recursive`.
-- `root repository has no HEAD`: разрешённые локальные synthetic
-  base/head commits ещё не созданы. MCP production registry требует два
-  полных immutable SHA, поэтому не подставляйте branch name или
-  выдуманный commit.
+- `dependency_not_initialized`: выполните
+  `git submodule update --init --recursive`, затем `make verify-pins`.
+- MCP registry принимает только два полных immutable revision SHA;
+  не подставляйте branch name или выдуманный commit.
 - `node`/`npm` отсутствуют: для upstream ArchTool установите документированный
   Node 20, затем запускайте `make test-seaf` только после submodule bootstrap.
 - `docker compose` отвечает, но healthcheck недоступен: убедитесь, что Docker
-  daemon запущен. Compose не заменяет отсутствующие gitlinks и root commits.
+  daemon запущен и submodules инициализированы.
 - `make ouroboros-preflight` или `make demo-e2e` возвращают typed
   `not_configured`: проверьте trusted packaged Ouroboros `v6.64.1`, все
   exact model routes, owner-supplied hard cap, Advisory mode,

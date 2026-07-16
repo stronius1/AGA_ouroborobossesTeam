@@ -1,5 +1,0 @@
-imports:
-  - menu.yaml
-  - simple/root.yaml
-  - react/root.yaml
-  - aigena/root.yaml

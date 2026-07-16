@@ -1,5 +1,0 @@
-docs:
-  archtool.plugins.gigachat.agents.simple.menu:
-    location: SEAF.ArchTool/Руководство/Документы/GigaChat/2. Агенты/1. Simple
-    type: markdown
-    source: template.md

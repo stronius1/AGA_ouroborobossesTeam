@@ -1,5 +1,0 @@
-docs:
-  archtool.plugins.editable-table.errors.data_errors.menu:
-    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/6. Обработка ошибок/1. Ошибки в данных
-    type: markdown
-    source: template.md

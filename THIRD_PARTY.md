@@ -4,8 +4,8 @@ Audit baseline: 2026-07-15; GitVerse pin/license recheck: 2026-07-16.
 
 | Dependency | Purpose | Upstream | Tag | Pinned commit | License |
 |---|---|---|---|---|---|
-| SEAF.ArchTool | UI/runtime, validators, GigaChat/MCP client | `https://gitverse.ru/seafteam/seaf-archtool-core.git` | `v2026.29.0` | `83c82ab1673f1245b499c26b82d507fa602a11d6` | Apache-2.0 (`LICENSE`, `NOTICE` present in the audited local snapshot; target submodule not yet created) |
-| SEAF core | Framework/metamodel | `https://gitverse.ru/seafteam/seaf-core.git` | `v1.4.0` | `60ce335832d2734814c020306a85d1e8b12cf67b` | Apache-2.0 (`LICENSE` verified in an isolated read-only checkout; target submodule not yet created) |
+| SEAF.ArchTool | UI/runtime, validators, GigaChat/MCP client | `https://gitverse.ru/seafteam/seaf-archtool-core.git` | `v2026.29.0` | `83c82ab1673f1245b499c26b82d507fa602a11d6` | Apache-2.0 (`LICENSE`, `NOTICE` verified in the pinned submodule checkout) |
+| SEAF core | Framework/metamodel | `https://gitverse.ru/seafteam/seaf-core.git` | `v1.4.0` | `60ce335832d2734814c020306a85d1e8b12cf67b` | Apache-2.0 (`LICENSE` verified in the pinned submodule checkout) |
 | PyYAML | AGA YAML parser | PyPI project metadata | `6.0.3` | exact package pin | MIT |
 | pytest | Test-only | PyPI project metadata | `9.0.3` | exact package pin | MIT |
 
@@ -14,9 +14,10 @@ Pytest transitive development dependencies are also exact-pinned in
 `aga-skill/THIRD_PARTY_NOTICES.md`.
 
 The two GitVerse revisions above were inspected in isolated read-only
-checkouts. This verifies the recorded commit and license metadata, but does not
-claim that the repository paths are already Git links: submodule conversion
-and recursive clean-clone verification remain pending.
+checkouts and are now recorded as exact Git links in `.gitmodules` and the root
+tree. Local pin verification is required on every checkout. Recursive
+clean-clone verification remains pending until a permitted public remote URL
+exists.
 
 "Exact" in this table means an exact declared version, not a verified package
 artifact. Python wheel/sdist hashes, GitHub Action SHAs, Docker base-image

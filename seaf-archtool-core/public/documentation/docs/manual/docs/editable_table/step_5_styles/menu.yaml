@@ -1,5 +1,0 @@
-docs:
-  archtool.plugins.editable-table.styles.menu:
-    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/5. Стилизация
-    type: markdown
-    source: template.md
