@@ -1,0 +1,5 @@
+docs:
+  archtool.plugins.editable-table.styles.hiding_columns.menu:
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/5. Стилизация/2. Скрытие колонок
+    type: markdown
+    source: template.md

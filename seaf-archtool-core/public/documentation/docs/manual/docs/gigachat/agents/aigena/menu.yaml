@@ -1,0 +1,5 @@
+docs:
+  archtool.plugins.gigachat.agents.aigena.menu:
+    location: SEAF.ArchTool/Руководство/Документы/GigaChat/2. Агенты/3. AiGenA
+    type: markdown
+    source: template.md

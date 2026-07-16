@@ -1,0 +1,4 @@
+id: pr-25
+title: "ADR ссылается на незарегистрированную АС"
+changed_files: [adrs/ADR-0025.md]
+context_files: []

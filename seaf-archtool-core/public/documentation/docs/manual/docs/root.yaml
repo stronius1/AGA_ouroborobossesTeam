@@ -1,0 +1,736 @@
+#    Copyright (C) 2022 owner Roman Piontik R.Piontik@mail.ru
+#    Copyright (C) 2023 Sber
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    R.Piontik <r.piontik@mail.ru>
+#
+#  Contributors:
+#    R.Piontik <r.piontik@mail.ru> - 2022
+#    Rostislav Kabalin <kabalin2009@yandex.ru> - 2022
+#    R.Piontik <r.piontik@mail.ru> - 2023
+#    Vladislav Nefedov, Sber - 2023
+#    Vladislav Markin, Sber - 2023
+#    Александр Трубников <a.trubnikov@samolet.ru> - 2023
+#    R.Piontik <r.piontik@mail.ru> - 2024
+
+imports:
+  - examples/table.yaml
+  - examples/charts.yaml
+  - examples/inlinemeta.md
+  - examples/markaper.yaml
+  - examples/toc/root.yaml
+  - gigachat/root.yaml
+  - editable_table/root.yaml
+  - seaf2drawio/root.yaml
+docs:
+  # *****************************************  
+  #        Руководство по документам 
+  # *****************************************
+  archtool.docs:
+    location: SEAF.ArchTool/Руководство/Документы
+    description: Документы
+    autor: R.Piontik        # Кастомное поле - Автор документа
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: docs.md
+
+  # *****************************************
+  #            Примеры документов
+  # *****************************************
+  archtool.asyncapi:
+    location: SEAF.ArchTool/Руководство/Документы/AsyncAPI
+    description: Markdown
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: asyncapi.md
+
+  archtool.example.asyncapi:
+    type: AsyncApi
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: examples/asyncapi.yaml
+
+  archtool.bpmn:
+    location: SEAF.ArchTool/Руководство/Документы/BPMN
+    description: BPMN диаграммы
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: bpmn.md
+
+  archtool.example.bpmn:
+    location: SEAF.ArchTool/Руководство/Документы/BPMN/Простой пример
+    type: bpmnjs
+    source: examples/bpmn.xml
+
+  archtool.example.bpmn.full:
+    location: SEAF.ArchTool/Руководство/Документы/BPMN/Расширенный пример
+    type: bpmnjs
+    source: examples/pizza-collaboration.xml
+
+  archtool.example.bpmn.analyse:
+
+    origin: examples/pizza-collaboration.xml  # Указываем источником оригинальных данных XML файл
+    source: >                                 # Обрабатываем XML
+      (
+          [$."semantic:definitions".*."semantic:task"."$"]
+      )
+    type: table                               # Тип документа "таблица"
+    headers: # Заголовки таблицы
+      - value: id
+        text: Идентификатор
+        sortable: true
+        align: left
+        width: 20%
+      - value: name
+        text: Название задачи
+        sortable: true
+        align: left
+
+  archtool.plugins.devtool_new:
+    location: SEAF.ArchTool/Руководство/Документы/DevTool
+    type: devtool
+
+  archtool.plugins.drawio:
+    location: SEAF.ArchTool/Руководство/Документы/Draw.io
+    type: markdown
+    source: drawio_intro.md
+
+  archtool.plugins.drawio.as_is:
+    location: SEAF.ArchTool/Руководство/Документы/Draw.io/Файл как есть
+    type: drawio
+    template: templates/example.drawio
+
+  archtool.plugins.drawio.parametrized:
+    location: SEAF.ArchTool/Руководство/Документы/Draw.io/Применили пост. обработку
+    type: drawio
+    template: templates/example.drawio
+    source: >
+      (
+        {
+        "xml_mutators" : [
+            { "id": 1, "xpath": "//*[@id = 'test.sys1.c1']",
+                "params": { "style_self" : false},
+                "operation": {
+                    "attrs": {
+                        "c4Description": "Описание контейнера 1",
+                        "c4Name": "Имя контейнера 1",
+                        "c4Technology" : "Java, Spring"
+                    },
+                    "style": {
+                        "fillColor": "red"
+                    }
+                }
+            },
+            { "id": 2, "xpath": "//*[@id = 'test.sys1.c2']",
+                "params": { "style_self" : false},
+                "operation": {
+                    "attrs": {
+                        "c4Description": "Описание контейнера 2",
+                        "c4Name": "Имя контейнера 2",
+                        "c4Technology" : "Java17, Spring"
+                    },
+                    "style": {
+                        "fillColor": "green"
+                    }
+                }
+            },
+            { "id": 3, "xpath": "//*[@id = 'test.sys1.c3']",
+                "params": { "style_self" : false},
+                "operation": {
+                    "attrs": {
+                        "c4Description": "Описание контейнера 3",
+                        "c4Name": "Имя контейнера 3",
+                        "c4Technology" : "Java8, Springboot"
+                    },
+                    "style": {
+                        "fillColor": "blue"
+                    }
+                }
+            },
+            { "id": 4, "xpath": "//*[@id = 'test.sys1']",
+                "params": { "style_self" : false},
+                "operation": {
+                    "attrs": {
+                        "c4Application": "Приложение 1",
+                        "c4Name": "Имя ИС 1"
+                    },
+                    "style": {
+                        "fillColor": "grey"
+                    }
+                }
+            },        
+            { "id": 5, "xpath": "//*[@id = 'test.sys1.conn1']",
+                "params": { "style_self" : false},
+                "operation": {
+                    "attrs": {
+                        "c4Description": "Описание связи между компонентами",
+                        "c4Technology": "Технология HTTP",
+                        "extra_data": "Дополнительная информация отображаемая в tooltip элемента"
+                    },
+                    "style": {
+                        "strokeColor": "orange"
+                    }
+                }
+            }        
+            ]
+        }
+      )
+
+  archtool.plugins.example:
+    location: SEAF.ArchTool/Руководство/Документы/HTML
+    type: html
+    headers:
+      head1:
+        type: test
+    source: examples/example.html
+
+  archtool.markdown:
+    location: SEAF.ArchTool/Руководство/Документы/Markdown
+    description: Markdown
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: markdown.md
+  archtool.markdown.toc-info:
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления
+    description: Отключение автооглавления в md-документах
+    type: markdown
+    source: toc.md
+
+  archtool.mermaid:
+    location: SEAF.ArchTool/Руководство/Документы/Mermaid
+    description: Mermaid
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: mermaid.md
+
+  archtool.example.mermaid:
+    type: Mermaid
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: examples/mermaid.mmd
+
+  archtool.network:
+    location: SEAF.ArchTool/Руководство/Документы/Network
+    description: Network
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: network.md
+  archtool.example.network:
+    type: Network
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: >
+      (
+        $manifest := $;
+        /* Перебираем все компоненты */
+        $adges  := $distinct(components.$spread().(
+          $node_id := $keys()[0];
+          $node := $.*;
+          /* Определяем связи */
+          $node.links.{
+            "from": $node_id,
+            "to": id,
+            "label": title
+          }
+        ));
+        /* Выявляем ноды из связей */
+        $nodes := $distinct($append($adges.from, $adges.to)).(
+          $struct := $split($, ".");
+          $group := $replace($, "." & $reverse($struct)[0], "");
+          {
+            "id": $,
+            "label": $lookup($manifest.components, $).title,
+            "group": $group,
+            "level": $count($struct),
+            /* Позиционируем ноду тем выше, чем выше слой */
+            "y": $count($struct) * 200
+          }
+        );
+        /* Добавляем ноды легенды */
+        $nodes := $append($nodes, (
+          /* Получаем максимальную точку позиции нод */
+          $height := $max($nodes.y);
+          $groups := $distinct($nodes.group)^($);
+          /* Вычисляем центр легенды */
+          $offset := -($height / 2);
+          /* Определяем шаг легенды */
+          $step := $height / $count($groups);
+          /* Строим легенду */
+          $map($groups, function($v, $i, $a) {
+            {
+              "id": "legend-" & $string($i),
+              "x": -600,
+              "y": $i * $step + $offset,
+              "shape": "square",
+              "label": $v,
+              "group": $v,
+              "value": 1,
+              "fixed": true,
+              "physics": false
+            }
+          })
+        ));
+        /* Выводим результат */
+        {
+          "nodes": $nodes, /* Массив нод */
+          "edges": $adges, /* Массив связей */
+          "options": {     /* Параметры сетевой диаграммы https://visjs.github.io/vis-network/docs/network/ */
+            "clickToUse": false /* Отключаем обязательный клик перед взаимодействем с пользователем */
+          }
+        }
+      )
+
+  archtool.plantuml:
+    location: SEAF.ArchTool/Руководство/Документы/PlantUML
+    description: PlantUML
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: plantuml.md
+
+  archtool.example.pml:
+    type: PlantUML
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: examples/example.puml
+
+  archtool.smartants:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts
+    description: SmartAnts
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: smartants.md
+
+  archtool.smartants.examples.simple:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/01 Простой пример
+    description: Простой пример использования SmartAnts
+    autor: R.Piontik
+    type: smartants           # Тип документа
+    source: # Задаем константные данные для генерации диаграммы
+      header: # Заголовок диаграммы
+        title: Авторизация    # Текст заголовка
+        style: # Стили заголовка
+          color: "#fbaaaa"
+          font-size: 22px
+          font-weight: 800
+      config: # Конфигурируем расположение элементов на диаграмме
+        distance: 120         # Дистанция между элементами
+        trackWidth: 24        # Ширина дорожек (треков)
+      nodes: # Определяем элементы диаграммы
+        system: # Идентификатор элемента. Определяем иерархию при отображении диаграммы
+          title: Система      # Название компонента
+          symbol: system      # Символ (примитив) которым будет представлен элемент на диаграмме
+        user:
+          title: Пользователь
+          symbol: user
+      links: # Связи между компонентами
+        - from: user            # Откуда будет прокладываться маршрут
+          to: system            # Куда
+          title: Логин и пароль # Описание маршрута
+          style: "->"           # Направление маршрута <- / -> / <->
+          link: "/docs/dochub.swagger" # Ссылка перехода при клике на надпись
+        - from: system
+          to: user
+          title: JWT токен
+          style: "->"
+          link: "/docs/dochub.swagger"
+  archtool.smartants.examples.colors:
+    description: Пример раскрашивания линий
+    autor: R.Piontik
+    type: smartants
+    source:
+      config:
+        distance: 120
+        trackWidth: 24
+      nodes:
+        system:
+          title: Система
+          symbol: system
+        user:
+          title: Пользователь
+          symbol: user
+      links:
+        - from: user
+          to: system
+          title: Логин и пароль
+          style: "-[#ff0000]->"         # Указывается цвет линии через RGB
+          link: "/docs/archtool.swagger"
+        - from: system
+          to: user
+          title: JWT токен
+          style: "-[#green]->"         # Указывается цвет линии через alias
+          link: "/docs/archtool.swagger"
+  archtool.smartants.examples.domains:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/02 Домены
+    description: Пример диаграммы SmartAnts с доменами
+    autor: R.Piontik
+    type: smartants
+    source:
+      config:
+        distance: 120
+        trackWidth: 24
+      nodes:
+        inside: # Определим домены
+          title: Внутренняя среда
+          background: lightgreen     # добавим фон области
+          opacity: 0.3               # и прозрачность фона
+        outside:
+          title: Внешняя среда
+        inside.system: # Добавим в идентификатор принадлежность к домену "inside"
+          title: Система
+          symbol: system
+        outside.user: # Аналогично для пользователя добавим домен "outside"
+          title: Пользователь
+          symbol: user
+      links:
+        - from: outside.user         # Модифицируем идентификаторы в связях
+          to: inside.system
+          title: Логин и пароль
+          style: "->"
+        - from: inside.system
+          to: outside.user
+          title: JWT токен
+          style: "->"
+  archtool.smartants.examples.complex:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/03 Сложная диаграмма
+    description: Сложная диаграмма SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-complex.yaml
+  archtool.smartants.examples.complex.hideboundaries:
+    description: Сложная диаграмма SmartAnts. Скрыты заголовки областей
+    type: smartants
+    source: examples/sa-complex-hide-boundary.yaml
+  archtool.smartants.examples.complex.hideleaves:
+    description: Сложная диаграмма SmartAnts. Скрыты заголовки элементов
+    type: smartants
+    source: examples/sa-complex-hide-leaves.yaml
+  archtool.smartants.examples.complex.hidetitles:
+    description: Сложная диаграмма SmartAnts. Скрыты точечно заголовки элемента и области
+    type: smartants
+    source: examples/sa-complex-hide-title.yaml
+  archtool.smartants.examples.group-links:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/04 Cвязи объединенных объектов
+    description: Диаграмма взаимодействий объединенных объектов SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-group.yaml
+  archtool.smartants.examples.gravity:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/05 Gravity points
+    description: Размещение объектов объединенных в группы
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-gravity.yaml
+
+  archtool.smartants.examples.anim:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/06 Анимация
+    description: Анимированная диаграмма SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-anim.yaml
+  archtool.smartants.examples.custom-symbol:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/07 Собственные символы
+    description: Кастомные символы SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-symbol.yaml
+  archtool.smartants.examples.simple-query:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/08 Простой запрос к данным
+    description: Простой запрос к данным в SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: >
+      (
+        /* Определяем фильтр для компонентов архитектуры */
+        $matcher := /^[a-zA-Z]*\.[a-zA-Z]*$/i;
+        /* Генерируем структуру для диаграммы */
+        {
+          /* Формируем ноды из компонентов */
+          "nodes": $merge(components.$spread().(
+            /* Получаем идентификатор компонента */
+            $id := $keys()[0];
+            /* Если идентификатор компонента удовлетворяет фильтру, создаем ноду */
+            $matcher($id) ? {
+                /* Отсекаем домен верхнего уровня для исключения отображения компонентов в иерархии */
+                $split($id, ".")[1]: {
+                    "title": *.title,
+                    /* Преобразуем entity компонентов в понятные диаграмме символы actor -> user */
+                    "symbol": *.entity = "actor" ? "user" : *.entity
+                }
+            }
+
+          ))
+        }
+      )
+  archtool.smartants.examples.complex-query:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/09 Сложный запрос к данным
+    description: Сложный запрос к данным в SmartAnts
+    autor: R.Piontik
+    type: smartants
+    source: examples/sa-query.jsonata
+  archtool.smartants.examples.physical-connection:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/10 Физическая связь двух объектов
+    description: Физическая связь двух объектов (не интеграция)
+    autor: V.Nefedov, S.Lukyantseva
+    type: smartants
+    source: examples/sa-physical-connection.yaml
+  archtool.smartants.examples.through-objects:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/11 Интеграция через несколько объектов
+    description: Интеграция через несколько объектов
+    autor: V.Nefedov, S.Lukyantseva
+    type: smartants
+    source: examples/sa-through-objects.yaml
+  archtool.smartants.examples.without-tips:
+    location: SEAF.ArchTool/Руководство/Документы/SmartAnts/12 Обоюдотупые стрелки
+    description: Обоюдотупые стрелки (без наконечников)
+    autor: V.Nefedov, S.Lukyantseva
+    type: smartants
+    source: examples/sa-without-tips.yaml
+
+  archtool.plugins.svg_inline:
+    title: Проверка вставки svg объекта
+    type: markdown
+    source: svg_inline.md
+    location: SEAF.ArchTool/Руководство/Документы/SVG
+
+  archtool.plugins.svg_file:
+    title: Пример использования SVG
+    type: svg
+    template: templates/test.svg
+    source: >
+      (
+        {
+          "component1": "Название компонента 1",
+          "line1_text1": "Текст для стрелки"
+        }
+      )
+
+  archtool.plugins.svg_file_error:
+    title: Проверка svg
+    type: svg
+    template: templates/test.svg
+    source: >
+      (
+        {
+          "component1": "Название компонента 1",
+
+          /* Намеренно допускаем ошибки             */
+          /* Описываем несуществующие параметры     */
+          /* и не указываем необходимые line1_text1 */
+          "component2": "Название компонента 2" 
+        }
+      )
+
+  archtool.swagger:
+    location: SEAF.ArchTool/Руководство/Документы/Swagger
+    description: Swagger
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: swagger.md
+
+  archtool.example.swgr:
+    type: OpenAPI
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: examples/example.yaml
+
+  archtool.charts:
+    location: SEAF.ArchTool/Руководство/Документы/Диаграммы
+    description: Диаграммы
+    author: V.Markin
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: charts.md
+
+  archtool.markaper:
+    location: SEAF.ArchTool/Руководство/Документы/Компоновщик (markaper)
+    description: Компоновщик (markaper)
+    type: markdown
+    source: markaper.md
+
+  archtool.tables:
+    location: SEAF.ArchTool/Руководство/Документы/Таблица
+    description: Таблицы
+    autor: R.Piontik
+    type: markdown
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    source: tables.md
+
+  archtool.example.datepicker:
+    title: 'Пример документа, принимающего даты'
+    params:
+      type: object
+      properties:
+        date:
+          type: string
+        fromDate:
+          type: string
+        toDate:
+          type: string
+    type: markdown
+    template: examples/date-picker-example.md
+    source: >
+      (
+        {
+          "dateOne": $params.date ? $params.date : $params.fromDate,
+          "dateTwo": $params.date ? $params.date : $params.toDate
+        }
+      )
+
+  # *****************************************  
+  #                 Шаблоны
+  # *****************************************  
+  archtool.templates:         # Пример генерации markdown документа по шаблону
+    location: SEAF.ArchTool/Руководство/Документы/Шаблоны
+    description: Шаблоны
+    type: markdown
+    autor: R.Piontik        # Кастомное поле - Автор документа
+    approvers:              # Кастомное поле - список согласующих
+      - P.Petrov
+      - S.Sidorov
+      - N.Nikolaev
+    source: >               # JSONata запрос для формирования параметров шаблона
+      (
+        {
+          "id": $self._id,              /* Идентификатор документа */
+          "autor": $self.autor,         /* Автор документа */
+          "approvers": $self.approvers, /* Согласующие */
+          "docs": [docs.$spread().{     /* Другие документы автора */
+            "id": $keys()[0],
+            "title": *.description,
+            "autor": *.autor
+          }][autor=$self.autor]
+        }
+      )
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    template: templates.md  # Шаблон документа
+  archtool.templates.pml: # Пример генерации PlantUML документа по шаблону
+    type: PlantUML
+    source: >
+      (
+        {
+          "entities": $distinct([     /* Получаем все использованные сущности при описании архитектуры */ 
+              components.*.entity
+          ])
+        }
+      )
+    subjects:
+      - archtool.front
+      - archtool.front.spa
+      - archtool.front.spa.blank
+      - archtool.front.spa.blank.doc
+    template: examples/template.puml
+  archtool.templates.asyncapi: # Пример генерации AsyncAPI документа по шаблону
+    type: AsyncAPI
+    source: >
+      (
+        $BODY := $mergedeep([components.*.asyncapi]);
+        {
+            "content": [$BODY.$spread().{
+                "field": $keys()[0],
+                "body": $string($lookup($, $keys()[0]))
+            }]
+        }
+      )
+    template: examples/asyncapi_template.json
+  archtool.templates.openapi: # Пример генерации OpenAPI документа по шаблону
+    type: OpenAPI
+    source: >
+      (
+        $BODY := $mergedeep([components.*.openapi]);
+        {
+            "content": [$BODY.$spread().{
+                "field": $keys()[0],
+                "body": $string($lookup($, $keys()[0]))
+            }]
+        }
+      )
+    template: examples/openapi_template.json

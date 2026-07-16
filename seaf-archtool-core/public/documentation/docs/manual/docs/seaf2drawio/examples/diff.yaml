@@ -1,0 +1,123 @@
+flix.office.hq_page: []
+flix.dc.01_page:
+  - id: flix.network.dc.ngfw.cntxt2
+    diff:
+      geometry_attr_key:
+        x:
+          new: "275"
+          old: "130"
+        y:
+          new: "170"
+          old: "90"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.01_flix.lan.dc.dmz.vpn
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "820"
+            - "450"
+          - - "820"
+            - "1110"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.02_flix.lan.dc.dmz.prod
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "790"
+            - "380"
+          - - "790"
+            - "810"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.02_flix.lan.dc.dmz.vpn
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "810"
+            - "380"
+          - - "810"
+            - "1110"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.03_flix.lan.dc.dmz.vpn
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "755"
+            - "1120"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.04_flix.lan.dc.dmz.prod
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "880"
+            - "820"
+          - - "880"
+            - "820"
+  - id: link_id:Sber Cloud DC:generic:flix.network.dc.fw.04_flix.lan.dc.dmz.vpn
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "755"
+            - "850"
+          - - "850"
+            - "850"
+  - id: link_id:Sber Cloud
+      DC:generic:flix.network.dc.ngfw.cntxt1_flix.lan.dc.dmz.prod
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "985"
+            - "670"
+          - - "935"
+            - "670"
+  - id: link_id:Sber Cloud
+      DC:generic:flix.network.dc.ngfw.cntxt2_flix.lan.dc.int.prod
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "1630"
+            - "257"
+          - - "1630"
+            - "257"
+  - id: link_id:Sber Cloud DC:generic:flix.kb.fpsu_1_flix.lan.dc.dmz.vpn
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "890"
+            - "420"
+          - - "830"
+            - "420"
+          - - "830"
+            - "1100"
+  - id: link_id:Sber Cloud DC:generic:flix.kb.4_flix.lan.dc.int.prod
+    diff:
+      label:
+        new: s
+        old: FW
+      geometry_attr_key:
+        pointsArray:
+          - - "1235"
+            - "960"
+          - - "1510"
+            - "960"
+          - - "1510"
+            - "230"
+          - - "1580"
+            - "230"
+  - id: link_id:Sber Cloud DC:generic:flix.kb.5_flix.lan.dc.int.security
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "1795"
+            - "510"
+  - id: link_id:Sber Cloud DC:generic:flix.cluster.vdi_flix.lan.dc.dmz.vdi
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "1040"
+            - "1204"
+          - - "1040"
+            - "510"
+  - id: link_id:Sber Cloud
+      DC:generic:flix.backup.cyberbackup_flix.lan.dc.int.it.services
+    diff:
+      geometry_attr_key:
+        pointsArray:
+          - - "2199"
+            - "740"
+          - - "1560"
+            - "740"

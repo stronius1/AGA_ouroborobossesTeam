@@ -1,0 +1,664 @@
+#    Copyright (C) 2023 owner Roman Piontik R.Piontik@mail.ru
+#    Copyright (C) 2023 Sber
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    R.Piontik <r.piontik@mail.ru>
+#
+#  Contributors:
+#    R.Piontik <r.piontik@mail.ru> - 2023
+#    Vladislav Nefedov, Sber - 2023
+#    Nikolay Temnyakov, Sber - 2023
+
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: SEAF.ArchTool API
+  description: >
+    Данный документ актуален для развертывания в режимах Client-Server и Cluster.
+    Здесь предоставляются интеграционные API, которые вы можете использовать для 
+    встраивания SEAF.ArchTool в свои производственные процессы.
+    Подробнее тут https://gitverse.ru/seafteam/seaf-archtool-core/content/master/public/documentation/docs/manual/config/deployment.md
+servers:
+  - url: https://{URL}
+    description: API server secure
+    variables:
+      URL:
+        default: localhost:3030
+        description: Сервер https для запроса
+  - url: http://{URL}
+    description: API server insecure
+    variables:
+      URL:
+        default: localhost:3030
+        description: Сервер http для запроса
+tags:
+  - name: DataLake
+    description: "API для доступа в озеро данных архитектуры"
+  - name: Entities
+    description: "API взаимодействия с сущностями"
+    externalDocs:
+      url: "https://gitverse.ru/seafteam/seaf-archtool-core/content/master/public/documentation/docs/manual/entities/entities.md"
+  - name: DebugInfo
+    description: "API для получения дебаг-информации"
+  - name: UserInfo
+    description: "API для получения информации о пользователе"
+  - name: Logout
+    description: "API для выхода пользователя из системы"
+  - name: HealthInfo
+    description: "API для получения расширенной служебной информации о состоянии портала. ⚠️ Данный метод доступен только при работе SEAF.ArchTool в кластерном режиме."
+paths:
+  /seaf-core/api/core/storage/jsonata/{query}:
+    get:
+      tags:
+      - DataLake
+      summary: Выполняет произвольный запрос JSONata к данным архитектуры 
+      parameters:
+        - in: path
+          name: query
+          description: JSONata запрос в скобках "([запрос])" или идентификатор DataSet без скобок
+          required: true
+          schema:
+            $ref: '#/components/schemas/JSONataQuery'
+          example: >
+            ({"id": $params.id, "limit": $params.limit, "type": $self.type, "template": $self.template})
+        - in: query
+          name: params
+          description: > 
+            JSON структура с параметрами передающаяся в запрос.
+            Будет доступна в переменной $params.
+          required: false
+          schema:
+            $ref: '#/components/schemas/JSONataParams'
+          example: '{"id":"sber.rdwsoft","limit":8}'
+        - in: query
+          name: subject
+          description: > 
+            JSON структура с профилем объекта, который выполняет запрос.
+            Будет доступна в переменной $self.
+          required: false
+          schema:
+            $ref: '#/components/schemas/JSONataParams'
+          example: '{"type":"markdown","template":"template.md"}'
+      responses:
+        "200":
+          description: "Результат выполнения запроса"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONataResult'
+  /seaf-core/api/core/storage/reload:
+    put:
+      tags:
+        - DataLake
+      summary: Перезагрузка манифестов в кластере
+      description: |
+        **В режиме backend**:
+          - перезагружает манифест, дополнительные параметры не нужны и не учитываются в обработке, необходимо передать только secret
+        
+        **В режиме cluster**:
+          - работает по указанным ниже параметрам. Умеет:
+            - перезагружать выбранные манифесты
+            - перезагружать все манифесты
+            - обнаруживать ссылки на новые манифесты в root манифесте
+        Перезагружает указанные манифесты или все манифесты в кластере.
+        Может использоваться для принудительного обновления кэша.
+        
+        В случае возникновения ошибки, можно поискать в логах по значению 'trace-id-123' из ответа с ошибкой
+      operationId: reloadClusterStorage
+      parameters:
+        - name: secret
+          in: query
+          description: secret для доступа к запросу. Указывается в .env переменной VUE_APP_DOCHUB_RELOAD_SECRET
+          required: true
+          schema:
+            type: string
+          example: "your-reload-secret-key"
+
+        - name: reloadRoot
+          in: query
+          description: |
+            Если true - запускает перезагрузку манифестов для подтягивания изменений из root манифеста. 
+            Перезагрузка может запуститься если ранее она уже была запрошена (другим запросом) и не успела обработаться
+            При этом параметры alias и mode игнорируются если переданы.
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+          example: "false"
+
+        - name: mode
+          in: query
+          description: |
+            Режим работы с параметром alias.
+            - `alias` (по умолчанию) - alias трактуются как имена манифестов
+            - `permission` - alias трактуются как разрешения, которые конвертируются в имена манифестов через root manifest
+          schema:
+            type: string
+            enum: [alias, permission]
+            default: alias
+          example: "alias"
+
+        - name: alias
+          in: query
+          description: |
+            Имена манифестов для перезагрузки.
+            
+            **Формат передачи:**
+            - Для одного значения: `?alias=manifest1`
+            - Для нескольких значений: `?alias=manifest1&alias=manifest2&alias=manifest3`
+            
+            Если параметр не указан - перезагружаются все доступные манифесты.
+            
+            **Важно:** При `mode=permission` этот параметр содержит имена разрешений,
+            а не имена манифестов.
+            
+            **Формат при `mode=permission` не отличается, но в alias ожидаются значения permission :**
+            - Для одного значения: `?alias=permission1`
+            - Для нескольких значений: `?alias=permission1&alias=permission2&alias=permission3`
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["manifest1"]
+
+      responses:
+        '200':
+          description: Запрос успешно обработан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                example: {
+                  "message": "success"
+                }
+
+        '400':
+          description: |
+            Неверные параметры запроса
+            В режиме backend если что-то пошло не так, тоже возвращается 400
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "trace-id-123: bad params 'alias' (nir)"
+
+        '403':
+          description: Неверный секретный ключ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "trace-id-123: Error reload secret is not valid [wrong-secret]"
+
+        '500':
+          description: Внутренняя ошибка сервера или сервер не готов
+          headers:
+            Retry-After:
+              description: Время в секундах, через которое можно повторить запрос
+              schema:
+                type: string
+                example: "60"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "trace-id-123: server not ready (aliases empty in storage)"
+  /seaf-core/api/core/storage/release-data-profile/{path}:
+    get:
+      tags:
+      - DataLake
+      summary: >
+        По указанному пути возвращает результат реализации профиля данных.
+        Подробнее здесь - https://gitverse.ru/seafteam/seaf-archtool-core/content/master/public/documentation/docs/manual/datasets.md
+      parameters:
+        - in: path
+          name: path
+          description: Путь к профилю данных
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathToDataProfile'
+          example: "/entities/interactions/presentations/blank"
+        - in: query
+          name: params
+          description: > 
+            JSON структура с параметрами передающаяся в запрос.
+            Будет доступна в переменной $params.
+          required: false
+          schema:
+            $ref: '#/components/schemas/JSONataParams'
+          example: '{"id":"archtool.user"}'
+      responses:
+        "200":
+          description: "Результат выполнения запроса"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONataResult'
+  /seaf-core/api/core/storage/problems:
+    get:
+      tags:
+      - DataLake
+      summary: Возвращает перечень обнаруженных проблем
+      responses:
+        "200":
+          description: "Массив обнаруженных проблем"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemsResult'
+  /seaf-core/api/core/storage/put-content/{hash}:
+    post:
+      tags:
+        - DataLake
+      summary: Сохраняет данные в Bitbucket
+      parameters:
+        - in: path
+          name: hash
+          description: Хеш пути к сущности
+          required: true
+          schema:
+            type: string
+          example: 8743b52063cd84097a65d1633f5c74f5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+                description: В теле запроса передается произвольное количество пар ключ-значение, где ключ - путь к сущности, значение - контент в формате JSON строки
+            example:
+              file-name.yaml: "updated content is very beautiful"
+              file-name2.yaml: "updated content is very beautiful here too"
+      responses:
+        "200":
+          description: "Данные обновлены успешно"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Created"
+        "404":
+          description: "В конфигурации указана СКВ отличная от Bitbucket"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errorMessage:
+                    type: string
+                    example: "Данное API поддерживает только Bitbucket Open API"
+        "400":
+          description: "Получено пустое тело запроса"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errorMessage:
+                    type: string
+                    example: "Отсутствует тело запроса"
+        "500":
+          description: "Внутренняя ошибка сервера. Данная ошибка возникает если не удалось извлечь тело запроса или Bitbucket вернул ошибку"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errorMessage:
+                    type: string
+                    example: "Получено пустое тело запроса"
+  /seaf-core/api/entities/{entity}/presentations/{presentation}:
+    get:
+      tags:
+      - Entities
+      summary: Вызывает специальную (upload) презентацию сущности 
+      parameters:
+        - in: path
+          name: entity
+          description: Идентификатор сущности
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityID'
+          example: interactions
+        - in: path
+          name: presentation
+          description: Идентификатор презентации
+          required: true
+          schema:
+            $ref: '#/components/schemas/PresentationID'
+          example: export
+        - in: query
+          name: id
+          required: true
+          description: >
+            Параметр передающийся в презентацию. Зависит от самой презентации.
+            Будет доступен в презентации в $params.
+          schema:
+            $ref: '#/components/schemas/EntityParam'
+          example: archtool.user
+      responses:
+        "200":
+          description: "Презентация сущности"
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ProblemsResult'
+  /seaf-core/api/core/storage/versions:
+    get:
+      tags:
+        - DebugInfo
+      summary: Получает информацию об используемых версиях ядра/плагина, метамодели, архитектуры
+      responses:
+        '200':
+          description: Успешный ответ с данными об используемых версиях
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coreVersion:
+                    type: string
+                    example: "3.18.0"
+                    nullable: true
+                  archHash:
+                    type: string
+                    example: "abc123..."
+                  metamodels:
+                    type: object
+                    required:
+                      - dochub
+                    properties:
+                      dochub:
+                        type: string
+                        example: "4.1.0"
+                      dochub-doc:
+                        type: string
+                        example: "3.1.0"
+                  rootManifest:
+                    type: string
+                    example: "seaf.yaml"
+                  enableChecker:
+                    type: boolean
+                    example: "true"
+                    description: Признак для ui, что надо делать периодическую проверку версии на бэке (можно отключить проверку в env бэка VUE_APP_VERSION_CHECKER_ENABLE=y/n)
+  /seaf-core/api/core/user-info:
+    get:
+      tags:
+        - UserInfo
+      summary: Получает информацию о текущем пользователе
+      description: Данные о пользователе получаются из IdP токена
+      security:
+        - idpAuth: [ ]
+      responses:
+        "200":
+          description: Успешный ответ с данными пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  surname:
+                    type: string
+                    example: Иванов
+                  name:
+                    type: string
+                    example: Иван
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        role:
+                          type: string
+                          example: ADMIN
+                        label:
+                          type: string
+                          example: Администратор
+                  initials:
+                    type: string
+                    example: ИИ
+                  userId:
+                    type: string
+                    example: 11879000
+  /seaf-core/api/core/user/rights:
+    get:
+      tags:
+        - UserInfo
+      summary: Получает информацию о правах текущего пользователя
+      description: Данные о пользователе получаются из jwt и данных root манифеста
+      responses:
+        "200":
+          description: Успешный ответ с правами
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Массив с правами пользователя
+                items:
+                  type: object
+                  properties:
+                    permission:
+                      type: string
+                      example: berezka:permission
+                    alias:
+                      type: string
+                      example: berezka
+                    ra:
+                      type: string
+                      example: repo_read
+                    title:
+                      type: string
+                      example: ООО "Березка"
+  /health/info:
+    get:
+      tags:
+        - HealthInfo
+      summary: Возвращает детализированные служебные сведения о состоянии портала
+      responses:
+        "200":
+          description: Успешный ответ с данными
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  self:
+                    type: object
+                    properties:
+                      processId:
+                        type: string
+                        example: "39d44ba8@DESKTOP-50PMHNV"
+                      status:
+                        type: string
+                        example: "ready"
+                      uptime:
+                        type: string
+                        example: "0h 0m 48s"
+                      version:
+                        type: string
+                        example: "3.23.0"
+                  master:
+                    type: object
+                    properties:
+                      processId:
+                        type: string
+                        example: "56319e7c@DESKTOP-50PMHNV"
+                      status:
+                        type: string
+                        example: "ready"
+                      uptime:
+                        type: string
+                        example: "0h 11m 7s"
+                      version:
+                        type: string
+                        example: "3.23.0"
+                  manifests:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        successLoadTimestamp:
+                          type: number
+                          example: 1764251021849
+                        domain:
+                          type: string
+                          example: "bitbucket:project:repo_1"
+                        manifestHash:
+                          type: string
+                          example: "26a8d9a12bb794fc2db3bfc7a4394d03"
+                        datasetHash:
+                          type: string
+                          example: "b9e1dabf038c933137778d90023986a2"
+                        successLoadTimestampISO:
+                          type: string
+                          format: date-time
+                          example: "2025-11-27T13:43:41.849Z"
+        "500":
+          description: "Ошибка на стороне сервера"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ошибка при чтении манифеста"
+        "503":
+          description: "Сервис временно недоступен"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Манифест не инициализирован"
+components:
+  schemas:
+    JSONataQuery:
+      type: string
+      pattern: '^([a-zA-Z\_]*(\.[a-zA-Z\_][a-zA-Z\_]*)*)|(\(.*\))$'
+    JSONataParams:
+      type: string
+    JSONataResult:
+      type: object
+    PathToDataProfile:
+      type: string
+      pattern: '^\/[a-zA-Z][a-zA-Z\_0-9]*(\/[a-zA-Z][a-zA-Z\_0-9]*)*$'
+    EntityID: 
+      type: string
+      pattern: '^[a-zA-Z][a-zA-Z\_0-9]*$'
+    PresentationID: 
+      type: string
+      pattern: '^[a-zA-Z][a-zA-Z\_0-9]*$'
+    EntityParam:
+      type: string
+    ProblemsResult:
+      type: object
+      properties:
+        process:
+          type: object
+          properties:
+            startEvent:
+              type: object
+              title: Просмотр архитектуры
+              properties:
+                outgoing:
+                  type: string
+              required:
+                - outgoing
+            task:
+              type: array
+              title: Вход на портал
+              items:
+                - type: object
+                  properties:
+                    incoming:
+                      type: string
+                    outgoing:
+                      type: string
+                  required:
+                    - incoming
+                    - outgoing
+                - type: object
+                  properties:
+                    incoming:
+                      type: string
+                    outgoing:
+                      type: string
+                  required:
+                    - incoming
+                    - outgoing
+            sequenceFlow:
+              type: array
+              items:
+                - type: string
+            exclusiveGateway:
+              type: object
+              title: Информация о существующей архитектуре
+              properties:
+                incoming:
+                  type: string
+              required:
+                - incoming
+          required:
+            - startEvent
+            - task
+            - sequenceFlow
+            - exclusiveGateway
+      required:
+        - process
+    LogoutUrl:
+      type: string
+      description: Сформированный logout URL. В случае ошибки конфигурации провайдера не возвращается
+      example: http://domainexample.ru/openid-connect-auth/logout?revoke=true&logout_idp=false
+      nullable: true
+    LogoutUrlError:
+      type: string
+      description: Сообщение об ошибке формирования logout URL
+      example: '2025-06-05T05:58:26.604Z: [ERROR] Unknown OIDC issuer "https://iss.example". No logout configuration found'
+      nullable: true
+    SecuritySchemes:
+      idpAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT

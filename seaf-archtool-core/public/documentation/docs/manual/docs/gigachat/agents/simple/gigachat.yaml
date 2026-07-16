@@ -1,0 +1,14 @@
+docs:
+  archtool.plugins.gigachat.agents:
+    type: ai-chat
+    location: SEAF.ArchTool/Руководство/Документы/GigaChat/3. Пример
+    scenarios:
+      consultant:
+        title: Консультант
+        type: simple
+        system_prompt: Ты архитектор ИТ инфраструктуры, консультируй пользователя по решениям.
+        model: GigaChat-2
+        query: >
+          (
+            $.docs."archtool.plugins.gigachat.agents"."scenarios"."consultant"
+          )

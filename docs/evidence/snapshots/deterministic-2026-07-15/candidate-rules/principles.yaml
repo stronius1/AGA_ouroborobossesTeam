@@ -1,0 +1,182 @@
+schema: aga.rules/v1
+domain: principles
+rules:
+- id: PRIN-001
+  title: У каждой АС есть владелец
+  statement: 'Паспорт автоматизированной системы обязан содержать заполненное поле owner (владеющее подразделение).
+    Отсутствие владельца — блок развития.
+
+    '
+  rationale: Безхозные системы — главный источник архитектурного долга.
+  severity: major
+  scope:
+  - system_passport
+  check_type: deterministic
+  detect:
+    field_required: owner
+  source_ref: АРХ-ПРИНЦИПЫ §2.1
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-002
+  title: Интеграция только через утверждённые паттерны
+  statement: 'Новые интеграционные потоки используют только утверждённые паттерны: api_gateway, esb, mq.
+    Файловый обмен (pattern: file) не допускается для новых потоков.
+
+    '
+  rationale: 'Неуправляемый файловый обмен ломает наблюдаемость, версионирование контрактов и учёт потоков
+    данных.
+
+    '
+  severity: major
+  scope:
+  - integration_flow
+  check_type: deterministic
+  detect:
+    field: pattern
+    banned:
+    - file
+  source_ref: АРХ-ПРИНЦИПЫ §4.2
+  exceptions:
+  - when:
+      all:
+      - field: zone
+        equals: dmz
+      - field: pattern
+        equals: file
+      - field: transfer_mode
+        equals: batch
+      - field: gateway_controlled
+        equals: true
+      - field: approvals
+        contains: security
+    rationale: 'Файловый обмен допустим только как контролируемая batch-выгрузка через файловый шлюз DMZ
+      по регламенту ИБ-2024-17.
+
+      '
+    provenance: precedent:0001
+    id: EXC-PRIN-002-001
+    added_in: 2.1.0
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-003
+  title: Запрет прямых интеграций в чужую БД
+  statement: 'Интеграция pattern: direct_db (чтение/запись напрямую в БД другой АС) запрещена без исключений:
+    она минует контракт и связывает жизненные циклы систем.
+
+    '
+  rationale: Скрытая связность через БД — самый дорогой в размотке антипаттерн.
+  severity: blocker
+  scope:
+  - integration_flow
+  check_type: deterministic
+  detect:
+    field: pattern
+    banned:
+    - direct_db
+  source_ref: АРХ-ПРИНЦИПЫ §4.3
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-004
+  title: Reuse before build
+  statement: 'Перед созданием новой функциональной подсистемы или АС проверь по реестру SEAF и описаниям,
+    нет ли существующей системы с той же функцией. Если PR создаёт дубль функциональности — фиксируй finding
+    с перечислением кандидатов на переиспользование.
+
+    '
+  rationale: Дубли систем — прямые расходы на сопровождение и рассинхрон данных.
+  severity: major
+  scope:
+  - system_passport
+  - adr
+  check_type: llm
+  source_ref: АРХ-ПРИНЦИПЫ §3.1
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-005
+  title: Единый мастер данных домена
+  statement: 'Каждый домен данных мастерится ровно в одной АС. Если PR вводит ведение (создание/изменение)
+    мастер-данных домена во второй системе — это нарушение. Репликация для чтения нарушением не является.
+
+    '
+  rationale: Два мастера — гарантированный конфликт версий истины.
+  severity: major
+  scope:
+  - system_passport
+  - integration_flow
+  - adr
+  check_type: llm
+  source_ref: АРХ-ПРИНЦИПЫ §3.4
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-006
+  title: Критичные АС не зависят от выводимых систем
+  statement: 'АС с criticality mission_critical не должна приобретать новые зависимости от систем с target_status:
+    eliminate. Для структурных полей интеграций это ловит SEAF-004; данное правило применяй к зависимостям,
+    описанным прозой (в паспортах и ADR).
+
+    '
+  rationale: Зависимость критичного контура от умирающей системы — риск непрерывности.
+  severity: blocker
+  scope:
+  - system_passport
+  - adr
+  check_type: llm
+  source_ref: АРХ-ПРИНЦИПЫ §5.2
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-007
+  title: Значимые решения оформляются ADR
+  statement: 'Если PR вносит архитектурное изменение с осознанным трейд-оффом (выбор технологии, паттерна,
+    отказ от альтернативы), в PR должен присутствовать ADR или ссылка на существующий. Косметика и синхронизация
+    описаний ADR не требуют.
+
+    '
+  rationale: Незафиксированные решения невозможно пересматривать и наследовать.
+  severity: major
+  scope:
+  - system_passport
+  - integration_flow
+  - diagram
+  check_type: llm
+  source_ref: АРХ-ПРИНЦИПЫ §6.1
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active
+- id: PRIN-008
+  title: ПДн не покидают контур без согласования
+  statement: 'Интеграционный поток, передающий персональные данные (data_categories содержит pdn) в зону
+    external, обязан иметь отметку согласования DPO (approvals содержит dpo). Иначе — blocker.
+
+    '
+  rationale: Регуляторный риск (152-ФЗ) и репутационный ущерб.
+  severity: blocker
+  scope:
+  - integration_flow
+  check_type: deterministic
+  detect:
+    pdn_external_requires_approval: dpo
+  source_ref: ПОЛИТИКА-ПДН §2.3
+  exceptions: []
+  provenance:
+    origin: seed
+    added_in: 1.0.0
+  status: active

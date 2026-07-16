@@ -1,0 +1,4 @@
+imports:
+  - table.yaml
+  - data/root.yaml
+  - menu.yaml

@@ -1,0 +1,41 @@
+seaf.change.adr:
+  demo.reuse_profile_master:
+    title: Reuse the existing profile master
+    moment: '2026-07-15'
+    status: accepted
+    issue: The portal needs profile data and a proposal suggested building a second profile store.
+    decision: Reuse the existing Customer Profile Master through the governed Integration Gateway.
+    context:
+      - area: technology
+        vector: unknown
+        content: The existing profile API must be checked against latency and availability needs.
+      - area: business
+        vector: positive
+        content: A single profile master avoids divergent customer state in this synthetic scenario.
+    consequences:
+      - area: technology
+        vector: positive
+        content: No duplicate master is introduced; the portal depends on the governed gateway.
+      - area: time
+        vector: negative
+        content: The team must complete compatibility and resilience testing before release.
+    deciders:
+      - Synthetic Architecture Board
+
+  demo.legacy_scoring_dependency:
+    title: Proposed dependency on retiring scoring
+    moment: '2026-07-15'
+    status: proposed
+    issue: A new portal feature requests synchronous scoring from a system targeted for elimination.
+    decision: No final migration decision has been approved yet.
+    context:
+      - area: technology
+        vector: negative
+        content: The proposed dependency may extend the lifetime of Legacy Scoring.
+    consequences:
+      - area: time
+        vector: unknown
+        content: Migration timing and an alternative scoring capability still need analysis.
+    deciders:
+      - Synthetic Architecture Board
+

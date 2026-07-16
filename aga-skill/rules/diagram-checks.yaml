@@ -1,0 +1,101 @@
+# Формальные проверки диаграмм (канал A2A: diagram-checker, light-модель/код).
+# Поддерживаемые нотации: PlantUML (.puml), Mermaid (.mmd).
+schema: aga.rules/v1
+domain: diagram
+
+rules:
+  - id: DIAG-001
+    title: "Диаграмма синтаксически разбирается"
+    statement: >
+      Файл диаграммы должен разбираться парсером (PlantUML: @startuml/@enduml,
+      Mermaid: graph/flowchart). Неразбираемую диаграмму нельзя ревьюить —
+      это блокирует остальные проверки.
+    rationale: "Битая диаграмма = отсутствующая диаграмма."
+    severity: major
+    scope: [diagram]
+    check_type: deterministic
+    detect: {parseable: true}
+    source_ref: "architecture/vendor/seaf-core/entities/app/contexts/contexts.yaml#/entities/contexts"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: DIAG-002
+    title: "Узлы именованы кодом АС"
+    statement: >
+      Каждый узел-система на диаграмме содержит в подписи код АС в формате
+      AS-NNNN из реестра SEAF. Узлы внешних контрагентов помечаются
+      префиксом EXT-.
+    rationale: "Без кода узел нельзя однозначно сматчить с реестром."
+    severity: minor
+    scope: [diagram]
+    check_type: deterministic
+    detect: {node_label_pattern: "(AS|EXT)-\\d{4}"}
+    source_ref: "aga-skill/rules/diagram-checks.yaml#/rules/1"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: DIAG-003
+    title: "Указан уровень C4"
+    statement: >
+      Диаграмма декларирует свой уровень C4 комментарием в первой секции:
+      PlantUML — «' c4: context|container|component», Mermaid —
+      «%% c4: ...».
+    rationale: "Уровень задаёт допустимую детализацию и адресата диаграммы."
+    severity: minor
+    scope: [diagram]
+    check_type: deterministic
+    detect: {c4_level_declared: true}
+    source_ref: "aga-skill/rules/diagram-checks.yaml#/rules/2"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: DIAG-004
+    title: "Связи подписаны"
+    statement: >
+      Каждая связь на диаграмме имеет подпись: протокол/контракт или код
+      интеграционного потока (IF-NNNN). Неподписанная стрелка не несёт
+      архитектурной информации.
+    rationale: "Стрелка без подписи — источник домыслов на ревью."
+    severity: major
+    scope: [diagram]
+    check_type: deterministic
+    detect: {edges_labeled: true}
+    source_ref: "aga-skill/rules/diagram-checks.yaml#/rules/3"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: DIAG-005
+    title: "Связи диаграммы соответствуют заявленным потокам"
+    statement: >
+      Если в PR присутствуют файлы интеграционных потоков, каждая связь
+      между системами на диаграмме (после схлопывания инфраструктурных
+      узлов — шина, шлюз) должна соответствовать какому-то заявленному
+      потоку. Связь без потока = недокументированная интеграция.
+    rationale: "Диаграмма и описания — один источник истины в двух проекциях."
+    severity: major
+    scope: [diagram]
+    check_type: deterministic
+    detect: {edges_covered_by_flows: true}
+    source_ref: "aga-skill/rules/diagram-checks.yaml#/rules/4"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: DIAG-006
+    title: "Нет изолированных узлов"
+    statement: >
+      На диаграмме нет узлов без единой связи. Изолированный узел либо
+      лишний, либо у него забыты связи.
+    rationale: "Осиротевшие узлы накапливаются и превращают диаграмму в свалку."
+    severity: minor
+    scope: [diagram]
+    check_type: deterministic
+    detect: {no_orphan_nodes: true}
+    source_ref: "aga-skill/rules/diagram-checks.yaml#/rules/5"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active

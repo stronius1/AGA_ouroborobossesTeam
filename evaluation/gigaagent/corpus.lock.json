@@ -1,0 +1,13 @@
+{
+  "schema": "aga.gigaagent-corpus-lock/v1",
+  "frozen_at": "2026-07-15T00:00:00Z",
+  "case_count": 16,
+  "split_counts": {
+    "development": 8,
+    "holdout": 8
+  },
+  "sha256": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "ground_truth_sha256": "80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01",
+  "human_ground_truth_locked": true,
+  "holdout_tuning_forbidden": true
+}

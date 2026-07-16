@@ -1,0 +1,28 @@
+{
+  "name": "@seafteam/seaf-archtool-core-plugin-suite",
+  "version": "<placeholder>",
+  "description": "Compiled artifacts for VSCode and JetBrains plugins",
+  "author": "S.Nazarov",
+  "contributors": [
+    {
+      "name": "Sam Nazarov",
+      "company": "Sber"
+    }
+  ],
+  "publishConfig": {
+    "registry": "<placeholder>"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitverse.ru/seafteam/seaf-archtool-core.git"
+  },
+  "homepage": "https://gitverse.ru/seafteam/seaf-archtool-core",
+  "files": [
+    "plugin.html",
+    "/documentation",
+    "/metamodel",
+    "LICENSE",
+    "NOTICE"
+  ]
+}

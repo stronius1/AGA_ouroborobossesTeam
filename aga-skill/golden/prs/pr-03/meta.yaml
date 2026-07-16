@@ -1,0 +1,4 @@
+id: pr-03
+title: "ADR о выборе брокера сообщений (полный)"
+changed_files: [adrs/ADR-0018.md]
+context_files: []

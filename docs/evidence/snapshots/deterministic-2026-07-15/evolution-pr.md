@@ -1,0 +1,379 @@
+# 🧬 Эволюция skill: v2.0.0 → v2.1.0
+
+**Предлагаемая ветка (не создана dry-run publisher):** `skill/evolution-2026-07-15-PRIN-002` · **Дата:** 2026-07-15 · **Мутация:** `add_exception` → PRIN-002
+**Provenance:** precedent:0001
+
+## Мотивация (обоснование архитектора)
+
+> Файловый обмен в DMZ-сегменте разрешён регламентом ИБ-2024-17 для batch-выгрузок: канал контролируется файловым шлюзом, наблюдаемость обеспечена. Запрет PRIN-002 относится к неуправляемому обмену внутри контура, а не к этому классу потоков.
+
+## Diff правил
+
+```diff
+--- a/rules/principles.yaml
++++ b/rules/principles.yaml
+@@ -1,146 +1,182 @@
+-# Корпоративные архитектурные принципы (канал A2A: principles-reviewer).
+-#
+-# Схема правила:
+-#   id            — стабильный идентификатор (не переиспользуется после deprecate)
+-#   title         — короткое имя
+-#   statement     — формулировка проверки (читается LLM как инструкция)
+-#   rationale     — зачем правило существует (для комментария и для эволвера)
+-#   severity      — blocker | major | minor (default; может быть скорректирована мутацией)
+-#   scope         — kind артефактов, к которым применимо
+-#   check_type    — deterministic (код tools/aga.py) | llm | hybrid
+-#   detect        — машинная подсказка для deterministic-части (опционально)
+-#   source_ref    — ссылка на нормативный документ (синтетика для демо)
+-#   exceptions    — список исключений (СУБСТРАТ ЭВОЛЮЦИИ; правки — только через evolver PR)
+-#   provenance    — origin: seed | precedent:<id> | incident:<id>; added_in: semver
+-#   status        — active | deprecated | candidate
+ schema: aga.rules/v1
+ domain: principles
++rules:
++- id: PRIN-001
++  title: У каждой АС есть владелец
++  statement: 'Паспорт автоматизированной системы обязан содержать заполненное поле owner (владеющее подразделение).
++    Отсутствие владельца — блок развития.
+ 
+-rules:
+-  - id: PRIN-001
+-    title: "У каждой АС есть владелец"
+-    statement: >
+-      Паспорт автоматизированной системы обязан содержать заполненное поле
+-      owner (владеющее подразделение). Отсутствие владельца — блок развития.
+-    rationale: "Безхозные системы — главный источник архитектурного долга."
+-    severity: major
+-    scope: [system_passport]
+-    check_type: deterministic
+-    detect: {field_required: owner}
+-    source_ref: "АРХ-ПРИНЦИПЫ §2.1"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: Безхозные системы — главный источник архитектурного долга.
++  severity: major
++  scope:
++  - system_passport
++  check_type: deterministic
++  detect:
++    field_required: owner
++  source_ref: АРХ-ПРИНЦИПЫ §2.1
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-002
++  title: Интеграция только через утверждённые паттерны
++  statement: 'Новые интеграционные потоки используют только утверждённые паттерны: api_gateway, esb, mq.
++    Файловый обмен (pattern: file) не допускается для новых потоков.
+ 
+-  - id: PRIN-002
+-    title: "Интеграция только через утверждённые паттерны"
+-    statement: >
+-      Новые интеграционные потоки используют только утверждённые паттерны:
+-      api_gateway, esb, mq. Файловый обмен (pattern: file) не допускается
+-      для новых потоков.
+-    rationale: >
+-      Неуправляемый файловый обмен ломает наблюдаемость, версионирование
+-      контрактов и учёт потоков данных.
+-    severity: major
+-    scope: [integration_flow]
+-    check_type: deterministic
+-    detect: {field: pattern, banned: [file]}
+-    source_ref: "АРХ-ПРИНЦИПЫ §4.2"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: 'Неуправляемый файловый обмен ломает наблюдаемость, версионирование контрактов и учёт потоков
++    данных.
+ 
+-  - id: PRIN-003
+-    title: "Запрет прямых интеграций в чужую БД"
+-    statement: >
+-      Интеграция pattern: direct_db (чтение/запись напрямую в БД другой АС)
+-      запрещена без исключений: она минует контракт и связывает жизненные
+-      циклы систем.
+-    rationale: "Скрытая связность через БД — самый дорогой в размотке антипаттерн."
+-    severity: blocker
+-    scope: [integration_flow]
+-    check_type: deterministic
+-    detect: {field: pattern, banned: [direct_db]}
+-    source_ref: "АРХ-ПРИНЦИПЫ §4.3"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  severity: major
++  scope:
++  - integration_flow
++  check_type: deterministic
++  detect:
++    field: pattern
++    banned:
++    - file
++  source_ref: АРХ-ПРИНЦИПЫ §4.2
++  exceptions:
++  - when:
++      all:
++      - field: zone
++        equals: dmz
++      - field: pattern
++        equals: file
++      - field: transfer_mode
++        equals: batch
++      - field: gateway_controlled
++        equals: true
++      - field: approvals
++        contains: security
++    rationale: 'Файловый обмен допустим только как контролируемая batch-выгрузка через файловый шлюз DMZ
++      по регламенту ИБ-2024-17.
+ 
+-  - id: PRIN-004
+-    title: "Reuse before build"
+-    statement: >
+-      Перед созданием новой функциональной подсистемы или АС проверь по
+-      реестру SEAF и описаниям, нет ли существующей системы с той же
+-      функцией. Если PR создаёт дубль функциональности — фиксируй finding
+-      с перечислением кандидатов на переиспользование.
+-    rationale: "Дубли систем — прямые расходы на сопровождение и рассинхрон данных."
+-    severity: major
+-    scope: [system_passport, adr]
+-    check_type: llm
+-    source_ref: "АРХ-ПРИНЦИПЫ §3.1"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++      '
++    provenance: precedent:0001
++    id: EXC-PRIN-002-001
++    added_in: 2.1.0
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-003
++  title: Запрет прямых интеграций в чужую БД
++  statement: 'Интеграция pattern: direct_db (чтение/запись напрямую в БД другой АС) запрещена без исключений:
++    она минует контракт и связывает жизненные циклы систем.
+ 
+-  - id: PRIN-005
+-    title: "Единый мастер данных домена"
+-    statement: >
+-      Каждый домен данных мастерится ровно в одной АС. Если PR вводит
+-      ведение (создание/изменение) мастер-данных домена во второй системе —
+-      это нарушение. Репликация для чтения нарушением не является.
+-    rationale: "Два мастера — гарантированный конфликт версий истины."
+-    severity: major
+-    scope: [system_passport, integration_flow, adr]
+-    check_type: llm
+-    source_ref: "АРХ-ПРИНЦИПЫ §3.4"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: Скрытая связность через БД — самый дорогой в размотке антипаттерн.
++  severity: blocker
++  scope:
++  - integration_flow
++  check_type: deterministic
++  detect:
++    field: pattern
++    banned:
++    - direct_db
++  source_ref: АРХ-ПРИНЦИПЫ §4.3
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-004
++  title: Reuse before build
++  statement: 'Перед созданием новой функциональной подсистемы или АС проверь по реестру SEAF и описаниям,
++    нет ли существующей системы с той же функцией. Если PR создаёт дубль функциональности — фиксируй finding
++    с перечислением кандидатов на переиспользование.
+ 
+-  - id: PRIN-006
+-    title: "Критичные АС не зависят от выводимых систем"
+-    statement: >
+-      АС с criticality mission_critical не должна приобретать новые
+-      зависимости от систем с target_status: eliminate. Для структурных
+-      полей интеграций это ловит SEAF-004; данное правило применяй к
+-      зависимостям, описанным прозой (в паспортах и ADR).
+-    rationale: "Зависимость критичного контура от умирающей системы — риск непрерывности."
+-    severity: blocker
+-    scope: [system_passport, adr]
+-    check_type: llm
+-    source_ref: "АРХ-ПРИНЦИПЫ §5.2"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: Дубли систем — прямые расходы на сопровождение и рассинхрон данных.
++  severity: major
++  scope:
++  - system_passport
++  - adr
++  check_type: llm
++  source_ref: АРХ-ПРИНЦИПЫ §3.1
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-005
++  title: Единый мастер данных домена
++  statement: 'Каждый домен данных мастерится ровно в одной АС. Если PR вводит ведение (создание/изменение)
++    мастер-данных домена во второй системе — это нарушение. Репликация для чтения нарушением не является.
+ 
+-  - id: PRIN-007
+-    title: "Значимые решения оформляются ADR"
+-    statement: >
+-      Если PR вносит архитектурное изменение с осознанным трейд-оффом
+-      (выбор технологии, паттерна, отказ от альтернативы), в PR должен
+-      присутствовать ADR или ссылка на существующий. Косметика и синхронизация
+-      описаний ADR не требуют.
+-    rationale: "Незафиксированные решения невозможно пересматривать и наследовать."
+-    severity: major
+-    scope: [system_passport, integration_flow, diagram]
+-    check_type: llm
+-    source_ref: "АРХ-ПРИНЦИПЫ §6.1"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: Два мастера — гарантированный конфликт версий истины.
++  severity: major
++  scope:
++  - system_passport
++  - integration_flow
++  - adr
++  check_type: llm
++  source_ref: АРХ-ПРИНЦИПЫ §3.4
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-006
++  title: Критичные АС не зависят от выводимых систем
++  statement: 'АС с criticality mission_critical не должна приобретать новые зависимости от систем с target_status:
++    eliminate. Для структурных полей интеграций это ловит SEAF-004; данное правило применяй к зависимостям,
++    описанным прозой (в паспортах и ADR).
+ 
+-  - id: PRIN-008
+-    title: "ПДн не покидают контур без согласования"
+-    statement: >
+-      Интеграционный поток, передающий персональные данные
+-      (data_categories содержит pdn) в зону external, обязан иметь отметку
+-      согласования DPO (approvals содержит dpo). Иначе — blocker.
+-    rationale: "Регуляторный риск (152-ФЗ) и репутационный ущерб."
+-    severity: blocker
+-    scope: [integration_flow]
+-    check_type: deterministic
+-    detect: {pdn_external_requires_approval: dpo}
+-    source_ref: "ПОЛИТИКА-ПДН §2.3"
+-    exceptions: []
+-    provenance: {origin: seed, added_in: 1.0.0}
+-    status: active
++    '
++  rationale: Зависимость критичного контура от умирающей системы — риск непрерывности.
++  severity: blocker
++  scope:
++  - system_passport
++  - adr
++  check_type: llm
++  source_ref: АРХ-ПРИНЦИПЫ §5.2
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-007
++  title: Значимые решения оформляются ADR
++  statement: 'Если PR вносит архитектурное изменение с осознанным трейд-оффом (выбор технологии, паттерна,
++    отказ от альтернативы), в PR должен присутствовать ADR или ссылка на существующий. Косметика и синхронизация
++    описаний ADR не требуют.
++
++    '
++  rationale: Незафиксированные решения невозможно пересматривать и наследовать.
++  severity: major
++  scope:
++  - system_passport
++  - integration_flow
++  - diagram
++  check_type: llm
++  source_ref: АРХ-ПРИНЦИПЫ §6.1
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
++- id: PRIN-008
++  title: ПДн не покидают контур без согласования
++  statement: 'Интеграционный поток, передающий персональные данные (data_categories содержит pdn) в зону
++    external, обязан иметь отметку согласования DPO (approvals содержит dpo). Иначе — blocker.
++
++    '
++  rationale: Регуляторный риск (152-ФЗ) и репутационный ущерб.
++  severity: blocker
++  scope:
++  - integration_flow
++  check_type: deterministic
++  detect:
++    pdn_external_requires_approval: dpo
++  source_ref: ПОЛИТИКА-ПДН §2.3
++  exceptions: []
++  provenance:
++    origin: seed
++    added_in: 1.0.0
++  status: active
+
+```
+
+## Метрики на golden-корпусе
+
+| Метрика | База | Кандидат | Δ |
+|---|---:|---:|---:|
+| cases evaluated | 26 | 26 | → +0 |
+| precision (findings) | 0.9524 | 1.0 | ↑ +0.0476 |
+| recall (findings) | 1.0 | 1.0 | → +0 |
+| blocker recall | 1.0 | 1.0 | → +0 |
+| outcome accuracy | 0.9615 | 1.0 | ↑ +0.0385 |
+| weighted cost | 2.0 | 0.0 | ↓ -2 |
+| false findings | 1 | 0 | ↓ -1 |
+| missed findings | 0 | 0 | → +0 |
+
+Гейт:
+- [x] нет schema/invariant violations
+- [x] base и candidate используют один corpus snapshot
+- [x] base и candidate используют один materialized fixture snapshot
+- [x] candidate не меняет веса ошибок
+- [x] blocker recall не падает
+- [x] expected blocker не найден другой severity
+- [x] общий recall не падает
+- [x] общая precision не падает
+- [x] точность вердиктов не падает
+- [x] weighted cost не растёт
+- [x] false blocker count не растёт
+- [x] FP blocker не растут
+- [x] FN blocker не растут
+- [x] FP major не растут
+- [x] FN major не растут
+- [x] FP minor не растут
+- [x] FN minor не растут
+- [x] есть содержательное строгое улучшение
+- [x] каждое изменяемое правило имеет positive и scope-relevant negative coverage
+
+## Чек-лист перед merge (человек)
+
+- [ ] Обоснование прецедента корректно и общо (не разовый случай)
+- [ ] Исключение не создаёт лазейку для обхода правила
+- [ ] Дельта метрик соответствует ожиданиям
+- [ ] Откат при необходимости: `git revert` этого merge-коммита
+
+*Сгенерировано aga-evolver как локальный candidate artifact. Ветка/PR требуют
+внешнего connector и человека; merge выполняет только человек (SoD).*

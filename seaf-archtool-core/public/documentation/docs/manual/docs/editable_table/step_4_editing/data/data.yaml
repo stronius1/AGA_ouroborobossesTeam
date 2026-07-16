@@ -1,0 +1,10 @@
+archtool.plugins.editable-table.editing.data:
+  row_1:
+    name: Иванов Иван Иванович
+    color: 
+  row_2:
+    name: Петров Петр Петрович
+    color: blue
+  row_3:
+    name: Семенов Семен Семенович
+    color: 

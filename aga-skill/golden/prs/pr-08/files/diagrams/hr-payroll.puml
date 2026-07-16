@@ -1,0 +1,5 @@
+@startuml
+rectangle "Зарплатный сервис" as ZP
+rectangle "AS-0013 Хранилище документов (ECM)" as AS0013
+ZP --> AS0013 : выгрузка расчётных листов (SFTP)
+@enduml

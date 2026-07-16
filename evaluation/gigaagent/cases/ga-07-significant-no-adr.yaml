@@ -1,0 +1,12 @@
+schema: aga.gigaagent-case/v1
+id: ga-07-significant-no-adr
+split: development
+labels: [positive, PRIN-007, major]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.portal: {title: Portal, entity: component, description: Synthetic customer portal, owner: Synthetic Channels Team, criticality: high, target_status: strategic}, demo.profile: {title: Profile Master, entity: component, description: Synthetic customer profile master, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}}}, model/integrations.yaml: {seaf.app.integrations: {}}}}
+  head: {documents: {model/integrations.yaml: {seaf.app.integrations: {demo.new_async_backbone: {title: New event backbone, description: Replaces synchronous APIs with a new broker and delivery model, from: demo.portal, to: demo.profile}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-007, severity: major, artifact: model/integrations.yaml, location: /seaf.app.integrations/demo.new_async_backbone, evidence_contains: no ADR}

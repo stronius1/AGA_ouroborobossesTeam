@@ -1,0 +1,8 @@
+[
+  {
+    "uid": "source-component-dochub.front.spa.blank.doc.markdown",
+    "location": "/architect/components/dochub.front.spa.blank.doc.markdown",
+    "correction": "Заполните необходимые поля",
+    "description": "must have required property 'source'"
+  }
+]

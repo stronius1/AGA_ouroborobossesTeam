@@ -1,0 +1,4 @@
+id: pr-04
+title: "Новый поток CRM → Антифрод через ESB"
+changed_files: [flows/IF-0044.md]
+context_files: [adrs/ADR-0016.md]

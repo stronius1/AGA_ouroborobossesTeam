@@ -1,0 +1,99 @@
+#    Copyright (C) 2022 owner Roman Piontik R.Piontik@mail.ru
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    R.Piontik <r.piontik@mail.ru>
+#
+#  Contributors:
+#    R.Piontik <r.piontik@mail.ru> - 2022
+#    R.Piontik <r.piontik@mail.ru> - 2023
+#    R.Piontik <r.piontik@mail.ru> - 2024
+
+contexts:   # Контексты представления архитектурных компонентов
+    archtool:                                 # Идентификатор контекста
+        title: Общая архитектура SEAF.ArchTool     # Название контекста
+        location: SEAF.ArchTool                    # Размещение документа в дереве навигации
+        components:                         # Компоненты входящие в контекст
+            - archtool.front
+            - archtool.user
+            - archtool.plantuml
+            - archtool.gitlab
+            - archtool.web
+    archtool.uml_options:
+        title: Демонстрация UML опций контекста
+        uml:
+            $before: >                      # Добавляем легенду в контекст
+                legend top left
+                    Легенда, которая будет выводиться
+                    вне зависимости от результата работы контекста
+                end legend
+            $after: >                       # Добавляем произвольный компонент в диаграмму
+                component "Произвольный компонент" as test 
+        components:                         # Компоненты входящие в контекст
+            - archtool.front
+            - archtool.user
+            - archtool.plantuml
+            - archtool.gitlab
+            - archtool.web
+    archtool.front:
+        title: Контейнерная архитектура SEAF.ArchTool
+        location: SEAF.ArchTool/Контейнерная архитектура
+        components:
+            - archtool.browser.*
+            - archtool.front.*
+            - archtool.gitlab.*
+            - archtool.plantuml.*
+            - archtool.web
+    archtool.front.spa:
+        title: Компонентная архитектура SEAF.ArchTool
+        location: SEAF.ArchTool/Компонентная архитектура
+        components:
+            - archtool.front.spa.*
+    archtool.custom:
+        title: Компоненты эксперта R.Piontik
+        location: SEAF.ArchTool/Контекст по источнику
+        extra-links: false  # Отключаем вывод связанных компонентов, явно не определенных в контексте
+                            # Определяем источник данных для контекста.
+        source: >           # Отбираем все компоненты у которых кастомное поле "expert" = "R.Piontik"
+            (               
+                $ ~> | $ | {
+                    "components": $merge(components.$spread().(
+                        $.*.expert = 'R.Piontik' ? $ : {}
+                    )) 
+                } |
+            )
+        components:
+            - archtool.*      # Выводим все компоненты домена archtool
+    archtool.front.spa.blank:
+        title: Карточка объекта
+        components:
+            - archtool.front.spa.blank.*
+    archtool.front.spa.blank.doc:
+        title: Документ
+        components:
+            - archtool.front.spa.blank.doc.*
+    archtool.sequence:
+        title: Диаграмма взаимодействия SEAF.ArchTool
+        icon: settings_ethernet
+        location: SEAF.ArchTool/Диаграмма взаимодействия
+        presentation: plantuml
+        uml: ../docs/sequence.puml
+

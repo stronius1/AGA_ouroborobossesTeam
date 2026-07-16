@@ -1,0 +1,40 @@
+docs:
+  archtool.plugins.editable-table.styles.examples.hiding_columns.table.step_1:
+    type: editable-table
+    origin:
+      body: >
+        ($."archtool.plugins.editable-table.styles.examples.hiding_columns.data")
+    headers:
+      - value: column_1
+        width: 150px
+      - value: column_2
+        width: 150px
+      - value: column_3
+        width: 150px
+      - value: column_4
+        width: 150px
+    source: >
+      (
+          { "body": body }
+      )
+
+  archtool.plugins.editable-table.styles.examples.hiding_columns.table.step_2:
+    type: editable-table
+    origin:
+      body: >
+        ($."archtool.plugins.editable-table.styles.examples.hiding_columns.data")
+    headers:
+      - value: column_1
+        width: 150px
+      - value: column_2
+        width: 150px
+        display: false
+      - value: column_3
+        width: 150px
+      - value: column_4
+        width: 150px
+        display: false
+    source: >
+      (
+          { "body": body }
+      )

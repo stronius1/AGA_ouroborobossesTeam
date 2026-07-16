@@ -1,0 +1,5 @@
+docs:
+  archtool.plugins.editable-table.acquaintance.menu:
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/1. Знакомство
+    type: markdown
+    source: template.md

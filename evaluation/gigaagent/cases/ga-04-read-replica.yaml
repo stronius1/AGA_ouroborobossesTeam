@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-04-read-replica
+split: development
+labels: [negative, PRIN-005, near-miss]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.customer_master: {title: Customer Master, entity: component, description: Only writer for customer truth, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/components.yaml: {components: {demo.customer_master: {title: Customer Master, entity: component, description: Only writer for customer truth, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}, demo.search_cache: {title: Search Cache, entity: component, description: Read-only disposable replica; never creates or updates master data, owner: Synthetic Search Team, criticality: low, target_status: tolerate}}}}}
+expected: {status: complete, verdict: approve, findings: []}

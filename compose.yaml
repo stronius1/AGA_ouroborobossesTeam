@@ -1,0 +1,105 @@
+name: aga-seaf
+
+services:
+  aga-mcp:
+    build:
+      context: ./aga-skill
+      dockerfile: Dockerfile.mcp
+    image: aga/aga-mcp:2.0.0-local
+    expose:
+      - "8000"
+    environment:
+      AGA_REPOSITORY_ROOT: /workspace/repository
+      AGA_REPOSITORY_ID: architecture
+      AGA_ARCHITECTURE_MANIFEST: architecture/dochub.yaml
+      AGA_DEPENDENCY_MODE: verified
+      AGA_TRUSTED_DEPENDENCIES_JSON: >-
+        {"architecture/vendor/seaf-core":{"checkout":"/workspace/repository/architecture/vendor/seaf-core","commit":"60ce335832d2734814c020306a85d1e8b12cf67b"},"seaf-archtool-core":{"checkout":"/workspace/repository/seaf-archtool-core","commit":"83c82ab1673f1245b499c26b82d507fa602a11d6"}}
+      AGA_MCP_HOST: 0.0.0.0
+      AGA_MCP_PORT: "8000"
+      AGA_MCP_PATH: /mcp
+      AGA_MCP_AUTH_MODE: internal-network
+      AGA_MAX_REQUEST_BYTES: "262144"
+      AGA_MAX_RESPONSE_BYTES: "1048576"
+      AGA_MAX_CONCURRENCY: "8"
+      AGA_MAX_REVIEW_BYTES: "16777216"
+      AGA_MAX_STORE_BYTES: "67108864"
+    volumes:
+      - ./:/workspace/repository:ro
+    networks:
+      - mcp-internal
+    read_only: true
+    mem_limit: 256m
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - scripts/mcp_readiness.py
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  seaf-archtool:
+    build:
+      context: ./seaf-archtool-core
+      dockerfile: .docker/build/Dockerfile
+      args:
+        NODE_IMAGE_VERSION: 20.20.2-alpine3.23
+    image: aga/seaf-archtool-core:2026.29.0-local
+    ports:
+      - "127.0.0.1:8080:3030"
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      VUE_APP_DOCHUB_MODE: backend
+      VUE_APP_DOCHUB_BACKEND_PORT: "3030"
+      VUE_APP_DOCHUB_BACKEND_FILE_STORAGE: /var/www/public
+      VUE_APP_DOCHUB_ROOT_MANIFEST: workspace/aga/dochub.yaml
+      VUE_APP_DOCHUB_ROOT_DOCUMENT: aga.governance.review
+      VUE_APP_DOCHUB_APPEND_DOCHUB_DOCS: "n"
+      VUE_APP_DOCHUB_TITLE: AGA + SEAF
+      VUE_APP_GIGACHAT_CREDENTIAL: ${GIGACHAT_CREDENTIAL:-}
+      VUE_APP_GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      VUE_APP_GIGACHAT_AUTH_URL: ${GIGACHAT_AUTH_URL:-}
+      VUE_APP_GIGACHAT_BASE_URL: ${GIGACHAT_BASE_URL:-}
+      VUE_APP_GIGACHAT_DEFAULT_MODEL: ${GIGACHAT_DEFAULT_MODEL:-GigaChat-2}
+      VUE_APP_GIGACHAT_TIMEOUT: ${GIGACHAT_TIMEOUT:-600}
+      VUE_APP_GIGACHAT_CA_BUNDLE_FILE: ${GIGACHAT_CA_BUNDLE_FILE:-}
+      VUE_APP_GIGACHAT_CERT_FILE: ${GIGACHAT_CERT_FILE:-}
+      VUE_APP_GIGACHAT_KEY_FILE: ${GIGACHAT_KEY_FILE:-}
+    volumes:
+      - ./architecture:/var/www/public/workspace/aga:ro
+    depends_on:
+      aga-mcp:
+        condition: service_healthy
+    networks:
+      - default
+      - mcp-internal
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3030/health
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  mcp-internal:
+    internal: true

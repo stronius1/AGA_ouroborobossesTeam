@@ -1,0 +1,77 @@
+#    Copyright (C) 2022 owner Roman Piontik R.Piontik@mail.ru
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    Rostislav Kabalin <kabalin2009@yandex.ru>
+#
+#  Contributors:
+#    Rostislav Kabalin <kabalin2009@yandex.ru> - 2022
+
+asyncapi: 2.0.0
+info:
+  title: Account Service
+  version: "1.0.0"
+  description: |
+    Manages user accounts in the system.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  production:
+    url: mqtt://test.mosquitto.org
+    protocol: mqtt
+    description: Test MQTT broker
+
+channels:
+  user/signedup:
+    subscribe:
+      operationId: emitUserSignUpEvent
+      message:
+        $ref: "#/components/messages/UserSignedUp"
+
+components:
+  messages:
+    UserSignedUp:
+      name: userSignedUp
+      title: User signed up event
+      summary: Inform about a new user registration in the system
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/userSignedUpPayload"
+
+  schemas:
+    userSignedUpPayload:
+      type: object
+      properties:
+        firstName:
+          type: string
+          description: "foo"
+        lastName:
+          type: string
+          description: "bar"
+        email:
+          type: string
+          format: email
+          description: "baz"
+        createdAt:
+          type: string
+          format: date-time

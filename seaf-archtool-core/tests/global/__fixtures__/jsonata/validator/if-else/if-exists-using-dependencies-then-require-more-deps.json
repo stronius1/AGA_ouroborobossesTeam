@@ -1,0 +1,33 @@
+{
+  "name": "if-exists-using-dependencies-then-require-more-deps",
+  "schema": {
+    "if": {
+      "dependencies": {
+        "login": ["password"]
+      }
+    },
+    "then": {
+      "required": ["mfa"]
+    },
+    "else": {
+      "required": ["notes"]
+    }
+  },
+  "then": {
+    "data": {
+      "login": "user1",
+      "password": "123456"
+    },
+    "expectedInfo": {
+      "name": "mfa"
+    }
+  },
+  "else": {
+    "data": {
+      "login": "user1"
+    },
+    "expectedInfo": {
+      "name": "notes"
+    }
+  }
+}

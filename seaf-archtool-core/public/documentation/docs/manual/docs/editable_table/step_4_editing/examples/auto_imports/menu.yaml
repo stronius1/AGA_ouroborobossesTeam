@@ -1,0 +1,6 @@
+docs:
+  archtool.plugins.editable-table.editing.auto_imports.menu:
+    toc: true
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/4. Редактирование/1. Обновление импортов (плагин)
+    type: markdown
+    source: template.md

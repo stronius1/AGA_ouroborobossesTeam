@@ -1,0 +1,4 @@
+id: pr-20
+title: "Паспорт BI без target_status"
+changed_files: [systems/AS-0007.md]
+context_files: []

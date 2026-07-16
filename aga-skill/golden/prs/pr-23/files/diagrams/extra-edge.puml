@@ -1,0 +1,9 @@
+@startuml
+' c4: context
+rectangle "AS-0002 Кредитный конвейер" as AS0002
+rectangle "AS-0012 Антифрод-платформа" as AS0012
+rectangle "AS-0006 CRM корпоративного блока" as AS0006
+rectangle "AS-0013 Хранилище документов (ECM)" as AS0013
+AS0002 --> AS0012 : REST/HTTPS, IF-0123
+AS0006 --> AS0013 : REST/HTTPS, незаявленная связь
+@enduml

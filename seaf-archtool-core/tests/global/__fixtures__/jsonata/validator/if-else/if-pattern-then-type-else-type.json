@@ -1,0 +1,45 @@
+{
+  "name": "if-pattern-then-type-else-type",
+  "schema": {
+    "if": {
+      "properties": {
+        "code": { "type": "string", "pattern": "^ERR_[A-Z]+$" }
+      },
+      "required": ["code"]
+    },
+    "then": {
+      "properties": {
+        "message": { "type": "string" }
+      },
+      "required": ["message"]
+    },
+    "else": {
+      "properties": {
+        "message": { "type": "number" }
+      },
+      "required": ["message"]
+    }
+  },
+  "then": {
+    "data": {
+      "code": "ERR_FATAL",
+      "message": 123
+    },
+    "expectedInfo": {
+      "name": "message",
+      "type": "string",
+      "currentValue": 123
+    }
+  },
+  "else": {
+    "data": {
+      "code": "ELSE",
+      "message": "test value"
+    },
+    "expectedInfo": {
+      "name": "message",
+      "type": "number",
+      "currentValue": "test value"
+    }
+  }
+}

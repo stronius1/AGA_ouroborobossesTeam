@@ -1,0 +1,55 @@
+docs:
+  archtool.plugins.example.seaf2drawio.templates:
+    type: seaf2drawio
+    location: SEAF.ArchTool/Руководство/Документы/SEAF2Draw.io/Примеры/Templates
+    origin:
+      dataset: archtool.plugins.example.seaf2drawio.data
+      templates: archtool.plugins.example.seaf2drawio.templates
+    source: >
+      (
+          {
+            "title": "Пользовательские шаблоны",
+            "dataset": dataset,
+            "templates": templates
+          }
+      )
+
+datasets:
+  archtool.plugins.example.seaf2drawio.templates:
+    source:
+      office:
+        router:
+          xml: > 
+            <object label="{{label}}" id="{{id}}">
+              <mxCell style="shape=mxgraph.cisco.routers.router;sketch=0;html=1;fillColor=aqua;verticalLabelPosition=bottom;" parent="{segment}" vertex="1">
+                <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
+              </mxCell>
+            </object>
+          schema: seaf.ta.components.network
+          parent_id: segment
+          type: type:Маршрутизатор
+          algo: Y+
+          deep: 7
+          offset: 30
+          x: 20
+          y: 135
+          w: 40
+          h: 30
+      dc:
+        lan:
+          xml: >
+            <object label="&lt;div &gt;&lt;p style=&quot;align:center;font-family:Arial;font-size:10px;valign:middle&quot;&gt;&lt;font style=&quot;font-size:14px;&quot;&gt;&lt;b&gt;{title}&lt;/b&gt;&lt;/font&gt;&lt;font&gt;{ipnetwork}&lt;/font&gt;&lt;/p&gt;&lt;/div&gt;" id="{id}">
+              <mxCell style="rotation=-90;fillColor=salmon;rounded=1;html=1;whiteSpace=wrap;" vertex="1" parent="{segment}">
+                <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{height}}" height="{{width}}" as="geometry" />
+              </mxCell>
+            </object>
+          schema: seaf.ta.services.network
+          parent_id: segment
+          type: type:LAN
+          algo: Y+
+          deep: 4
+          offset: 60
+          x: -10
+          y: 140
+          w: 30
+          h: 220

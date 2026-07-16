@@ -1,0 +1,56 @@
+{
+  "name": "anyOf-with-ref-if-then-else.json",
+  "schema": {
+    "$defs": {
+      "smallPacket": {
+        "properties": {
+          "weight": {
+            "type": "number",
+            "title": "Вес",
+            "maximum": 1000
+          }
+        }
+      },
+      "largePacket": {
+        "properties": {
+          "weight": {
+            "type": "number",
+            "title": "Вес",
+            "minimum": 1001
+          }
+        }
+      }
+    },
+    "anyOf": [
+      {
+        "if": {
+          "properties": {
+            "priority": {
+              "const": "express"
+            }
+          }
+        },
+        "then": {
+          "$ref": "#/$defs/smallPacket"
+        },
+        "else": {
+          "$ref": "#/$defs/largePacket"
+        }
+      }
+    ]
+  },
+  "then": {
+    "data": {
+      "priority": "express",
+      "weight": 1500
+    },
+    "expectedInfo": { "type": "number", "title": "Вес", "name": "weight", "currentValue": 1500 }
+  },
+  "else": {
+    "data": {
+      "priority": "no-express",
+      "weight": 999
+    },
+    "expectedInfo": { "type": "number", "title": "Вес", "name": "weight", "currentValue": 999 }
+  }
+}

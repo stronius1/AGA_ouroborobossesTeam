@@ -1,0 +1,4 @@
+id: pr-02
+title: "Актуализация описания функций ФП без изменения интеграций"
+changed_files: [systems/AS-0014.md]
+context_files: []

@@ -1,0 +1,52 @@
+docs:
+  archtool.plugins.editable-table.editing.auto_imports.table:
+    type: editable-table
+    new_row_allowed: false # Отключим создание новых строк
+    update_index_file: root.yaml
+
+    format: >
+      (
+          $data_id := "archtool.plugins.editable-table.editing.auto_imports.data";
+          { $data_id: table }
+      )
+
+    origin:
+      options: >
+        ([
+            {"value": "green", "text": "Зеленый"},
+            {"value": "blue", "text": "Синий"},
+            {"value": "white", "text": "Белый"},
+            {"value": "black", "text": "Черный"}
+        ])
+      body: >
+        ($."archtool.plugins.editable-table.editing.auto_imports.data")
+
+    headers:
+      - value: column_1
+        width: 150px
+        type: select
+        options: >
+          (options)
+        editable: false # Отключено (ссылка на репозиторий на главной странице плагина)
+        save:
+          path: ./data/data_column_1.yaml
+      - value: column_2
+        width: 150px
+        type: select
+        options: >
+          (options)
+        editable: false # Отключено (ссылка на репозиторий на главной странице плагина)
+        save:
+          path: ./data/data_column_2.yaml
+      - value: column_3
+        width: 150px
+        type: select
+        options: >
+          (options)
+        editable: false # Отключено (ссылка на репозиторий на главной странице плагина)
+        save:
+          path: ./data/column_3/data_column_3.yaml
+    source: >
+      (
+          { "body": body }
+      )

@@ -1,0 +1,4 @@
+id: pr-26
+title: "ADR без даты и автора"
+changed_files: [adrs/ADR-0026.md]
+context_files: []

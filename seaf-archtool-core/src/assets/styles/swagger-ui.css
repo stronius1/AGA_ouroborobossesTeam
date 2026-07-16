@@ -1,0 +1,43 @@
+.v-application .information-container .wrapper {
+  padding: 0 !important;
+}
+.v-application .swagger-ui section.block.col-12{
+  padding: 0 !important;
+}
+.v-application .swagger-ui .wrapper {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.v-application .swagger-ui .info,
+.v-application .swagger-ui .info .main {
+  background: white !important;
+  margin: 20px 0 0 !important;
+}
+.v-application .swagger-ui .info .title small {
+  background: none;
+}
+.v-application .swagger-ui .info .title small pre {
+  color: #3b4151 !important;
+}
+.v-application .swagger-ui .info .title {
+  display: block;
+  font-size: 24px !important;
+  color: #3b4151 !important;
+}
+
+.v-application .swagger-ui .info .url {
+  margin-left: 24px;
+  margin-top: 8px;
+  display: block;
+  font-size: 16px !important;
+  color: #fff;
+}
+
+.v-application .swagger-ui .scheme-container {
+  margin: 0;
+  padding: 0 !important;
+  margin: 20px 0 !important;
+  background: none;
+  -webkit-box-shadow: none;
+  box-shadow: none !important;
+}

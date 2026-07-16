@@ -1,0 +1,16 @@
+{
+  "schema": "aga.corpus-lock/v2",
+  "approved_at": "2026-07-15",
+  "approval": "human-curated golden snapshot for local MVP evaluation",
+  "corpus_sha256": "b73cb14d065ad9edd0ead906dcbae106a44295db9176f87dad411d7c36301145",
+  "fixtures_sha256": "275ac7ee0a1e49fa95002838ab51b7c81a2f9b1410976f3a7df303c61759df96",
+  "seaf_fixture_sha256": "7f15e64b83a76b48d77561254b3b01952c565e03dbbf74db4a62f17be1d14e71",
+  "expected_sha256": "66f4d9fe72c94710f458714d82e034e73f7f25ef84a94ef8ce2fd976784db1fc",
+  "approved_cases": [
+    "pr-01", "pr-02", "pr-03", "pr-04", "pr-05", "pr-06", "pr-07", "pr-08",
+    "pr-09", "pr-10", "pr-11", "pr-12", "pr-13", "pr-14", "pr-15", "pr-16",
+    "pr-17", "pr-18", "pr-19", "pr-20", "pr-21", "pr-22", "pr-23", "pr-24",
+    "pr-25", "pr-26"
+  ],
+  "note": "External branch protection/CODEOWNERS must protect corpus.yaml, this lock, golden/prs/**, and fixtures/seaf.yaml."
+}

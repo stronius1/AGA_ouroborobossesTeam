@@ -1,0 +1,280 @@
+allow_mixing
+
+'Общее позиционирование
+skinparam {
+	wrapWidth 200
+	maxMessageSize 200
+	'hide stereotype
+	defaultfontname arial
+	roundCorner 10
+	linetype ortho
+	'linetype polyline
+	'nodesep 100
+	'ranksep 100
+	shadowing false
+	'padding 0
+    hyperlinkColor black
+    hyperlinkUnderline false
+}
+'left to right direction
+hide circle
+
+'Стили для (АС)
+skinparam class {
+	fontsize 14
+	fontstyle bold
+	borderthickness 1
+	attributefontsize 11
+	bordercolor #4e4948
+	stereotypefontcolor<<Не целевая>> darkgray
+	fontcolor<<Не целевая>> white
+	backgroundcolor<<Не целевая>> #006600
+	bordercolor<<Не целевая>> gray
+	attributefontcolor<<Не целевая>> white
+	backgroundcolor<<Целевая, запланировано>> orange
+	bordercolor<<Целевая, запланировано>> red
+	backgroundcolor<<Целевая, частично внедрено>> #ffff8a
+	bordercolor<<Целевая, частично внедрено>> red
+	backgroundcolor<<Целевая, внедрено полностью>> #92d050
+	backgroundcolor<<Внешняя>> lightblue
+	bordercolor<<Внешняя>> gray
+}
+
+'Стили Person
+skinparam component<<Person>> {
+	backgroundColor Transparent
+	borderColor Transparent
+	shadowing false
+	hide stereotype
+	borderthickness 1
+	FontSize 14
+    FontStyle Bold
+}
+
+'Стили Device
+skinparam component<<Device>> {
+	backgroundColor Transparent
+	borderColor Transparent
+	shadowing false
+	hide stereotype
+	borderthickness 1
+	FontSize 14
+    FontStyle Bold
+}
+
+'Стили регионов
+skinparam rectangle {
+	borderthickness 1
+	bordercolor<<External-сеть>> transparent
+	backgroundcolor<<External-сеть>> #ddd5e4
+	bordercolor<<Internal-сеть>> transparent
+	backgroundcolor<<Internal-сеть>> #c5d7ef
+	borderstyle<<Группа систем>> dashed
+	bordercolor<<ДБ/ДЗО>> transparent
+	backgroundcolor<<ДБ/ДЗО>> #f0f0f0
+	bordercolor<<Банк>> transparent
+	backgroundcolor<<Банк>> #e9f6dc
+	bordercolor<<Cloud>> transparent
+	backgroundcolor<<Cloud>> #a1f1dc
+	backgroundcolor<<Платформа>> #ffcc66
+}
+'Стиль стрелки
+skinparam arrow {
+	color black
+	thickness 1
+}
+
+skinparam note {
+bordercolor #4e4948
+backgroundcolor pink
+}
+
+'АС
+'#################################################################
+!unquoted procedure $System($ID, $ACName, $ACType="")
+
+!endprocedure
+
+!unquoted procedure $SystemEnd()
+    }
+!endprocedure
+
+'Свойства для АС
+'#################################################################
+!unquoted procedure $SystemAspect($func="", $type="")
+
+!endprocedure
+
+'Развертывание контекста
+!unquoted procedure $SystemExpand($ID)
+---
+[[/architect/contexts/$ID ≫≫]]
+!endprocedure
+
+'Стек для АС
+'#################################################################
+!unquoted procedure $Stack($func)
+!if ($func!= "")
+====
+<b><size:16><&cog,color=green></size> $func</b>
+!endif
+!endprocedure
+
+'Связь
+'#################################################################
+!unquoted procedure $Relation($ACNameFrom, $ACNameTo, $Both="", $Position="", $RelText="", $RelType="")
+	!if (%strpos($RelType, "+") == 0)
+		$ACNameFrom "<&plus,color=red> $RelText"$Both-$Position-> $ACNameTo #red
+	!else
+		!if (%strpos($RelType, "-") == 0)
+			$ACNameFrom "<&x,color=red> $RelText"$Both-$Position-> $ACNameTo #red
+		!else
+			!if (%strpos($RelType, "*") == 0)
+				$ACNameFrom "<&media-record,color=red> $RelText"$Both-$Position-> $ACNameTo #red
+			!else
+				!if ($RelText!= "")
+					$ACNameFrom "$RelText"$Both-$Position-> $ACNameTo
+				!else
+					$ACNameFrom $Both-$Position-> $ACNameTo
+				!endif
+			!endif
+		!endif
+	!endif
+!endprocedure
+
+'Заголовок
+'#################################################################
+!unquoted procedure $Header($Title="Header", $Authors="Name", $Version="0.1", $Date="01.01.1999")
+    header
+        !if ($Authors)
+            Authors: $Authors
+        !endif
+        !if ($Version)
+            Version: $Version
+        !endif
+        !if ($Date)
+            Date: $Date
+        !endif
+
+    endheader
+
+    hide empty members
+
+    title $Title
+!endprocedure
+
+
+
+
+'Region
+'##################################
+!unquoted procedure $Region($alias, $label, $type)
+    !if ($type)
+        rectangle "$label" <<$type>> as $alias
+    !else
+        rectangle "$label" as $alias
+    !endif
+!endprocedure
+
+'Position
+'#################################################################
+!unquoted procedure $LayoutUp($from, $to)
+$from -[hidden]up- $to
+!endprocedure
+
+!unquoted procedure $LayoutDown($from, $to)
+$from -[hidden]down- $to
+!endprocedure
+
+!unquoted procedure $LayoutLeft($from, $to)
+$from -[hidden]left- $to
+!endprocedure
+
+!unquoted procedure $LayoutRight($from, $to)
+$from -[hidden]right- $to
+!endprocedure
+
+
+!unquoted procedure $Entity($entity, $ACName, $id, $ACType)
+    !if ($entity == component)
+        component "$ACName" as $id
+    !elseif ($entity == device)
+        component $id <<Device>> [
+        ..<size:88><&monitor,color=Blue></size>..
+        ..===$ACName..
+        ]
+    !elseif ($entity == system)
+        !if ($ACType)
+            class "$ACName" as $id <<$ACType>>
+        !else
+            class "$ACName" as $id
+        !endif
+        {
+    !elseif ($entity == actor || $entity == person)
+        component $id <<Person>> [
+        ..<size:88><&person,color=Blue></size>..
+        ..===$ACName..
+        ]
+    !else
+        $entity $id [
+            <b>$ACName</b>
+            ====
+    !endif
+!endprocedure
+
+!unquoted procedure $EntityEnd($entity)
+    !if ($entity == component)
+'nothing
+    !elseif ($entity == device)
+'nothing
+    !elseif ($entity == system)
+    }
+    !elseif ($entity == actor || $entity == person)
+'nothing
+    !else
+        ]
+    !endif
+!endprocedure
+
+!unquoted procedure $EntityAspect($entity, $prop)
+    !if ($entity == component)
+'nothing
+    !elseif ($entity == device)
+'nothing
+    !elseif ($entity == system)
+        !if ($func!= "")
+            !if (%strpos($prop, "+") == 0)
+        <size:13><color:red>+</color></size> $prop
+            !else
+                !if (%strpos($prop, "-") == 0)
+        <size:13><color:red>✕</color></size> $prop
+                !else
+                    !if (%strpos($prop, "*") == 0)
+        <size:13><color:red>●</color></size> $prop
+                    !else
+        <size:13><color:black>●</color></size> $prop
+                    !endif
+                !endif
+            !endif
+        !endif
+    !elseif ($entity == actor || $entity == person)
+'nothing
+    !else
+        * $prop
+    !endif
+!endprocedure
+
+!unquoted procedure $EntityExpand($entity, $ID)
+    !if ($entity == component)
+'nothing
+    !elseif ($entity == device)
+'nothing
+    !elseif ($entity == system)
+        ---
+        [[/architect/contexts/$ID ≫≫]]
+    !elseif ($entity == actor || $entity == person)
+'nothing
+    !else
+'nothing
+    !endif
+!endprocedure

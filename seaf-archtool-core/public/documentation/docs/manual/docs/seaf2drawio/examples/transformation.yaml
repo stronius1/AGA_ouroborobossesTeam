@@ -1,0 +1,19 @@
+docs:
+  archtool.plugins.example.seaf2drawio.transformations:
+    type: seaf2drawio
+    location: SEAF.ArchTool/Руководство/Документы/SEAF2Draw.io/Примеры/Трансформации
+    origin:
+      dataset: archtool.plugins.example.seaf2drawio.data
+      diff: archtool.plugins.example.seaf2drawio.diff
+    source: >
+      (
+          {
+            "title": "Применение трансформаций",
+            "dataset": dataset,
+            "diff": diff
+          }
+      )
+
+datasets:
+  archtool.plugins.example.seaf2drawio.diff:
+    source: ./diff.yaml

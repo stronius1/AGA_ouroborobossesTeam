@@ -1,0 +1,5 @@
+docs:
+  archtool.plugins.gigachat.menu:
+    location: SEAF.ArchTool/Руководство/Документы/GigaChat
+    type: markdown
+    source: template.md

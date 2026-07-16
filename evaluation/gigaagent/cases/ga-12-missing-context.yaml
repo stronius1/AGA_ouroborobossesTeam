@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-12-missing-context
+split: holdout
+labels: [incomplete, missing-context, PRIN-006]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.critical: {title: Critical, entity: component, description: Mission-critical service, owner: Synthetic Critical Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.unknown_target: {title: Unknown dependency, moment: '2026-07-15', status: proposed, issue: New dependency, decision: Call demo.missing, context: [{area: technology, vector: unknown, content: Target metadata was omitted}], consequences: [{area: technology, vector: unknown, content: Risk cannot be classified}]}}}}}
+expected: {status: incomplete, verdict: incomplete, findings: []}

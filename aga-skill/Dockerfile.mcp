@@ -1,0 +1,26 @@
+FROM python:3.12.7-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN addgroup --system aga && adduser --system --ingroup aga --home /nonexistent aga
+
+COPY requirements.txt ./requirements.txt
+RUN python -m pip install --no-cache-dir --requirement requirements.txt
+
+COPY VERSION ./VERSION
+COPY rules ./rules
+COPY tools ./tools
+COPY scripts ./scripts
+
+USER aga:aga
+EXPOSE 8000
+
+ENTRYPOINT ["python", "scripts/run_mcp.py"]

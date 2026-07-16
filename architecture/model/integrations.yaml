@@ -1,0 +1,25 @@
+seaf.app.integrations:
+  demo.portal_to_gateway:
+    title: Portal profile request
+    description: Customer Portal requests an existing reusable profile capability through the gateway.
+    from: demo.portal
+    to: demo.gateway
+
+  demo.gateway_to_profile:
+    title: Governed profile lookup
+    description: Gateway reads the customer profile from its existing master.
+    from: demo.gateway
+    to: demo.profile
+
+  demo.portal_to_legacy_scoring:
+    title: New synchronous legacy scoring dependency
+    description: Proposed flow creates a new critical dependency on a component targeted for elimination.
+    from: demo.portal
+    to: demo.legacy_scoring
+
+  demo.profile_to_analytics:
+    title: Clean aggregate analytics flow
+    description: Profile master sends non-sensitive aggregate synthetic indicators for analytics.
+    from: demo.profile
+    to: demo.analytics
+

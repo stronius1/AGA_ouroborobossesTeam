@@ -1,0 +1,118 @@
+.d-text-promo,
+.d-text-h1-black,
+.d-text-h1-bold,
+.d-text-h2-black,
+.d-text-h2-bold,
+.d-text-h2-medium,
+.d-text-h3-bold,
+.d-text-h3-medium,
+.d-text-h3-regular,
+.d-text-p1-bold,
+.d-text-p1-medium,
+.d-text-p1-regular,
+.d-text-p2-bold,
+.d-text-p2-medium,
+.d-text-p2-regular,
+.d-text-p2-uppercase,
+.d-text-p3-bold,
+.d-text-p3-medium,
+.d-text-p3-regular,
+.d-text-p3-uppercase {
+  font-family: inherit !important;
+}
+
+.d-text-promo {
+  font-size: 44px !important;
+  font-weight: 900 !important;
+  line-height: 44px !important;
+}
+
+.d-text-h1-black,
+.d-text-h1-bold {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  line-height: 36px !important;
+}
+.d-text-h1-bold {
+  font-weight: 700 !important;
+}
+
+.d-text-h2-black,
+.d-text-h2-bold,
+.d-text-h2-medium {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 28px !important;
+}
+.d-text-h2-bold {
+  font-weight: 700 !important;
+}
+.d-text-h2-medium {
+  font-weight: 500 !important;
+}
+
+.d-text-h3-bold,
+.d-text-h3-medium,
+.d-text-h3-regular {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 24px !important;
+}
+.d-text-h3-medium {
+  font-weight: 500 !important;
+}
+.d-text-h3-regular {
+  font-weight: 400 !important;
+}
+
+.d-text-p1-bold,
+.d-text-p1-medium,
+.d-text-p1-regular {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  line-height: 24px !important;
+}
+.d-text-p1-medium {
+  font-weight: 500 !important;
+}
+.d-text-p1-regular {
+  font-weight: 400 !important;
+}
+
+.d-text-p2-bold,
+.d-text-p2-medium,
+.d-text-p2-regular,
+.d-text-p2-uppercase {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 20px !important;
+}
+.d-text-p2-medium {
+  font-weight: 500 !important;
+}
+.d-text-p2-regular {
+  font-weight: 400 !important;
+}
+.d-text-p2-uppercase {
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+}
+
+.d-text-p3-bold,
+.d-text-p3-medium,
+.d-text-p3-regular,
+.d-text-p3-uppercase {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+}
+.d-text-p3-medium {
+  font-weight: 500 !important;
+}
+.d-text-p3-regular {
+  font-weight: 400 !important;
+}
+.d-text-p3-uppercase {
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+}

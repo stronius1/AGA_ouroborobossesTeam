@@ -1,0 +1,4 @@
+id: pr-24
+title: "Изолированный узел BI на диаграмме"
+changed_files: [diagrams/orphan-node.puml]
+context_files: []

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+branch_name=`git rev-parse --abbrev-ref HEAD`
+
+valid_branch_regex="^(feature\/[A-Z]{3,}-[0-9]{1,}-.{15,}|(release|hotfix|bugfix)\/.{6,}|dev$)"
+
+message="There is something wrong with your branch name. \n"
+message="${message}Branch names in this project must adhere to this contract: $valid_branch_regex. \n"
+message="${message}Your commit will be rejected. You should rename your branch to a valid name and try again."
+message="${message} Example:\n feature/ERA-415-change-smartans-render\n release/v3.13.1"
+
+if ! echo "$branch_name" | grep -qE "$valid_branch_regex";
+then
+    echo "$message"
+    exit 1
+fi
+
+exit 0

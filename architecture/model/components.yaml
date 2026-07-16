@@ -1,0 +1,49 @@
+components:
+  demo:
+    title: Synthetic customer platform
+    entity: component
+    description: Boundary for public synthetic examples; contains no production identifiers.
+    owner: Synthetic Architecture Team
+    criticality: medium
+    target_status: strategic
+
+  demo.portal:
+    title: Customer Portal
+    entity: component
+    description: Web portal that requests profile and scoring data.
+    owner: Synthetic Channels Team
+    criticality: high
+    target_status: strategic
+
+  demo.profile:
+    title: Customer Profile Master
+    entity: component
+    description: Existing master for synthetic customer profile data and reusable profile API.
+    owner: Synthetic Data Team
+    criticality: mission_critical
+    target_status: strategic
+
+  demo.gateway:
+    title: Integration Gateway
+    entity: component
+    description: Governed synchronous API gateway for synthetic integrations.
+    owner: Synthetic Platform Team
+    criticality: high
+    target_status: strategic
+
+  demo.legacy_scoring:
+    title: Legacy Scoring
+    entity: component
+    description: Synthetic legacy scoring system scheduled for retirement.
+    owner: Synthetic Risk Team
+    criticality: mission_critical
+    target_status: eliminate
+
+  demo.analytics:
+    title: Analytics Workspace
+    entity: component
+    description: Consumer of non-sensitive aggregate synthetic data.
+    owner: Synthetic Analytics Team
+    criticality: low
+    target_status: tolerate
+

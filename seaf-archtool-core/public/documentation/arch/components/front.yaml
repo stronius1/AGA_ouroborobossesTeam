@@ -1,0 +1,309 @@
+#    Copyright (C) 2022 owner Roman Piontik R.Piontik@mail.ru
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    R.Piontik <r.piontik@mail.ru>
+#
+#  Contributors:
+#    R.Piontik <r.piontik@mail.ru> - 2022
+#    Rostislav Kabalin <kabalin2009@yandex.ru> - 2022
+#    R.Piontik <r.piontik@mail.ru> - 2023
+
+components:
+  #***********************************************************
+  #                       C4Model L1
+  #***********************************************************
+  archtool.front:             # Идентификатор компонента
+    title: SEAF.ArchTool          # Название компонента
+    entity: component       # Сущность компонента из PlantUML (https://plantuml.com/ru/deployment-diagram)
+    source: ./              # Произвольное поле. Указывающее на исходный код.
+    expert: R.Piontik       # Произвольное поле. Эксперт по компоненту.
+    criticality: 1          # Произвольное поле. Уровень критичности компонента.
+    technologies:           # Используемые технологии
+      - JavaScript
+      - VUEJS3
+      - Chrome
+      - Firefox
+      - Safari
+    aspects:                # Аспекты, которе реализует компонент
+      - archtool.gitlab.auth
+      - archtool.manifest.parsing
+      - archtool.contexts
+      - archtool.aspects
+      - archtool.docs
+      - archtool.navigation
+      - archtool.dataset
+    links:                  # Зависимость компонента от других компонентов
+      - id: archtool.gitlab   # Идентификатор компонента
+        direction: '<--'
+        title: Манифесты и документы
+      - id: archtool.plantuml
+        direction: '-->'
+        title: PlantUML
+      - id: archtool.plantuml
+        direction: '<-'
+        title: Схема SVG
+      - id: archtool.web
+        direction: '<--'
+        title: Манифесты и документы
+  #***********************************************************
+  #                       C4Model L2
+  #***********************************************************
+  archtool.front.spa:
+    title: SPA приложение SEAF.ArchTool
+    entity: component
+    source: ./src/frontend/main.js
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUEJS3
+      - Chrome
+      - Firefox
+      - Safari
+    aspects:
+      - archtool.gitlab.auth
+      - archtool.manifest.parsing
+      - archtool.contexts
+      - archtool.aspects
+      - archtool.docs
+      - archtool.navigation
+      - archtool.dataset
+    links:
+      - id: archtool.browser.localstorage
+        title: Кэш манифестов, cookies
+        direction: <-->
+      - id: archtool.gitlab.api
+        direction: <--
+        title: Манифесты, документы
+      - id: archtool.gitlab.oauth
+        direction: -->
+        title: Авторизация GitLab
+      - id: archtool.gitlab.oauth
+        direction: <--
+        title: Токен авторизации
+      - id: archtool.web
+        direction: <---
+        title: Манифесты, документы
+      - id: archtool.plantuml.jar
+        direction: ->
+        title: PlantUML
+      - id: archtool.plantuml.jar
+        direction: <-
+        title: SVG
+  #***********************************************************
+  #                       C4Model L3
+  #***********************************************************
+  archtool.front.spa.user_interface:
+    title: Интерфейс пользователя
+    entity: actor
+    source: ./src/components/Root.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+    links:
+      - id: archtool.front.spa.router
+        direction: <-->
+  archtool.front.spa.vue3:
+    title: VUE3
+    entity: component
+    source: ./src/frontend/main.js
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.router:
+    title: VUE Router
+    entity: component
+    source: ./src/router/index.js
+    links:
+      - id: archtool.front.spa.vue3
+  archtool.front.spa.vuex:
+    title: VUEX
+    entity: component
+    source: ./src/storage/gitlab.js
+    technologies:
+      - JavaScript
+      - VUE3
+      - VUEX
+  archtool.front.spa.menu:
+    title: SEAF.ArchTool меню
+    entity: component
+    source: ./src/components/Menu.vue
+    technologies:
+      - JavaScript
+      - VUE3
+    links:
+      - id: archtool.front.spa.router
+        title: Представление
+        direction: -->
+      - id: archtool.front.spa.jsonata
+        title: Меню
+        direction: <--
+  archtool.front.spa.workspace:
+    title: Рабочая область
+    entity: component
+    source: ./src/router/index.js
+    technologies:
+      - JavaScript
+      - VUE3
+    links:
+      - id: archtool.front.spa.router
+        title: Представление
+        direction: -->
+  archtool.front.spa.jsonata:
+    title: JSONata
+    entity: component
+    source: ./src/manifest/query.js
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+    links:
+      - id: archtool.front.spa.vuex
+        title: Комплексный манифест
+        direction: <--
+  archtool.front.spa.manifest_parser:
+    title: Manifest parser
+    entity: component
+    source: ./src/manifest/manifest_parser.js
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+      - Axios
+    links:
+      - id: archtool.front.spa.vuex
+        title: Комплексный манифест
+        direction: -->
+      - id: archtool.front.spa.manifest_data
+        direction: <--
+  archtool.front.spa.manifest_data:
+    title: Данные манифеста
+    entity: interface
+    criticality: 1
+    technologies:
+      - Axios
+  archtool.front.spa.blank:
+    title: Карточка объекта
+    entity: component
+    source: ./src/Architecture/*
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+    links:
+      - id: archtool.front.spa.workspace
+        title: Представление
+        direction: -->
+      - id: archtool.front.spa.jsonata
+        title: Сводка, размещение и т.п.
+        direction: <--
+      - id: archtool.front.spa.dataset
+        title: Данные
+        direction: <--
+  archtool.front.spa.blank.aspect:
+    title: Карточка аспекта
+    entity: component
+    source: ./src/Architecture/Aspect.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.blank.component:
+    title: Карточка компонента
+    entity: component
+    source: ./src/Architecture/Component.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.blank.context:
+    title: Карточка контекста
+    entity: component
+    source: ./src/Architecture/Context.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.blank.doc:
+    title: Карточка документа
+    entity: component
+    source: ./src/Docs/*
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.blank.doc.markdown:
+    title: Markdown
+    entity: component
+#    source: ./src/Docs/DocMarkdown.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+      - Markdown
+  archtool.front.spa.blank.doc.asyncapi:
+    title: AsyncApi
+    entity: component
+    source: ./src/Docs/DocAsyncApi.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+      - Markdown
+  archtool.front.spa.blank.doc.swagger:
+    title: Swagger
+    entity: component
+    source: ./src/Docs/DocSwagger.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+      - Markdown
+  archtool.front.spa.blank.doc.table:
+    title: Таблицы
+    entity: component
+    source: ./src/Docs/DocTable.vue
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+  archtool.front.spa.dataset:
+    title: Источники данных
+    entity: component
+    source: ./src/helpers/datasets.js
+    criticality: 1
+    technologies:
+      - JavaScript
+      - VUE3
+      - JSONata
+    links:
+      - id: archtool.front.spa.vuex
+        title: Данные
+      - id: archtool.front.spa.dataset_http
+        title: Данные
+        direction: <-
+  archtool.front.spa.dataset_http:
+    title: Внешние данные
+    entity: interface
+    criticality: 1
+    technologies:
+      - Axios

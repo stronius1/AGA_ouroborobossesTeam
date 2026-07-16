@@ -1,0 +1,46 @@
+config:
+  distance: 80
+  trackWidth: 18
+  grid:
+    - row:
+      - col: col1
+      - col: col2
+      - col: col3
+
+nodes:
+  user:
+    title: Пользователь
+    symbol: user
+    tag: col1
+  sso:
+    title: SSO
+    symbol: component
+    tag: col2
+  apigateway:
+    title: API Шлюз
+    symbol: component
+    tag: col2
+  controlsystems:
+    title: Системы проверок
+    symbol: component
+    tag: col2
+  database:
+    title: БД
+    symbol: database
+    tag: col3
+links:
+  - from: user
+    to: sso
+    style: "->"
+  - from: sso
+    to: apigateway
+    style: "->"
+  - from: apigateway
+    to: controlsystems
+    style: "->"
+  - from: controlsystems
+    to: database
+    style: "->"
+  - from: user
+    to: database
+    style: "..>"

@@ -1,0 +1,22 @@
+$package:
+  aga-demo:
+    name: AGA synthetic SEAF workspace
+    vendor: AGA hackathon team
+    description: Synthetic Architecture-as-Code data for governance review
+    version: 1.0.0
+
+aga:
+  schema: seaf-core/v1.4.0
+  extensions:
+    - aga.project/v1
+  data_classification: synthetic-public
+
+imports:
+  - vendor/seaf-core/dochub.yaml
+  - metamodel/aga-extension.yaml
+  - model/components.yaml
+  - model/integrations.yaml
+  - model/adrs.yaml
+  - model/contexts.yaml
+  - model/ai-chat.yaml
+

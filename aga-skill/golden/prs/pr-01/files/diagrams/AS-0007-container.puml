@@ -1,0 +1,8 @@
+@startuml
+' c4: container
+rectangle "AS-0007 Витрина отчётности (BI)" as AS0007
+rectangle "AS-0009 API-шлюз" as AS0009
+rectangle "AS-0001 Клиентский профиль (MDM)" as AS0001
+AS0007 --> AS0009 : REST/HTTPS, запрос профиля
+AS0009 --> AS0001 : REST/HTTPS (IF-0031)
+@enduml

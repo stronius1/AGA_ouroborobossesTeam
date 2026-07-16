@@ -1,0 +1,4 @@
+id: pr-01
+title: "C4-диаграмма и новый поток BI → MDM через API-шлюз"
+changed_files: [diagrams/AS-0007-container.puml, flows/IF-0031.md]
+context_files: []

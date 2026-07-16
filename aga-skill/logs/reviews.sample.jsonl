@@ -1,0 +1,2 @@
+{"ts": "2026-07-10T14:02:11Z", "pr": "pr-15", "findings": [{"rule_id": "PRIN-002", "severity": "major"}], "verdict": "request_changes_escalate", "architect_action": "override", "observations": []}
+{"ts": "2026-07-11T09:15:40Z", "pr": "pr-12", "findings": [{"rule_id": "SEAF-004", "severity": "blocker"}], "verdict": "request_changes_escalate", "architect_action": "accept", "observations": []}

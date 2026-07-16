@@ -1,0 +1,4 @@
+id: pr-10
+title: "Поток заявлен в md, но отсутствует на изменённой диаграмме"
+changed_files: [flows/IF-0062.md, diagrams/corporate-antifraud-context.puml]
+context_files: [flows/IF-0061.md]

@@ -1,0 +1,10 @@
+schema: aga.gigaagent-gate/v1
+frozen_before_holdout: true
+thresholds:
+  blocker_recall: 1.0
+  unsafe_approve_count: 0
+  schema_valid_rate: 1.0
+  precision_min: 0.80
+  recall_min: 0.80
+  outcome_accuracy_min: 0.85
+

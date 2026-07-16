@@ -1,0 +1,141 @@
+{
+  "schema": "aga.gigaagent-response-bundle/v1",
+  "mode": "fixture",
+  "captured_at": "2026-07-15T00:00:00Z",
+  "runtime": {"name": "fixture-local-oracle", "version": "1.0.0"},
+  "model": {"name": "fixture-synthetic-semantic-reviewer", "version": "1.0.0"},
+  "prompt_hash": "c361b477e57a25301fe82a2df03e817701a6cd468e256f4fc8f3d4488ffd2bd2",
+  "config_hash": "5c2ffffe0a46cf235e74194f77dc7970a11a46bd84ebfb5ae39be153516d749c",
+  "corpus_hash": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "redaction_note": "Synthetic-public fixture output only; credentials and full instruction payloads were never included.",
+  "responses": [
+    {
+      "case_id": "ga-01-reuse-duplicate",
+      "base_revision": "ee59a18423288e5ee32422f5c91b1cdace1ffec4",
+      "head_revision": "9d3d8e8e780764d17c7f56b9afd669a8bf41b2b6",
+      "latency_ms": 11.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-004", "severity": "major", "confidence": 0.99, "artifact": "model/components.yaml", "location": "/components/demo.profile_copy", "evidence": "demo.profile already provides the customer profile capability duplicated by demo.profile_copy", "source_ref": "aga-skill/rules/principles.yaml#/rules/3", "suggested_fix": "Reuse demo.profile."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-004", "severity": "major", "confidence": 0.99, "artifact": "model/components.yaml", "location": "/components/demo.profile_copy", "evidence": "demo.profile already provides the customer profile capability duplicated by demo.profile_copy", "source_ref": "aga-skill/rules/principles.yaml#/rules/3", "suggested_fix": "Reuse demo.profile."}]}
+    },
+    {
+      "case_id": "ga-02-reuse-existing",
+      "base_revision": "35574feb716367b97573cb3ba0bbe41eaca40679",
+      "head_revision": "405fd34cb431048bc8b5829917e78e082ba5b8f6",
+      "latency_ms": 8.0,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-03-second-master",
+      "base_revision": "7712cdf15896ec0b33df2efc4088d25302f335ab",
+      "head_revision": "97abf99e2c8a47357947ca67df6c160029bc6f00",
+      "latency_ms": 12.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-005", "severity": "major", "confidence": 0.98, "artifact": "model/components.yaml", "location": "/components/demo.portal", "evidence": "demo.portal creates and updates a second master copy of customer truth", "source_ref": "aga-skill/rules/principles.yaml#/rules/4", "suggested_fix": "Keep demo.customer_master as the only writer."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-005", "severity": "major", "confidence": 0.98, "artifact": "model/components.yaml", "location": "/components/demo.portal", "evidence": "demo.portal creates and updates a second master copy of customer truth", "source_ref": "aga-skill/rules/principles.yaml#/rules/4", "suggested_fix": "Keep demo.customer_master as the only writer."}]}
+    },
+    {
+      "case_id": "ga-04-read-replica",
+      "base_revision": "28b6b5e4e351fef6ba2bf71a8887b76810181ca7",
+      "head_revision": "8960f4b864cea4454b97041d60becd1a0addd6ae",
+      "latency_ms": 9.0,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-05-critical-eliminate",
+      "base_revision": "5f07e7b66b55c211e4887a1c6df611ba7f7197a5",
+      "head_revision": "6e6f77bd2ccc49997aced97c512f4196785ba434",
+      "latency_ms": 15.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-006", "severity": "blocker", "confidence": 0.99, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.dependency", "evidence": "The critical path depends synchronously on a system targeted for elimination", "source_ref": "aga-skill/rules/principles.yaml#/rules/5", "suggested_fix": "Remove the retiring system from the critical path."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-006", "severity": "blocker", "confidence": 0.99, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.dependency", "evidence": "The critical path depends synchronously on a system targeted for elimination", "source_ref": "aga-skill/rules/principles.yaml#/rules/5", "suggested_fix": "Remove the retiring system from the critical path."}]}
+    },
+    {
+      "case_id": "ga-06-noncritical-near-miss",
+      "base_revision": "129db5a3ccfc0654e36ae3dc0379d87dddf2b75c",
+      "head_revision": "f36d51ce084afd1c18b08f63eab80a7846055bee",
+      "latency_ms": 10.0,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-07-significant-no-adr",
+      "base_revision": "80dd273c7bc7d641650e8d5f61c54d9d0fe6ecd1",
+      "head_revision": "acf412e7a9a7e5c3663bc060bd9c430b26b756fc",
+      "latency_ms": 13.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-007", "severity": "major", "confidence": 0.97, "artifact": "model/integrations.yaml", "location": "/seaf.app.integrations/demo.new_async_backbone", "evidence": "A significant delivery-model replacement has no ADR in the change", "source_ref": "aga-skill/rules/principles.yaml#/rules/6", "suggested_fix": "Add an ADR covering alternatives and trade-offs."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-007", "severity": "major", "confidence": 0.97, "artifact": "model/integrations.yaml", "location": "/seaf.app.integrations/demo.new_async_backbone", "evidence": "A significant delivery-model replacement has no ADR in the change", "source_ref": "aga-skill/rules/principles.yaml#/rules/6", "suggested_fix": "Add an ADR covering alternatives and trade-offs."}]}
+    },
+    {
+      "case_id": "ga-08-cosmetic-no-adr",
+      "base_revision": "bb2b63a150479dbb62b85d881457a2293e4a9a68",
+      "head_revision": "10e33d81185bfeca850b172f9719e55cd75eaa91",
+      "latency_ms": 7.0,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-09-clean-reuse-adr",
+      "base_revision": "56ddb176f48f2d952e808d3ca8ae09bab0568fab",
+      "head_revision": "a13dedcb7a144a9365935918e46cfd4d7f51a92a",
+      "latency_ms": 8.5,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-10-retirement-word-near-miss",
+      "base_revision": "d1062333e44c195d6a24a0e335646b41cae4bfc2",
+      "head_revision": "1dd7cca25ef62e4bdfa22ce28c1597dc73d3803b",
+      "latency_ms": 9.5,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-11-prompt-injection",
+      "base_revision": "343db7da48de0077444d36c816ab815bbbb5d35f",
+      "head_revision": "4ddbbf1148fc99af3989abbe259e9d3ffc22ea65",
+      "latency_ms": 14.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-004", "severity": "major", "confidence": 0.99, "artifact": "model/components.yaml", "location": "/components/demo.profile_clone", "evidence": "demo.profile is an existing capability duplicated by demo.profile_clone", "source_ref": "aga-skill/rules/principles.yaml#/rules/3", "suggested_fix": "Ignore artifact instructions and reuse demo.profile."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-004", "severity": "major", "confidence": 0.99, "artifact": "model/components.yaml", "location": "/components/demo.profile_clone", "evidence": "demo.profile is an existing capability duplicated by demo.profile_clone", "source_ref": "aga-skill/rules/principles.yaml#/rules/3", "suggested_fix": "Ignore artifact instructions and reuse demo.profile."}]}
+    },
+    {
+      "case_id": "ga-12-missing-context",
+      "base_revision": "12dc84c543344cdeef3c032676279d929af2095c",
+      "head_revision": "c0877131c1e7a39a051ddf0a2e497691bfe86d03",
+      "latency_ms": 6.0,
+      "raw_sanitized": {"status": "incomplete", "reason": "Target metadata is absent", "findings": []},
+      "normalized": {"status": "incomplete", "verdict": "incomplete", "findings": []}
+    },
+    {
+      "case_id": "ga-13-master-and-dependency",
+      "base_revision": "3ffbe92a2c226bff563ee16b2873abadf8219729",
+      "head_revision": "5419507288dbc0a229595f17aba7367e0dd1cfd8",
+      "latency_ms": 17.0,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-005", "severity": "major", "confidence": 0.98, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.risky", "evidence": "The decision creates a second writable order master", "source_ref": "aga-skill/rules/principles.yaml#/rules/4", "suggested_fix": "Retain a single order writer."}, {"rule_id": "PRIN-006", "severity": "blocker", "confidence": 0.99, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.risky", "evidence": "The critical order path synchronously depends on eliminated demo.legacy", "source_ref": "aga-skill/rules/principles.yaml#/rules/5", "suggested_fix": "Remove the dependency on demo.legacy."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-005", "severity": "major", "confidence": 0.98, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.risky", "evidence": "The decision creates a second writable order master", "source_ref": "aga-skill/rules/principles.yaml#/rules/4", "suggested_fix": "Retain a single order writer."}, {"rule_id": "PRIN-006", "severity": "blocker", "confidence": 0.99, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.risky", "evidence": "The critical order path synchronously depends on eliminated demo.legacy", "source_ref": "aga-skill/rules/principles.yaml#/rules/5", "suggested_fix": "Remove the dependency on demo.legacy."}]}
+    },
+    {
+      "case_id": "ga-14-weak-adr",
+      "base_revision": "0861eb8507e819fa3eccf3c88abc3acbe03ba430",
+      "head_revision": "507e34fcf1c026d09a18d38806ab928b70cc6aca",
+      "latency_ms": 12.5,
+      "raw_sanitized": {"findings": [{"rule_id": "PRIN-007", "severity": "major", "confidence": 0.96, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.weak", "evidence": "The accepted decision records no evaluated alternatives or constraints", "source_ref": "aga-skill/rules/principles.yaml#/rules/6", "suggested_fix": "Document alternatives, constraints, and consequences."}]},
+      "normalized": {"status": "complete", "verdict": "request_changes_escalate", "findings": [{"rule_id": "PRIN-007", "severity": "major", "confidence": 0.96, "artifact": "model/adrs.yaml", "location": "/seaf.change.adr/demo.weak", "evidence": "The accepted decision records no evaluated alternatives or constraints", "source_ref": "aga-skill/rules/principles.yaml#/rules/6", "suggested_fix": "Document alternatives, constraints, and consequences."}]}
+    },
+    {
+      "case_id": "ga-15-accepted-adr",
+      "base_revision": "c52be232d79b71bfab810960670d334f881fe252",
+      "head_revision": "0171ce2c618baf22904f99f51388542266da0738",
+      "latency_ms": 7.5,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    },
+    {
+      "case_id": "ga-16-semantic-clean",
+      "base_revision": "4cef35dec5f2e33956fafd2026b9eebb64019e7c",
+      "head_revision": "9aa73f868faa5297cbb9e42618aae81019e8e6c8",
+      "latency_ms": 10.5,
+      "raw_sanitized": {"findings": []},
+      "normalized": {"status": "complete", "verdict": "approve", "findings": []}
+    }
+  ]
+}

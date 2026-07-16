@@ -1,0 +1,26 @@
+.editable-table-colors {
+  --color-green-dark: rgb(0, 117, 93);
+  --color-green-light: rgb(5, 180, 5);
+  --color-white: white;
+  --color-white-dark: #eee;
+  --color-blue-light: #d1ecff;
+  --color-gray: rgba(134, 134, 134);
+  --color-gray-dark: rgb(205, 205, 205);
+  --color-red: red;
+  --color-red-light: rgb(255, 100, 50);
+
+  --color-primary: var(--color-green-dark);
+  --color-primary-focus: var(--color-green-light);
+  --color-bg-header: var(--color-green-dark);
+  --color-focus: var(--color-green-dark);
+  --color-bg-selected: var(--color-white-dark);
+  --color-bg-cell: var(--color-white);
+  --color-select: var(--color-blue-light);
+  --color-bg-icon: var(--color-gray);
+  --color-bg-chips: var(--color-blue-light);
+  --color-border: var(--color-gray-dark);
+  --color-warning: var(--color-red);
+  --color-notification: var(--color-white-dark);
+  --color-attention: var(--color-red-light);
+  --color-text-with-dark-bg: var(--color-white);
+}

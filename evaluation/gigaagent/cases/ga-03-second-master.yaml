@@ -1,0 +1,12 @@
+schema: aga.gigaagent-case/v1
+id: ga-03-second-master
+split: development
+labels: [positive, PRIN-005, major]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.customer_master: {title: Customer Master, entity: component, description: Creates and updates customer truth, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/components.yaml: {components: {demo.customer_master: {title: Customer Master, entity: component, description: Creates and updates customer truth, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}, demo.portal: {title: Portal, entity: component, description: Creates and updates a second master copy of customer truth, owner: Synthetic Channels Team, criticality: high, target_status: tactical}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-005, severity: major, artifact: model/components.yaml, location: /components/demo.portal, evidence_contains: second master}

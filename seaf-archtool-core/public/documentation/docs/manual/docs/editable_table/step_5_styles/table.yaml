@@ -1,0 +1,35 @@
+docs:
+  archtool.plugins.editable-table.styles.table:
+    type: editable-table
+
+    origin:
+      body: >
+        ({
+          "row_1": {"name": "Иван"},
+          "row_2": {"name": "Сергей"},
+          "row_3": {"name": "Петр"},
+          "row_4": {"name": "Андрей"},
+          "row_5": {"name": "Ольга"},
+          "row_6": {"name": "Сергей"}
+        })
+
+    headers:
+      - value: name
+        styles:
+          default-background:
+            backgroundColor: orange     # цвет фона
+          blue-background-for-ivan-and-olga:
+            backgroundColor: blue     # цвет фона
+            conditions:
+              - condition_type: equal
+                value: Иван
+              - condition_type: equal
+                value: Ольга
+          green-background-for-sergey:
+            backgroundColor: green     # цвет фона
+            conditions:
+              - condition_type: equal
+                value: Сергей
+
+    source: >
+      ({ "body": body })

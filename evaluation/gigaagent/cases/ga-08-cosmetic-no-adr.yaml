@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-08-cosmetic-no-adr
+split: development
+labels: [negative, PRIN-007, clean]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.portal: {title: Portal, entity: component, description: Customer web portal, owner: Synthetic Channels Team, criticality: high, target_status: strategic}}}}}
+  head: {documents: {model/components.yaml: {components: {demo.portal: {title: Customer Portal, entity: component, description: Customer-facing web portal, owner: Synthetic Channels Team, criticality: high, target_status: strategic}}}}}
+expected: {status: complete, verdict: approve, findings: []}

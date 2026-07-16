@@ -1,0 +1,20 @@
+{
+  "expression": "(\n  /* Создаем валидатор JSON schema */\n  $validator := $jsonschema($self.schema);  /* Схему валидата получаем из контекста отклонения*/\n  /* Формируем базу для проверки */\n  ([([\n    components.$spread().( /* Сканируем все компоненты */\n      $ID := $keys()[0];\n      {\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                    /* Генерируем массив признаков проблем */\n        \"isComponent\": *.entity = \"component\",\t\t\t\t\t\t            /* Это компонент */\n        \"isDocHubDomain\": $boolean($match($ID, /dochub\\.front.*/)),\t  /* в домене DocHub */\n        \"id\": $ID,\t\t\t\t\t\t\t\t\t\t\t\t                            /* Запоминаем идентификатор компонента */\n        \"isvalid\": $validator($.*)\t\t\t\t\t\t\t\t\t                  /* Валидируем компонент по схеме */\t\t\t\t\t\t\t\t\t\n      }\n    )        \n  ][isDocHubDomain and isComponent and isvalid != true]).isvalid.{  /* Генерируем отклонения по выявленным нарушениям */\n    \"uid\": $.params.missingProperty & \"-component-\" & %.id,\t\t\t\t  /* Уникальный идентификатор выявленной ошибки */\n    \"location\": \"/architect/components/\" & %.id,\t\t\t\t\t\t        /* Ссылка на расположение объекта ошибки */\n    \"correction\": \"Заполните необходимые поля\",\t\t\t\t\t\t          /* Рекомендации как исправить проблему */\n    \"description\": message\n  }])\n)\n",
+  "self_": {
+    "_id": "dochub.fields.source",
+    "title": "Не указан файл исходного кода",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "additionalProperties": true
+    },
+    "source": "(\n  /* Создаем валидатор JSON schema */\n  $validator := $jsonschema($self.schema);  /* Схему валидата получаем из контекста отклонения*/\n  /* Формируем базу для проверки */\n  ([([\n    components.$spread().( /* Сканируем все компоненты */\n      $ID := $keys()[0];\n      {\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                    /* Генерируем массив признаков проблем */\n        \"isComponent\": *.entity = \"component\",\t\t\t\t\t\t            /* Это компонент */\n        \"isDocHubDomain\": $boolean($match($ID, /dochub\\.front.*/)),\t  /* в домене DocHub */\n        \"id\": $ID,\t\t\t\t\t\t\t\t\t\t\t\t                            /* Запоминаем идентификатор компонента */\n        \"isvalid\": $validator($.*)\t\t\t\t\t\t\t\t\t                  /* Валидируем компонент по схеме */\t\t\t\t\t\t\t\t\t\n      }\n    )        \n  ][isDocHubDomain and isComponent and isvalid != true]).isvalid.{  /* Генерируем отклонения по выявленным нарушениям */\n    \"uid\": $.params.missingProperty & \"-component-\" & %.id,\t\t\t\t  /* Уникальный идентификатор выявленной ошибки */\n    \"location\": \"/architect/components/\" & %.id,\t\t\t\t\t\t        /* Ссылка на расположение объекта ошибки */\n    \"correction\": \"Заполните необходимые поля\",\t\t\t\t\t\t          /* Рекомендации как исправить проблему */\n    \"description\": message\n  }])\n)\n"
+  }
+}

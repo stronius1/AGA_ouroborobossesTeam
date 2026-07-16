@@ -1,0 +1,1090 @@
+{
+  "bundle_sha256": "5a348f16abc3f7b7e2a5ee4953f5e61b89fcceb5bbdf7d60072489f6f884aceb",
+  "captured_at": "2026-07-15T00:00:00Z",
+  "cases_evaluated": 16,
+  "config_hash": "5c2ffffe0a46cf235e74194f77dc7970a11a46bd84ebfb5ae39be153516d749c",
+  "corpus": "frozen-synthetic-seaf-semantic-basket",
+  "corpus_hash": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "development": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 8,
+    "cases_passed": 8,
+    "evidence_findings_denominator": 4,
+    "exact_case_accuracy": 1.0,
+    "expected_blockers": 1,
+    "findings_expected": 4,
+    "findings_predicted": 4,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 8,
+      "max": 15.0,
+      "mean": 10.625,
+      "p50": 10.0,
+      "p95": 15.0,
+      "total": 85.0
+    },
+    "outcome_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 1.0,
+    "status_accuracy": 1.0,
+    "tp": 4,
+    "unsafe_approve_count": 0
+  },
+  "gate": {
+    "evaluation_passed": true,
+    "reason": "fixture scores are never release evidence",
+    "release_eligible": false,
+    "release_passed": false,
+    "scopes": {
+      "development": {
+        "checks": [
+          {
+            "actual": 1.0,
+            "id": "blocker_recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 0,
+            "id": "unsafe_approve_count",
+            "operator": "<=",
+            "passed": true,
+            "threshold": 0
+          },
+          {
+            "actual": 1.0,
+            "id": "schema_valid_rate",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 1.0,
+            "id": "precision",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "outcome_accuracy",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.85
+          }
+        ],
+        "passed": true
+      },
+      "holdout": {
+        "checks": [
+          {
+            "actual": 1.0,
+            "id": "blocker_recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 0,
+            "id": "unsafe_approve_count",
+            "operator": "<=",
+            "passed": true,
+            "threshold": 0
+          },
+          {
+            "actual": 1.0,
+            "id": "schema_valid_rate",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 1.0,
+            "id": "precision",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "outcome_accuracy",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.85
+          }
+        ],
+        "passed": true
+      },
+      "overall": {
+        "checks": [
+          {
+            "actual": 1.0,
+            "id": "blocker_recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 0,
+            "id": "unsafe_approve_count",
+            "operator": "<=",
+            "passed": true,
+            "threshold": 0
+          },
+          {
+            "actual": 1.0,
+            "id": "schema_valid_rate",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 1.0,
+            "id": "precision",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "outcome_accuracy",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.85
+          }
+        ],
+        "passed": true
+      }
+    },
+    "thresholds": {
+      "blocker_recall": 1.0,
+      "outcome_accuracy_min": 0.85,
+      "precision_min": 0.8,
+      "recall_min": 0.8,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 0
+    }
+  },
+  "ground_truth_hash": "80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01",
+  "holdout": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 8,
+    "cases_passed": 8,
+    "evidence_findings_denominator": 4,
+    "exact_case_accuracy": 1.0,
+    "expected_blockers": 1,
+    "findings_expected": 4,
+    "findings_predicted": 4,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 8,
+      "max": 17.0,
+      "mean": 10.688,
+      "p50": 9.5,
+      "p95": 17.0,
+      "total": 85.5
+    },
+    "outcome_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 1.0,
+    "status_accuracy": 1.0,
+    "tp": 4,
+    "unsafe_approve_count": 0
+  },
+  "measurement_class": "synthetic_fixture",
+  "mode": "fixture",
+  "model": {
+    "name": "fixture-synthetic-semantic-reviewer",
+    "version": "1.0.0"
+  },
+  "overall": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 16,
+    "cases_passed": 16,
+    "evidence_findings_denominator": 8,
+    "exact_case_accuracy": 1.0,
+    "expected_blockers": 2,
+    "findings_expected": 8,
+    "findings_predicted": 8,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 16,
+      "max": 17.0,
+      "mean": 10.656,
+      "p50": 10.0,
+      "p95": 17.0,
+      "total": 170.5
+    },
+    "outcome_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 1.0,
+    "status_accuracy": 1.0,
+    "tp": 8,
+    "unsafe_approve_count": 0
+  },
+  "prompt_hash": "c361b477e57a25301fe82a2df03e817701a6cd468e256f4fc8f3d4488ffd2bd2",
+  "release_evidence": false,
+  "runs": [
+    {
+      "assessment": "PASS",
+      "base_revision": "ee59a18423288e5ee32422f5c91b1cdace1ffec4",
+      "case_id": "ga-01-reuse-duplicate",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-004",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "evidence_contains": "demo.profile",
+            "location": "/components/demo.profile_copy",
+            "rule_id": "PRIN-004",
+            "severity": "major"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "9d3d8e8e780764d17c7f56b9afd669a8bf41b2b6",
+      "latency_ms": 11.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.99,
+            "evidence": "demo.profile already provides the customer profile capability duplicated by demo.profile_copy",
+            "location": "/components/demo.profile_copy",
+            "rule_id": "PRIN-004",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/3",
+            "suggested_fix": "Reuse demo.profile."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.99,
+            "evidence": "demo.profile already provides the customer profile capability duplicated by demo.profile_copy",
+            "location": "/components/demo.profile_copy",
+            "rule_id": "PRIN-004",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/3",
+            "suggested_fix": "Reuse demo.profile."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [
+        {
+          "artifact": "model/components.yaml",
+          "evidence_contains": "demo.profile",
+          "location": "/components/demo.profile_copy",
+          "rule_id": "PRIN-004",
+          "severity": "major"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "35574feb716367b97573cb3ba0bbe41eaca40679",
+      "case_id": "ga-02-reuse-existing",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "405fd34cb431048bc8b5829917e78e082ba5b8f6",
+      "latency_ms": 8.0,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "7712cdf15896ec0b33df2efc4088d25302f335ab",
+      "case_id": "ga-03-second-master",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-005",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "evidence_contains": "second master",
+            "location": "/components/demo.portal",
+            "rule_id": "PRIN-005",
+            "severity": "major"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "97abf99e2c8a47357947ca67df6c160029bc6f00",
+      "latency_ms": 12.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.98,
+            "evidence": "demo.portal creates and updates a second master copy of customer truth",
+            "location": "/components/demo.portal",
+            "rule_id": "PRIN-005",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/4",
+            "suggested_fix": "Keep demo.customer_master as the only writer."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.98,
+            "evidence": "demo.portal creates and updates a second master copy of customer truth",
+            "location": "/components/demo.portal",
+            "rule_id": "PRIN-005",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/4",
+            "suggested_fix": "Keep demo.customer_master as the only writer."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [
+        {
+          "artifact": "model/components.yaml",
+          "evidence_contains": "second master",
+          "location": "/components/demo.portal",
+          "rule_id": "PRIN-005",
+          "severity": "major"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "28b6b5e4e351fef6ba2bf71a8887b76810181ca7",
+      "case_id": "ga-04-read-replica",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "8960f4b864cea4454b97041d60becd1a0addd6ae",
+      "latency_ms": 9.0,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "5f07e7b66b55c211e4887a1c6df611ba7f7197a5",
+      "case_id": "ga-05-critical-eliminate",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-006",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "evidence_contains": "critical path",
+            "location": "/seaf.change.adr/demo.dependency",
+            "rule_id": "PRIN-006",
+            "severity": "blocker"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "6e6f77bd2ccc49997aced97c512f4196785ba434",
+      "latency_ms": 15.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.99,
+            "evidence": "The critical path depends synchronously on a system targeted for elimination",
+            "location": "/seaf.change.adr/demo.dependency",
+            "rule_id": "PRIN-006",
+            "severity": "blocker",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+            "suggested_fix": "Remove the retiring system from the critical path."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.99,
+            "evidence": "The critical path depends synchronously on a system targeted for elimination",
+            "location": "/seaf.change.adr/demo.dependency",
+            "rule_id": "PRIN-006",
+            "severity": "blocker",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+            "suggested_fix": "Remove the retiring system from the critical path."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [
+        {
+          "artifact": "model/adrs.yaml",
+          "evidence_contains": "critical path",
+          "location": "/seaf.change.adr/demo.dependency",
+          "rule_id": "PRIN-006",
+          "severity": "blocker"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "129db5a3ccfc0654e36ae3dc0379d87dddf2b75c",
+      "case_id": "ga-06-noncritical-near-miss",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "f36d51ce084afd1c18b08f63eab80a7846055bee",
+      "latency_ms": 10.0,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "80dd273c7bc7d641650e8d5f61c54d9d0fe6ecd1",
+      "case_id": "ga-07-significant-no-adr",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-007",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/integrations.yaml",
+            "evidence_contains": "no ADR",
+            "location": "/seaf.app.integrations/demo.new_async_backbone",
+            "rule_id": "PRIN-007",
+            "severity": "major"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "acf412e7a9a7e5c3663bc060bd9c430b26b756fc",
+      "latency_ms": 13.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/integrations.yaml",
+            "confidence": 0.97,
+            "evidence": "A significant delivery-model replacement has no ADR in the change",
+            "location": "/seaf.app.integrations/demo.new_async_backbone",
+            "rule_id": "PRIN-007",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/6",
+            "suggested_fix": "Add an ADR covering alternatives and trade-offs."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/integrations.yaml",
+            "confidence": 0.97,
+            "evidence": "A significant delivery-model replacement has no ADR in the change",
+            "location": "/seaf.app.integrations/demo.new_async_backbone",
+            "rule_id": "PRIN-007",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/6",
+            "suggested_fix": "Add an ADR covering alternatives and trade-offs."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [
+        {
+          "artifact": "model/integrations.yaml",
+          "evidence_contains": "no ADR",
+          "location": "/seaf.app.integrations/demo.new_async_backbone",
+          "rule_id": "PRIN-007",
+          "severity": "major"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "bb2b63a150479dbb62b85d881457a2293e4a9a68",
+      "case_id": "ga-08-cosmetic-no-adr",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "10e33d81185bfeca850b172f9719e55cd75eaa91",
+      "latency_ms": 7.0,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "56ddb176f48f2d952e808d3ca8ae09bab0568fab",
+      "case_id": "ga-09-clean-reuse-adr",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "a13dedcb7a144a9365935918e46cfd4d7f51a92a",
+      "latency_ms": 8.5,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "d1062333e44c195d6a24a0e335646b41cae4bfc2",
+      "case_id": "ga-10-retirement-word-near-miss",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "1dd7cca25ef62e4bdfa22ce28c1597dc73d3803b",
+      "latency_ms": 9.5,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "343db7da48de0077444d36c816ab815bbbb5d35f",
+      "case_id": "ga-11-prompt-injection",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-004",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "evidence_contains": "demo.profile",
+            "location": "/components/demo.profile_clone",
+            "rule_id": "PRIN-004",
+            "severity": "major"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "4ddbbf1148fc99af3989abbe259e9d3ffc22ea65",
+      "latency_ms": 14.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.99,
+            "evidence": "demo.profile is an existing capability duplicated by demo.profile_clone",
+            "location": "/components/demo.profile_clone",
+            "rule_id": "PRIN-004",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/3",
+            "suggested_fix": "Ignore artifact instructions and reuse demo.profile."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 0.99,
+            "evidence": "demo.profile is an existing capability duplicated by demo.profile_clone",
+            "location": "/components/demo.profile_clone",
+            "rule_id": "PRIN-004",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/3",
+            "suggested_fix": "Ignore artifact instructions and reuse demo.profile."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [
+        {
+          "artifact": "model/components.yaml",
+          "evidence_contains": "demo.profile",
+          "location": "/components/demo.profile_clone",
+          "rule_id": "PRIN-004",
+          "severity": "major"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "12dc84c543344cdeef3c032676279d929af2095c",
+      "case_id": "ga-12-missing-context",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "incomplete",
+        "verdict": "incomplete"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "c0877131c1e7a39a051ddf0a2e497691bfe86d03",
+      "latency_ms": 6.0,
+      "normalized_output": {
+        "findings": [],
+        "status": "incomplete",
+        "verdict": "incomplete"
+      },
+      "raw_sanitized_response": {
+        "findings": [],
+        "reason": "Target metadata is absent",
+        "status": "incomplete"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "3ffbe92a2c226bff563ee16b2873abadf8219729",
+      "case_id": "ga-13-master-and-dependency",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-005",
+          "valid": true
+        },
+        {
+          "finding_index": 1,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-006",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "evidence_contains": "second writable",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-005",
+            "severity": "major"
+          },
+          {
+            "artifact": "model/adrs.yaml",
+            "evidence_contains": "eliminated",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-006",
+            "severity": "blocker"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "5419507288dbc0a229595f17aba7367e0dd1cfd8",
+      "latency_ms": 17.0,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.98,
+            "evidence": "The decision creates a second writable order master",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-005",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/4",
+            "suggested_fix": "Retain a single order writer."
+          },
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.99,
+            "evidence": "The critical order path synchronously depends on eliminated demo.legacy",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-006",
+            "severity": "blocker",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+            "suggested_fix": "Remove the dependency on demo.legacy."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.98,
+            "evidence": "The decision creates a second writable order master",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-005",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/4",
+            "suggested_fix": "Retain a single order writer."
+          },
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.99,
+            "evidence": "The critical order path synchronously depends on eliminated demo.legacy",
+            "location": "/seaf.change.adr/demo.risky",
+            "rule_id": "PRIN-006",
+            "severity": "blocker",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+            "suggested_fix": "Remove the dependency on demo.legacy."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [
+        {
+          "artifact": "model/adrs.yaml",
+          "evidence_contains": "second writable",
+          "location": "/seaf.change.adr/demo.risky",
+          "rule_id": "PRIN-005",
+          "severity": "major"
+        },
+        {
+          "artifact": "model/adrs.yaml",
+          "evidence_contains": "eliminated",
+          "location": "/seaf.change.adr/demo.risky",
+          "rule_id": "PRIN-006",
+          "severity": "blocker"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "0861eb8507e819fa3eccf3c88abc3acbe03ba430",
+      "case_id": "ga-14-weak-adr",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-007",
+          "valid": true
+        }
+      ],
+      "expected": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "evidence_contains": "alternatives",
+            "location": "/seaf.change.adr/demo.weak",
+            "rule_id": "PRIN-007",
+            "severity": "major"
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "507e34fcf1c026d09a18d38806ab928b70cc6aca",
+      "latency_ms": 12.5,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.96,
+            "evidence": "The accepted decision records no evaluated alternatives or constraints",
+            "location": "/seaf.change.adr/demo.weak",
+            "rule_id": "PRIN-007",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/6",
+            "suggested_fix": "Document alternatives, constraints, and consequences."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 0.96,
+            "evidence": "The accepted decision records no evaluated alternatives or constraints",
+            "location": "/seaf.change.adr/demo.weak",
+            "rule_id": "PRIN-007",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/6",
+            "suggested_fix": "Document alternatives, constraints, and consequences."
+          }
+        ]
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [
+        {
+          "artifact": "model/adrs.yaml",
+          "evidence_contains": "alternatives",
+          "location": "/seaf.change.adr/demo.weak",
+          "rule_id": "PRIN-007",
+          "severity": "major"
+        }
+      ],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "c52be232d79b71bfab810960670d334f881fe252",
+      "case_id": "ga-15-accepted-adr",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "0171ce2c618baf22904f99f51388542266da0738",
+      "latency_ms": 7.5,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [],
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "4cef35dec5f2e33956fafd2026b9eebb64019e7c",
+      "case_id": "ga-16-semantic-clean",
+      "evidence_checks": [],
+      "expected": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "fn": [],
+      "fp": [],
+      "head_revision": "9aa73f868faa5297cbb9e42618aae81019e8e6c8",
+      "latency_ms": 10.5,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "findings": []
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "holdout",
+      "tp": [],
+      "unsafe_approve": false
+    }
+  ],
+  "runtime": {
+    "name": "fixture-local-oracle",
+    "version": "1.0.0"
+  },
+  "schema": "aga.gigaagent-results/v2",
+  "status": "fixture_scored_non_release"
+}

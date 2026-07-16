@@ -1,0 +1,53 @@
+# Runtime contract for the candidate-only aga-evolver role.
+# Repository/identity enforcement is a separate external administrator task.
+schema: aga.permissions/v1
+role: aga-evolver
+
+allow:
+  read: [rules/, precedents/, golden/, logs/, fixtures/, templates/]
+  write: [build/, logs/evolution.jsonl]
+  actions: [run_fitness, dry_run_publish]
+
+deny:
+  actions: [merge, approve_pr, push_to_main, modify_architecture_repo, open_pull_request]
+  write:
+    - rules/
+    - VERSION
+    - CHANGELOG.md
+    - SKILL.md
+    - SKILL.md#section-0
+    - evolver/fitness.py
+    - evolver/permissions.yaml
+    - evolver/mutations.py
+    - evolver/policy.py
+    - golden/corpus.yaml
+    - golden/corpus.yaml#expected
+    - golden/corpus.lock.json
+    - golden/prs/
+    - fixtures/
+    - scripts/
+
+validation_only:
+  command: scripts/apply_candidate.py
+  effects: [rebuild_candidate, recompute_fitness, recompute_gate]
+  source_writes: false
+  apply_supported: false
+
+human_only:
+  action: external_reviewed_vcs_transaction
+  effects: [atomic_rules_version_changelog_precedent_update]
+  required: [independent_review, atomic_commit, rollback, protected_branch]
+  forbidden: [merge, approve_pr, push, open_pull_request]
+
+external_required:
+  - protected_branch
+  - CODEOWNERS
+  - required_checks
+  - separate_evolver_identity
+  - draft_pr_connector
+  - candidate_apply_transaction
+
+notes: >
+  Runtime guards reduce accidental/invalid changes but cannot enforce SoD
+  against a process with unrestricted filesystem access. External controls in
+  docs/AGA-external-enforcement-checklist.md remain mandatory.

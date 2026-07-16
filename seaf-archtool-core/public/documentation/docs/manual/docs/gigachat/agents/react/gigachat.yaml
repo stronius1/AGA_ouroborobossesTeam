@@ -1,0 +1,59 @@
+docs:
+  archtool.plugins.gigachat.agents:
+    type: ai-chat
+    location: SEAF.ArchTool/Руководство/Документы/GigaChat/3. Пример
+    scenarios:
+      calculator:
+        title: Калькулятор
+        type: react
+        temperature: 0
+        top_p: 2
+        model: GigaChat-2
+        system_prompt: |
+          Ты калькулятор осуществляющий расчет по следующей функции:
+          x + y - z.
+
+          Значение [z] ты получаешь от пользователя.
+          Если пользователь передал не число - верни ответ: "Пожалуйста, введите число"
+
+          Для получения прочих значений:
+           - Используй инструмент get_x для получения значения [x]
+           - Используй инструмент get_y для получения значения [y]
+           - Используй инструмент calculate для расчета функции
+
+          Верни в ответ полученное число.
+          На каждый новый запрос пользователя получай значения [x] и [y] повторно, используя соответсвующие инструменты.
+
+        tools:
+          - name: get_x
+            description: Получает значение x.
+            schema:
+            query: >
+              (
+                100
+              )
+          - name: get_y
+            description: Получает значение y.
+            schema:
+            query: >
+              (
+                50
+              )
+          - name: calculate
+            description: Выполняет расчет.
+            schema:
+              type: object
+              properties:
+                x:
+                  title: Значение переменной x
+                  type: number
+                y:
+                  title: Значение переменной y
+                  type: number
+                z:
+                  title: Значение переменной z
+                  type: number
+            query: >
+              (
+                  $number('${x}') + $number('${y}') - $number('${z}')
+              )

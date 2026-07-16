@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  seaf-archtool-core:
+    image: seaf/seaf-archtool-core:latest
+    container_name: seaf-archtool-core
+    hostname: seaf-archtool-core
+    restart: always
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    # запрещаем контейнеру повышать свои привилегии или получать root-права
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8080:3030"
+    build:
+      context: ../../
+      dockerfile: .docker/build/Dockerfile
+    env_file:
+      - path: ./defaults.env
+        required: true
+      - path: ../../.env
+        required: false
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3030/health"]
+      interval: 15s     # Как часто проверять
+      timeout: 5s       # Сколько ждать ответа
+      retries: 3        # Количество падений подряд, после которых контейнер считается больным
+      start_period: 10s # Сколько ждем до начала проверки

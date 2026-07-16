@@ -1,0 +1,136 @@
+docs:
+  archtool.plugins.editable-table.acquaintance.table:
+    type: editable-table
+    headers:
+      - value: id
+        width: 100px
+      - value: name
+        width: 200px
+      - value: age
+        width: 100px
+
+    source: >
+      (
+          $data := {
+              "row_1": {
+                  "id": "0001", "name": "Иванов Иван Иванович", "age": 36
+              },
+              "row_2": {
+                  "id": "0002", "name": "Петров Петр Петрович", "age": 19
+              },
+              "row_3": {
+                  "id": "0003", "name": "Семенов Семен Семенович", "age": 43
+              }
+          };
+      
+          { "body": $data }
+      )
+
+  archtool.plugins.editable-table.acquaintance.table_with_origin:
+    type: editable-table
+    origin:
+      body: >
+        ({
+            "row_1": {
+                "id": "0001", "name": "Иванов Иван Иванович", "age": 36
+            },
+            "row_2": {
+                "id": "0002", "name": "Петров Петр Петрович", "age": 19
+            },
+            "row_3": {
+                "id": "0003", "name": "Семенов Семен Семенович", "age": 43
+            }      
+        })
+    headers:
+      - value: id
+        width: 100px
+      - value: name
+        width: 200px
+      - value: age
+        width: 100px
+
+    source: >
+      ({ "body": body })
+
+  archtool.plugins.editable-table.acquaintance.table_header_mutation:
+    type: editable-table
+    origin:
+      updated_headers: >
+        (
+            $header_placeholder_map := {
+                "id": "Идентификатор",
+                "name": "Имя",
+                "age": "Возраст"
+            };    
+        
+            /* Получаем значение текущих заголовков из документа */
+            $headers := $lookup($.docs, "archtool.plugins.editable-table.acquaintance.table_header_mutation").headers;
+        
+            /* Обновленные заголовки */
+            $updated_headers := $map($headers, function ($v){(
+                /* 
+                    Для каждого заголовка:
+                    - добавим отображаемое значение, указав "text"
+                    - изменим ширину колонки на 200px
+                */
+                $placeholder := $lookup($header_placeholder_map, $v.value);
+                $merge([$v, {"text": $placeholder, "width": "200px"}])
+            )});
+            
+            /* Создадим и добавим еще один заголовок */
+            $new_header := {"value": "weight", "text": "Вес", "width": "100px" };
+            $append($updated_headers, $new_header) 
+        )
+      body: >
+        ({
+            "row_1": {
+                "id": "0001", "name": "Иванов Иван Иванович", "age": 36, "weight": 87
+            },
+            "row_2": {
+                "id": "0002", "name": "Петров Петр Петрович", "age": 19, "weight": 75
+            },
+            "row_3": {
+                "id": "0003", "name": "Семенов Семен Семенович", "age": 43, "weight": 80
+            }      
+        })
+    headers:
+      - value: id
+        width: 100px
+      - value: name
+        width: 200px
+      - value: age
+        width: 100px
+
+    source: >
+      (
+          { "body": body, "headers": updated_headers }      
+      )
+
+  archtool.plugins.editable-table.acquaintance.table_header_mutation_2:
+    type: editable-table
+    filtration: false
+    sorting: false
+    origin:
+      updated_headers: >
+        ([
+            { "value": "new_column_1", "text": "Новая колонка 1" }, 
+            { "value": "column_3", "text": "Колонка 3 (обновлено)" },
+            { "value": "new_column_2", "text": "Новая колонка 2" },
+            { "value": "column_4" }
+        ])
+      body: >
+        ({"row_1": {}})
+    headers:
+      - value: column_1
+        text: Колонка 1
+      - value: column_2
+        text: Колонка 2
+      - value: column_3
+        text: Колонка 3
+      - value: column_4
+        text: Колонка 4
+
+    source: >
+      (
+          { "body": body, "headers": updated_headers }      
+      )

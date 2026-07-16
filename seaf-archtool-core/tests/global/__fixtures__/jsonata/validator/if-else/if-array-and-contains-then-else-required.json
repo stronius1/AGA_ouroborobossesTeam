@@ -1,0 +1,47 @@
+{
+  "name": "if-array-and-contains-then-else-required",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "tags": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "premiumOptions": {
+        "type": "string",
+        "title": "Premium options"
+      },
+      "basicOptions": {
+        "type": "string",
+        "title": "Basic options"
+      }
+    },
+    "if": {
+      "properties": {
+        "tags": {
+          "type": "array",
+          "contains": { "const": "premium" }
+        }
+      },
+      "required": ["tags"]
+    },
+    "then": {
+      "required": ["premiumOptions"]
+    },
+    "else": {
+      "required": ["basicOptions"]
+    }
+  },
+  "then": {
+    "data": {
+      "tags": ["premium"]
+    },
+    "expectedInfo": { "type": "string", "title": "Premium options", "name": "premiumOptions" }
+  },
+  "else": {
+    "data": {
+      "tags": ["else"]
+    },
+    "expectedInfo": { "type": "string", "title": "Basic options", "name": "basicOptions" }
+  }
+}

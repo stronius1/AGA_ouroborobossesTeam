@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-02-reuse-existing
+split: development
+labels: [negative, PRIN-004, clean]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.profile: {title: Customer Profile Master, entity: component, description: Reusable profile API, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.reuse: {title: Reuse profile, moment: '2026-07-15', status: accepted, issue: Portal needs profile data, decision: Reuse demo.profile API, context: [{area: technology, vector: unknown, content: Compatibility must be tested}], consequences: [{area: technology, vector: positive, content: No duplicate capability}]}}}}}
+expected: {status: complete, verdict: approve, findings: []}

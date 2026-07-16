@@ -1,0 +1,7 @@
+@startuml
+' c4: context
+rectangle "AS-0002 Кредитный конвейер" as AS0002
+rectangle "AS-0012 Антифрод-платформа" as AS0012
+rectangle "AS-0007 Витрина отчётности (BI)" as AS0007
+AS0002 --> AS0012 : REST/HTTPS, IF-0124
+@enduml

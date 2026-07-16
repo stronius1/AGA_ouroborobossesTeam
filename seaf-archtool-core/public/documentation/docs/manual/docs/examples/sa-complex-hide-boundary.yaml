@@ -1,0 +1,94 @@
+#    Copyright (C) 2023 owner Roman Piontik R.Piontik@mail.ru
+#    Copyright (C) 2023 Sber
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    In any derivative products, you must retain the information of
+#    owner of the original code and provide clear attribution to the project
+#
+#    https://dochub.info
+#
+#    The use of this product or its derivatives for any purpose cannot be a secret.
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+#  Maintainers:
+#    R.Piontik <r.piontik@mail.ru>
+#
+#  Contributors:
+#    R.Piontik <r.piontik@mail.ru> - 2023
+#    Vladislav Nefedov, Sber - 2023
+#    Vladislav Markin, Sber - 2023
+
+config:
+  distance: 80         
+  trackWidth: 18
+  hideBoundaryTitles: true
+nodes:
+  # Внешняя среда
+  outside:
+    title: Внешняя среда
+  outside.user:                # Пользователь
+    title: Пользователь
+    symbol: user
+  outside.application:         # FrontEnd приложение
+    title: AndroidApp
+    symbol: system
+
+  # Внутренняя среда
+  inside:                      
+    title: Внутренняя среда    
+  inside.apigateway:           # API шлюз
+    title: API Шлюз      
+    symbol: component      
+  inside.backend:              # Бэкенд
+    title: Backend
+    symbol: component      
+  inside.sso:                 # Сервис авторизации
+    title: SSO
+    symbol: component      
+  inside.logger:              # Подсистема логирования
+    title: Логер
+    symbol: component      
+  inside.postgres:            # База данных для хранения бизнес-данных
+    title: Основная БД
+    symbol: database
+  inside.redis:               # База данных для хранения сессий
+    title: Основная БД
+    symbol: database
+links:           
+  # Внешняя среда         
+  - from: outside.user         # Модифицируем идентификаторы в связях  
+    to: outside.application            
+    style: "<->"    
+
+  # Внутренняя среда
+  - from: outside.application
+    to: inside.apigateway
+    style: "<->"
+  - from: inside.apigateway
+    to: inside.backend
+    style: "<->"    
+  - from: inside.apigateway
+    to: inside.sso
+    style: "<->"
+  - from: inside.backend
+    to: inside.postgres
+    style: "<->"
+  - from: inside.sso
+    to: inside.redis
+    style: "<->"
+  - from: inside.backend
+    to: inside.logger
+    style: "->"
+  - from: inside.apigateway
+    to: inside.logger
+    style: "->"

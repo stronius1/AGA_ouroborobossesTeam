@@ -1,0 +1,4 @@
+id: pr-21
+title: "Незавершённая PlantUML-диаграмма"
+changed_files: [diagrams/broken-context.puml]
+context_files: []

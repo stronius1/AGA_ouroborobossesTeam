@@ -1,0 +1,46 @@
+name: local-contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: seaf-archtool-core/package-lock.json
+      - name: Verify dependency pins before repository install scripts
+        run: make verify-pins
+      - name: Install version-pinned Python dependencies
+        run: python -m pip install -r aga-skill/requirements-dev.txt
+      - name: Install ArchTool dependencies from npm lock
+        run: npm ci
+        working-directory: seaf-archtool-core
+      - name: Python tests
+        run: make test
+      - name: SEAF and MCP contracts
+        run: make test-seaf
+      - name: Offline E2E
+        run: make demo-offline
+      - name: Project-owned secret scan
+        run: make check-secrets
+      - name: Submission hygiene
+        run: make project-results-check
+      - name: Tree remains clean
+        run: test -z "$(git status --short)"

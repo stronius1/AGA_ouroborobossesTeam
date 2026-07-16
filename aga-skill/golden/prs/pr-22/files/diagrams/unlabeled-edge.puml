@@ -1,0 +1,6 @@
+@startuml
+' c4: context
+rectangle "AS-0002 Кредитный конвейер" as AS0002
+rectangle "AS-0012 Антифрод-платформа" as AS0012
+AS0002 --> AS0012
+@enduml

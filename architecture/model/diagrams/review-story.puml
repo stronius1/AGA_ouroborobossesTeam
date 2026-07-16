@@ -1,0 +1,12 @@
+@startuml
+title Synthetic AGA review story
+component "Customer Portal" as portal
+component "Integration Gateway" as gateway
+database "Customer Profile Master" as profile
+component "Legacy Scoring\n(target: eliminate)" as legacy
+
+portal --> gateway : reusable profile request
+gateway --> profile : governed lookup
+portal --> legacy : proposed synchronous scoring
+@enduml
+

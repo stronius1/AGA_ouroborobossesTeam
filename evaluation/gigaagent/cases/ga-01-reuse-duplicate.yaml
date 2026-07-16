@@ -1,0 +1,12 @@
+schema: aga.gigaagent-case/v1
+id: ga-01-reuse-duplicate
+split: development
+labels: [positive, PRIN-004, major]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.profile: {title: Customer Profile Master, entity: component, description: Existing profile master, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/components.yaml: {components: {demo.profile: {title: Customer Profile Master, entity: component, description: Existing profile master, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}, demo.profile_copy: {title: Portal Profile Store, entity: component, description: New store with the same customer profile capability, owner: Synthetic Channels Team, criticality: high, target_status: tactical}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-004, severity: major, artifact: model/components.yaml, location: /components/demo.profile_copy, evidence_contains: demo.profile}

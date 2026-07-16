@@ -1,0 +1,57 @@
+$package:
+  aga-project:
+    name: AGA governance extension for the frozen synthetic basket
+    vendor: AGA hackathon team
+    description: Versioned synthetic-public governance fields used by every isolated case
+    version: 1.0.0
+
+entities:
+  aga:
+    title: AGA workspace metadata
+    schema:
+      type: object
+      properties:
+        schema: {type: string, const: seaf-core/v1.4.0}
+        extensions:
+          type: array
+          items: {type: string}
+          contains: {const: aga.project/v1}
+        data_classification: {type: string, const: synthetic-public}
+      required: [schema, extensions, data_classification]
+      additionalProperties: false
+
+  components:
+    schema:
+      type: object
+      patternProperties:
+        "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z0-9][a-zA-Z0-9_-]*)*$":
+          type: object
+          properties:
+            owner: {type: string, minLength: 1}
+            criticality: {type: string, enum: [low, medium, high, mission_critical]}
+            target_status: {type: string, enum: [strategic, tactical, tolerate, eliminate]}
+          required: [owner, criticality, target_status]
+
+  seaf.app.integrations:
+    schema:
+      type: object
+      patternProperties:
+        "^[a-z0-9][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)+$":
+          type: object
+          properties:
+            protocol: {type: string}
+            pattern: {type: string}
+            zone: {type: string}
+            transfer_mode: {type: string}
+            gateway_controlled: {type: boolean}
+            data_categories: {type: array, items: {type: string}}
+            approvals: {type: array, items: {type: string}}
+
+  seaf.change.adr:
+    schema:
+      $defs:
+        seaf.change.adr:
+          properties:
+            status:
+              type: string
+              enum: [proposed, accepted, deprecated, superseded]

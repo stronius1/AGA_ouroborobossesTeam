@@ -1,0 +1,4 @@
+id: pr-07
+title: "Декомиссия: удаление потока к eliminate-системе + ADR"
+changed_files: [adrs/ADR-0021.md, diagrams/credit-risk-target.mmd]
+context_files: []

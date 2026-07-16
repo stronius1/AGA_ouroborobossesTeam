@@ -1,0 +1,72 @@
+allow_mixing
+
+!unquoted procedure $Region($alias, $label, $type)
+    !if ($type)
+        rectangle "$label" <<$type>> as r-$alias
+    !else
+        rectangle "$label" as r-$alias
+    !endif
+!endprocedure
+
+!unquoted procedure $Header($Title="Header", $Authors="Name", $Version="0.1", $Date="01.01.1999")
+    header
+        !if ($Authors)
+            Authors: $Authors
+        !endif
+        !if ($Version)
+            Version: $Version
+        !endif
+        !if ($Date)
+            Date: $Date
+        !endif
+
+    endheader
+
+    hide empty members
+
+    title $Title
+!endprocedure
+
+!unquoted procedure $System($ID, $ACName, $AType = "")
+    component $ID[
+        * <b>$ACName</b>
+        ====
+!endprocedure
+
+!unquoted procedure $SystemEnd()
+    ]
+!endprocedure
+
+!unquoted procedure $Property($func="", $AType = "")
+    * $func
+!endprocedure
+
+'Стили Person
+skinparam component<<Person>> {
+	backgroundColor Transparent
+	borderColor Transparent
+	shadowing false
+	hide stereotype
+	borderthickness 1
+	FontSize 14
+    FontStyle Bold
+}
+
+'Person
+'#################################################################
+!unquoted procedure $Person($PersonID, $PersonName)
+actor $PersonID <<Person>> [
+..===$PersonName..
+]
+!endprocedure
+
+
+'Entity
+'#################################################################
+!unquoted procedure $Entity($entity, $title, $id)
+    !if ($entity == component)
+        participant "$title" as $id
+    !else
+        $entity "$title" as $id
+    !endif
+!endprocedure

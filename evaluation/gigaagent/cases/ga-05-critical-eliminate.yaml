@@ -1,0 +1,12 @@
+schema: aga.gigaagent-case/v1
+id: ga-05-critical-eliminate
+split: development
+labels: [positive, PRIN-006, blocker]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.payments: {title: Payments, entity: component, description: Mission-critical service, owner: Synthetic Payments Team, criticality: mission_critical, target_status: strategic}, demo.legacy: {title: Legacy, entity: component, description: Targeted for elimination, owner: Synthetic Legacy Team, criticality: high, target_status: eliminate}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.dependency: {title: New legacy dependency, moment: '2026-07-15', status: proposed, issue: Payments needs enrichment, decision: Mission-critical Payments will synchronously call the retiring Legacy system, context: [{area: technology, vector: negative, content: Legacy is targeted for elimination}], consequences: [{area: technology, vector: negative, content: Critical path depends on retirement timeline}]}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-006, severity: blocker, artifact: model/adrs.yaml, location: /seaf.change.adr/demo.dependency, evidence_contains: critical path}

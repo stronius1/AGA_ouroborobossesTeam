@@ -1,0 +1,9 @@
+schema: aga.gigaagent-case/v1
+id: ga-15-accepted-adr
+split: holdout
+labels: [negative, PRIN-007, clean]
+change:
+  base: {documents: {model/adrs.yaml: {seaf.change.adr: {}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.robust: {title: Integration pattern, moment: '2026-07-15', status: accepted, issue: Choose between synchronous API and events, decision: Use events for decoupling after comparing latency and delivery needs, context: [{area: technology, vector: positive, content: Eventual consistency is acceptable}], consequences: [{area: resources, vector: negative, content: Requires broker operations}, {area: technology, vector: positive, content: Decouples release cycles}]}}}}}
+expected: {status: complete, verdict: approve, findings: []}
+

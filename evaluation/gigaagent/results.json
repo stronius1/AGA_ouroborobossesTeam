@@ -1,0 +1,35 @@
+{
+  "schema": "aga.gigaagent-results/v2",
+  "status": "not_run",
+  "reason": "official_gigaagent_contract_and_credentials_required",
+  "mode": "real",
+  "measurement_class": "unconfigured_real",
+  "release_evidence": false,
+  "corpus": "frozen-synthetic-seaf-semantic-basket",
+  "corpus_hash": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "ground_truth_hash": "80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01",
+  "cases_evaluated": 0,
+  "development": {
+    "cases_evaluated": 0,
+    "metrics": null
+  },
+  "holdout": {
+    "cases_evaluated": 0,
+    "metrics": null
+  },
+  "overall": {
+    "cases_evaluated": 0,
+    "metrics": null
+  },
+  "runtime": null,
+  "model": null,
+  "prompt_hash": null,
+  "config_hash": null,
+  "gate": {
+    "evaluation_passed": false,
+    "release_eligible": false,
+    "release_passed": false,
+    "reason": "Official capture contract and verified adapter are not configured; real scoring is disabled."
+  },
+  "runs": []
+}

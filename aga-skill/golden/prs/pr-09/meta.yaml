@@ -1,0 +1,4 @@
+id: pr-09
+title: "ADR без секции «Альтернативы», статус вне словаря"
+changed_files: [adrs/ADR-0007.md]
+context_files: []

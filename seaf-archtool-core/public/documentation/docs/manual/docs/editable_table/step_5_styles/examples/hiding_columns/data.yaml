@@ -1,0 +1,11 @@
+archtool.plugins.editable-table.styles.examples.hiding_columns.data:
+  row_1:
+    column_1: Строка 1 Колонка 1
+    column_2: Строка 1 Колонка 2
+    column_3: Строка 1 Колонка 3
+    column_4: Строка 1 Колонка 4
+  row_2:
+    column_1: Строка 2 Колонка 1
+    column_2: Строка 2 Колонка 2
+    column_3: Строка 2 Колонка 3
+    column_4: Строка 2 Колонка 4

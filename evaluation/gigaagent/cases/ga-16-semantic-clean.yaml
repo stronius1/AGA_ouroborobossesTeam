@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-16-semantic-clean
+split: holdout
+labels: [clean, negative, PRIN-004, PRIN-005, PRIN-006, PRIN-007]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.profile: {title: Profile Master, entity: component, description: Sole profile writer, owner: Synthetic Data Team, criticality: mission_critical, target_status: strategic}, demo.gateway: {title: Gateway, entity: component, description: Strategic gateway, owner: Synthetic Platform Team, criticality: high, target_status: strategic}}}}}
+  head: {documents: {model/integrations.yaml: {seaf.app.integrations: {demo.gateway_to_profile: {title: Profile read, description: Read existing master through strategic gateway, from: demo.gateway, to: demo.profile}}}, model/adrs.yaml: {seaf.change.adr: {demo.clean: {title: Reuse profile API, moment: '2026-07-15', status: accepted, issue: Need profile reads, decision: Reuse the current read API without creating a master, context: [{area: technology, vector: positive, content: Target is strategic}], consequences: [{area: money, vector: positive, content: No duplicate build}]}}}}}
+expected: {status: complete, verdict: approve, findings: []}

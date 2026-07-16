@@ -1,0 +1,20 @@
+components:
+  dochub.front:
+    title: DocHub
+    entity: component
+    source: ./
+    expert: Mr.Piontik
+    technologies:
+      - JavaScript
+      - VUEJS2
+      - Chrome
+    aspects:
+      - dochub.gitlab.auth
+      - dochub.manifest.parsing
+      - dochub.contexts
+      - dochub.aspects
+      - dochub.docs
+    links:
+      - id: dochub.gitlab
+        direction: '<--'
+        title: Манифесты и документы

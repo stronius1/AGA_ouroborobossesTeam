@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-09-clean-reuse-adr
+split: holdout
+labels: [clean, negative, PRIN-004, PRIN-007]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.gateway: {title: Gateway, entity: component, description: Existing reusable integration gateway, owner: Synthetic Platform Team, criticality: high, target_status: strategic}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.gateway_reuse: {title: Reuse gateway, moment: '2026-07-15', status: accepted, issue: Portal needs integration, decision: Reuse demo.gateway instead of building another gateway, context: [{area: technology, vector: positive, content: Existing capacity is sufficient}], consequences: [{area: money, vector: positive, content: Avoids duplicate platform cost}]}}}}}
+expected: {status: complete, verdict: approve, findings: []}

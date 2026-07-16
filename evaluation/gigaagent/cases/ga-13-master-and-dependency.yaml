@@ -1,0 +1,13 @@
+schema: aga.gigaagent-case/v1
+id: ga-13-master-and-dependency
+split: holdout
+labels: [positive, multi-finding, PRIN-005, PRIN-006, blocker, major]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.master: {title: Order Master, entity: component, description: Existing order master, owner: Synthetic Orders Team, criticality: mission_critical, target_status: strategic}, demo.legacy: {title: Legacy, entity: component, description: Eliminating legacy, owner: Synthetic Legacy Team, criticality: high, target_status: eliminate}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.risky: {title: Risky order path, moment: '2026-07-15', status: proposed, issue: New critical order capability, decision: Create a second writable order master and synchronously depend on eliminated demo.legacy, context: [{area: technology, vector: negative, content: Both choices increase coupling}], consequences: [{area: business, vector: negative, content: Conflicting truth and retirement risk}]}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-005, severity: major, artifact: model/adrs.yaml, location: /seaf.change.adr/demo.risky, evidence_contains: second writable}
+    - {rule_id: PRIN-006, severity: blocker, artifact: model/adrs.yaml, location: /seaf.change.adr/demo.risky, evidence_contains: eliminated}

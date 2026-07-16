@@ -1,0 +1,4 @@
+id: pr-08
+title: "Диаграмма без C4-метки и с узлом без кода АС"
+changed_files: [diagrams/hr-payroll.puml]
+context_files: []

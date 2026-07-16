@@ -1,0 +1,4 @@
+id: pr-23
+title: "Лишняя связь на контекстной диаграмме"
+changed_files: [diagrams/extra-edge.puml]
+context_files: [flows/IF-0123.md]

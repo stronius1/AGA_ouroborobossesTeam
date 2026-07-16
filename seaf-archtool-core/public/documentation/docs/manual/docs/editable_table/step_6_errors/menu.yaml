@@ -1,0 +1,5 @@
+docs:
+  archtool.plugins.editable-table.errors.menu:
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/6. Обработка ошибок
+    type: markdown
+    source: template.md

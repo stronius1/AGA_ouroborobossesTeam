@@ -1,0 +1,4 @@
+id: pr-06
+title: "Синхронизация criticality в паспорте вслед за SEAF"
+changed_files: [systems/AS-0006.md]
+context_files: []

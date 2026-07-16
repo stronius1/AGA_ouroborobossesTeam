@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-10-retirement-word-near-miss
+split: holdout
+labels: [negative, PRIN-006, misleading-near-miss]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.core: {title: Core, entity: component, description: Strategic mission-critical core, owner: Synthetic Core Team, criticality: mission_critical, target_status: strategic}}}}}
+  head: {documents: {model/components.yaml: {components: {demo.core: {title: Core, entity: component, description: Strategic core; retires only an internal library and has no dependency on an eliminated system, owner: Synthetic Core Team, criticality: mission_critical, target_status: strategic}}}}}
+expected: {status: complete, verdict: approve, findings: []}

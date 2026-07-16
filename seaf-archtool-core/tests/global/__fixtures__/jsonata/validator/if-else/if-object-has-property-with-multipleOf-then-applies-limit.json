@@ -1,0 +1,48 @@
+{
+  "name": "if-object-has-property-with-multipleOf-then-applies-limit",
+  "schema": {
+    "if": {
+      "properties": {
+        "amount": {
+          "type": "number",
+          "multipleOf": 5
+        }
+      },
+      "required": ["amount"]
+    },
+    "then": {
+      "properties": {
+        "bonus": { "type": "number", "maximum": 100 }
+      },
+      "required": ["bonus"]
+    },
+    "else": {
+      "properties": {
+        "bonus": { "type": "number", "minimum": 200 }
+      },
+      "required": ["bonus"]
+    }
+  },
+  "then": {
+    "data": {
+      "amount": 10,
+      "bonus": 150
+    },
+    "expectedInfo": {
+      "type": "number",
+      "name": "bonus",
+      "currentValue": 150
+    }
+  },
+  "else": {
+    "data": {
+      "amount": 7,
+      "bonus": 150
+    },
+    "expectedInfo": {
+      "type": "number",
+      "name": "bonus",
+      "currentValue": 150
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+    "inbuilt": [
+        "plugins/html",
+        "plugins/markaper",
+        "plugins/charts",
+        "plugins/devtool",
+        "plugins/svg",
+        "plugins/bpmnjs",
+        "plugins/drawio",
+        "plugins/editable-table",
+        "plugins/arch-formater",
+        "plugins/meta-integration",
+        "plugins/s3-integration",
+        "plugins/excel",
+        "plugins/dbml",
+        "plugins/gigachat",
+        "plugins/seaf2drawiojs"
+    ]
+}

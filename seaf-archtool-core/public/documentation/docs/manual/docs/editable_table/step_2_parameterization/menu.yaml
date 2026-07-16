@@ -1,0 +1,34 @@
+docs:
+  archtool.plugins.editable-table.parameterization.menu:
+    toc: true
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/2. Параметризация
+    type: markdown
+    source: template_root.md
+
+entities:
+  systems:
+    menu: >
+      (
+        $pets := $keys($."archtool.plugins.editable-table.parameterization.data".pets);
+        $start_location := "Документы/SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/2. Параметризация/";
+      
+        $map($pets, function($v, $i, $a) {(
+            $name := $v = "cats" ? "2. 1. Параметр 'pets' = 'cats'" : "2. 2. Параметр 'pets' = 'dogs'";
+            {
+                "location": $start_location & $name,
+                "link": "/entities/systems/archtool.plugins.editable-table.parameterization.table?id=" & $v
+            }
+          )})
+      )
+
+    presentations:
+      archtool.plugins.editable-table.parameterization.table:
+        title: Таблица
+        type: markdown
+        template: template_table.md
+        source: >
+          (
+              $id := $params.id;
+              { "pet": $id }
+          )
+

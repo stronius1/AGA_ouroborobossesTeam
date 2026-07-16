@@ -1,0 +1,43 @@
+config:
+  distance: 100
+  trackWidth: 15
+  grid:
+    - row:
+      - col: col1
+      - col: col2
+      - col: col3
+
+nodes:
+  user:
+    title: Пользователь
+    symbol: user
+    tag: col1
+  system1:
+    title: Система 1
+    symbol: component
+    tag: col2
+  system2:
+    title: Система 2
+    symbol: component
+    tag: col2
+  system3:
+    title: Система 3
+    symbol: component
+    tag: col2
+  database:
+    title: БД
+    symbol: database
+    tag: col3
+links:
+  - from: user
+    to: system1
+    style: "-"
+  - from: system1
+    to: system2
+    style: "-"
+  - from: system2
+    to: system3
+    style: "-"
+  - from: system3
+    to: database
+    style: "-"

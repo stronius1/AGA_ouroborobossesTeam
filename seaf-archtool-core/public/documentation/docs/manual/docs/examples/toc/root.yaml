@@ -1,0 +1,38 @@
+docs:
+  seaf.no-toc:
+    type: markdown
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/021 Пример TOC (по умолчанию)
+    source: test.md
+
+  seaf.toc-false:
+    type: markdown
+    toc: false
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/022 Пример TOC с toc:false
+    source: test.md
+
+  seaf.two-header:
+    type: markdown
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/023 Пример с 2мя заголовками (по умолчанию)
+    source: 2header.md
+
+  seaf.toc-true:
+    type: markdown
+    toc: true
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/024 Пример с 2мя заголовками и toc:true
+    source: 2header.md
+
+  seaf.custom-toc:
+    type: markdown
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/025 Пример с маркером [[toc]] (по умолчанию)
+    source: custom-toc-place.md
+
+  seaf.custom-toc-and-toc-false:
+    type: markdown
+    toc: false
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/026 Пример с маркером [[toc]] и toc:false
+    source: custom-toc-place.md
+
+  seaf.custom-toc-dup:
+    type: markdown
+    location: SEAF.ArchTool/Руководство/Документы/Markdown/02 Отключение и перенос автооглавления/027 Пример с 2 маркерами [[toc]] (по умолчанию)
+    source: custom-toc-place-dup.md

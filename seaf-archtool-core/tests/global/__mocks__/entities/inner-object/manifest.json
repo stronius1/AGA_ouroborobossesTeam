@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "kadzo.v2023.systems": {
+      "title": "Системы",
+      "description": "Автоматизированная система - самостоятельный объект управления в ИТ-процессах, представляющий собой набор разработанных или заимствованных компонентов Программного Обеспечения, реализующих логически связанный набор функциональности для выполнения необходимых бизнес-задач, а также для поддержки других АС. Функциональная подсистема - Дополнительный к АС объект управления в ИТ-процессах, представляющий собой совокупность компонентов ПО, реализующую логически связанное подмножество функциональности АС. В контексте КА ДЗО функциональная подсистема обладает такими же характеристиками, как и АС",
+      "objects": {
+        "systems": {
+          "route": "/",
+          "title": "Системы",
+          "symbol": "sys"
+        },
+        "systems.integrations": {
+          "route": "/{inner}/integrations",
+          "title": "Взаимодействия систем",
+          "symbol": "sys.interactions"
+        },
+        "systems.integrations.path": {
+          "route": "/{inner}/integrations/{inner}/path",
+          "title": "Взаимодействия систем",
+          "symbol": "sys.interactions"
+        }
+      }
+    }
+  },
+  "kadzo.v2023.systems": {
+    "ecogroup.berezka.systems.berezka.test": {
+      "title": "Маркетплейс",
+      "description": "Система на микросервисной архитектуре, реализующая прикладной функционал маркетплейса",
+      "class": "Продуктовая фабрика (основная деятельность)",
+      "group": "ecogroup.berezka.groups.systems_sbercloud",
+      "location": "Внутренняя",
+      "ownership": "Владеем исходным кодом",
+      "target-status": "Целевая",
+      "live-stage": "Промышленная эксплуатация",
+      "live-stage-target": "Промышленная эксплуатация",
+      "change-type": "Модифицируется",
+      "criticality": "Business Critical",
+      "performance": "Обработка не менее 150 запросов в секунду со средним временем отклика 1 секунда и максимальным временем отклика 15 секунд",
+      "rto": 24,
+      "rpo": 24,
+      "sla": 95,
+      "monitoring": "Prometheus",
+      "integrations": {
+        "ecogroup.berezka.systems.berezka.test.integration.outside": {
+          "title": "Исходящие запросы системы berezka",
+          "path": {
+            "ecogroup.berezka.systems.berezka.test.integration.outside.path": {
+              "title": "Путь исходящего запроса berezka"
+            }
+          }
+        }
+      }
+    },
+    "ecogroup.berezka.systems.berezka.catalog.test": {
+      "title": "Каталог услуг",
+      "description": "Каталог услуг, предоставляемых на маркетплейса",
+      "class": "Продуктовая фабрика (основная деятельность)",
+      "group": "ecogroup.berezka.groups.systems_sbercloud",
+      "parent": "ecogroup.berezka.systems.berezka",
+      "location": "Внутренняя",
+      "ownership": "Владеем исходным кодом",
+      "target-status": "Целевая",
+      "live-stage": "Промышленная эксплуатация",
+      "live-stage-target": "Промышленная эксплуатация",
+      "change-type": "Модифицируется",
+      "criticality": "Business Critical",
+      "performance": "Обработка не менее 150 запросов в секунду со средним временем отклика 1 секунда и максимальным временем отклика 15 секунд",
+      "rto": 24,
+      "rpo": 24,
+      "sla": 95,
+      "monitoring": "Prometheus",
+      "integrations": {
+        "ecogroup.berezka.systems.berezka.catalog.test.integration.outside": {
+          "title": "Исходящие запросы системы catalog",
+          "path": {
+            "ecogroup.berezka.systems.berezka.catalog.test.integration.outside.path": {
+              "title": "Путь исходящего запроса catalog"
+            }
+          }
+        }
+      }
+    },
+    "ecogroup.berezka.systems.crm.test": {
+      "title": "CRM",
+      "description": "Операционный CRM",
+      "class": "CRM-операционный",
+      "location": "Внутренняя",
+      "ownership": "Владеем экземпляром",
+      "group": "ecogroup.berezka.groups.systems_sbercloud",
+      "target-status": "Целевая",
+      "live-stage": "Опытная эксплуатация",
+      "live-stage-target": "Промышленная эксплуатация",
+      "change-type": "Используется",
+      "criticality": "Business Operational",
+      "sla": 95,
+      "monitoring": "Prometheus",
+      "integrations": {
+        "ecogroup.berezka.systems.crm.test.integration.outside": {
+          "title": "Исходящие запросы системы crm"
+        }
+      }
+    }
+  }
+}

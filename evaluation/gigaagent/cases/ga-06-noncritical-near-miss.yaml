@@ -1,0 +1,8 @@
+schema: aga.gigaagent-case/v1
+id: ga-06-noncritical-near-miss
+split: development
+labels: [negative, PRIN-006, near-miss]
+change:
+  base: {documents: {model/components.yaml: {components: {demo.report: {title: Temporary Report, entity: component, description: Low-criticality disposable report, owner: Synthetic Reporting Team, criticality: low, target_status: tactical}, demo.legacy: {title: Legacy, entity: component, description: Targeted for elimination, owner: Synthetic Legacy Team, criticality: medium, target_status: eliminate}}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.temporary: {title: Time-boxed report, moment: '2026-07-15', status: accepted, issue: One migration report is required, decision: Use a read-only export before shutdown, context: [{area: time, vector: unknown, content: Ends before retirement}], consequences: [{area: technology, vector: unknown, content: No mission-critical dependency}]}}}}}
+expected: {status: complete, verdict: approve, findings: []}

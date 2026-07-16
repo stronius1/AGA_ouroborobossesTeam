@@ -1,0 +1,4 @@
+id: pr-22
+title: "Неподписанная связь на диаграмме"
+changed_files: [diagrams/unlabeled-edge.puml]
+context_files: []

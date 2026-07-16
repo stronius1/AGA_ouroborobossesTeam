@@ -1,0 +1,101 @@
+# Проверки консистентности с SEAF-метамоделью (канал A2A: seaf-consistency).
+# Реестр систем: fixtures/seaf.yaml (в проде — SEAF MCP endpoint, contract-first).
+schema: aga.rules/v1
+domain: seaf
+
+rules:
+  - id: SEAF-001
+    title: "Системы потока существуют в реестре"
+    statement: >
+      source и target интеграционного потока должны существовать в реестре
+      SEAF. Ссылка на незарегистрированную систему — blocker: поток нельзя
+      учесть в ландшафте.
+    rationale: "Теневые системы вне реестра — слепая зона governance."
+    severity: blocker
+    scope: [integration_flow]
+    check_type: deterministic
+    detect: {systems_must_exist: [source, target]}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §4.1"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: SEAF-002
+    title: "Владелец в паспорте совпадает с SEAF"
+    statement: >
+      Поле owner в md-паспорте АС должно совпадать с owner в реестре SEAF.
+      Расхождение означает, что один из источников устарел.
+    rationale: "Двойное ведение атрибутов без сверки → рассинхрон истины."
+    severity: major
+    scope: [system_passport]
+    check_type: deterministic
+    detect: {field_matches_registry: owner}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §3.2"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: SEAF-003
+    title: "Критичность заполнена и совпадает с SEAF"
+    statement: >
+      Поле criticality в паспорте обязательно и должно совпадать со значением
+      в реестре SEAF (mission_critical | business_critical |
+      business_operational | office).
+    rationale: "От критичности зависят SLA, DR-требования и приоритет ревью."
+    severity: major
+    scope: [system_passport]
+    check_type: deterministic
+    detect: {field_matches_registry: criticality}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §3.3"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: SEAF-004
+    title: "Нет новых зависимостей на выводимые системы"
+    statement: >
+      Новый или изменённый интеграционный поток не может иметь source или
+      target с target_status: eliminate по TIME-классификации. Строить новое
+      на выводимом — прямое противоречие целевой архитектуре.
+    rationale: "Каждая новая связь с eliminate-системой удорожает её вывод."
+    severity: blocker
+    scope: [integration_flow]
+    check_type: deterministic
+    detect: {no_endpoint_with_target_status: eliminate}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §5.4 (TIME)"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: SEAF-005
+    title: "Паспорт АС полон по метамодели"
+    statement: >
+      Паспорт АС содержит все обязательные атрибуты метамодели:
+      id, name, criticality, target_status (наличие owner проверяет PRIN-001,
+      чтобы один дефект не давал два finding).
+    rationale: "Неполный паспорт нельзя сверить с реестром и учесть в отчётности."
+    severity: major
+    scope: [system_passport]
+    check_type: deterministic
+    detect: {required_fields: [id, name, criticality, target_status]}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §3.1"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active
+
+  - id: SEAF-006
+    title: "Заявленный поток отражён на диаграмме"
+    statement: >
+      Если в PR одновременно меняются интеграционный поток и диаграмма
+      соответствующего контекста, поток должен присутствовать на диаграмме
+      в виде связи между системами (инфраструктурные узлы — шина, шлюз —
+      считаются прозрачными).
+    rationale: "Диаграмма, отстающая от описания, хуже отсутствующей."
+    severity: major
+    scope: [integration_flow]
+    check_type: deterministic
+    detect: {flow_present_on_diagram: true}
+    source_ref: "SEAF-МЕТАМОДЕЛЬ v2.1 §6.2"
+    exceptions: []
+    provenance: {origin: seed, added_in: 1.0.0}
+    status: active

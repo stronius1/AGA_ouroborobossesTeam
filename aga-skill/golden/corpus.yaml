@@ -1,0 +1,239 @@
+# Golden-корпус: ground truth для fitness-гейта эволюции и для
+# «Подтверждения метрик» хакатона (критерий: ≥10 обработанных примеров).
+#
+# ВНИМАНИЕ (расхождение в Project Proposal): в презентации заявлено «13 демо-PR»,
+# но раскладка «7 auto-approve · 3 major · 3 blocker · 1 minor» даёт 14.
+# Здесь 14 исходных сценариев, pr-15/pr-16 для узкого evolution-исключения
+# и его negative control, а также pr-17…pr-26 для positive coverage всех
+# deterministic-правил. Всего 26 материализованных кейсов.
+#
+# materialized: true — PR-каталог golden/prs/<id> заполнен и участвует в fitness.
+# expected.findings — по (rule_id, severity); expected.outcome — итоговый вердикт.
+# Поле expected менять может только человек (см. evolver/permissions.yaml).
+schema: aga.golden-corpus/v1
+
+cases:
+  # ---- auto-approve (7) ----
+  - id: pr-01
+    title: "C4-диаграмма и новый поток BI → MDM через API-шлюз"
+    scenario: "Витрина отчётности читает клиентский профиль через шлюз; всё консистентно."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-02
+    title: "Актуализация описания функций ФП без изменения интеграций"
+    scenario: "Правки прозы в паспорте, атрибуты метамодели не тронуты."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-03
+    title: "ADR о выборе брокера сообщений (полный)"
+    scenario: "Все секции на месте, статус proposed, ссылки на АС валидны."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-04
+    title: "Новый поток CRM → Антифрод через ESB"
+    scenario: "Утверждённый паттерн, обе системы target/tolerate, паспорт потока полон."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-05
+    title: "Косметика: нейминг по глоссарию, опечатки"
+    scenario: "Переименования без смысловых изменений."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-06
+    title: "Синхронизация criticality в паспорте вслед за SEAF"
+    scenario: "Паспорт приводится в соответствие реестру."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  - id: pr-07
+    title: "Декомиссия: удаление потока к eliminate-системе + ADR"
+    scenario: "Правильный вывод легаси: связь удаляется, решение зафиксировано."
+    materialized: true
+    expected: {findings: [], outcome: approve}
+
+  # ---- minor-warning (1) ----
+  - id: pr-08
+    title: "Диаграмма без C4-метки и с узлом без кода АС"
+    scenario: "Содержательно верно, оформление хромает — авто-проход с предупреждениями."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: DIAG-002, severity: minor}
+        - {rule_id: DIAG-003, severity: minor}
+      outcome: approve_with_warnings
+
+  # ---- major (3) ----
+  - id: pr-09
+    title: "ADR без секции «Альтернативы», статус вне словаря"
+    scenario: "Решение без альтернатив — не решение; эскалация архитектору."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: ADR-001, severity: major}
+        - {rule_id: ADR-002, severity: minor}
+      outcome: request_changes_escalate
+
+  - id: pr-10
+    title: "Поток заявлен в md, но отсутствует на изменённой диаграмме"
+    scenario: "Рассинхрон описания и диаграммы (SEAF-006)."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-006, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-11
+    title: "owner в паспорте не совпадает с SEAF"
+    scenario: "Один из источников устарел (SEAF-002)."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-002, severity: major}
+      outcome: request_changes_escalate
+
+  # ---- blocker (3) ----
+  - id: pr-12
+    title: "Новый MQ-поток из АБС в выводимое ДБО ЮЛ"
+    scenario: "Новая зависимость на eliminate-систему (SEAF-004)."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-004, severity: blocker}
+      outcome: request_changes_escalate
+
+  - id: pr-13
+    title: "ПДн уходят во внешний контур без согласования DPO"
+    scenario: "Регуляторный blocker (PRIN-008)."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: PRIN-008, severity: blocker}
+      outcome: request_changes_escalate
+
+  - id: pr-14
+    title: "Поток на систему, отсутствующую в реестре SEAF"
+    scenario: "Теневая система (SEAF-001)."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-001, severity: blocker}
+      outcome: request_changes_escalate
+
+  # ---- добавлен эволвером из прецедента (anti-Goodhart) ----
+  - id: pr-15
+    title: "Файловый batch-обмен в DMZ-сегменте"
+    scenario: >
+      Архитектор переопределил finding PRIN-002: файловый обмен в DMZ разрешён
+      регламентом ИБ-2024-17. На v1.0.0 правил агент даёт false major —
+      кейс демонстрирует мутацию add_exception.
+    materialized: true
+    origin: "precedent:0001"
+    expected: {findings: [], outcome: approve}
+
+  # ---- negative control for the evolved exception ----
+  - id: pr-16
+    title: "Неконтролируемый файловый обмен в DMZ"
+    scenario: >
+      Поток использует file в DMZ, но не является batch и не проходит через
+      контролируемый файловый шлюз. Исключение precedent:0001 неприменимо.
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: PRIN-002, severity: major}
+      outcome: request_changes_escalate
+
+  # ---- deterministic positive-coverage regressions ----
+  - id: pr-17
+    title: "Паспорт АС без владельца"
+    scenario: "У паспорта отсутствует owner; остальные атрибуты полны и согласованы с SEAF."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: PRIN-001, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-18
+    title: "Прямая интеграция в БД антифрода"
+    scenario: "Кредитный конвейер пытается читать БД антифрода напрямую."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: PRIN-003, severity: blocker}
+      outcome: request_changes_escalate
+
+  - id: pr-19
+    title: "Критичность процессинга не совпадает с SEAF"
+    scenario: "В паспорте AS-0004 указана business_critical вместо mission_critical."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-003, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-20
+    title: "Паспорт BI без target_status"
+    scenario: "В остальном валидном паспорте пропущен обязательный атрибут target_status."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: SEAF-005, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-21
+    title: "Незавершённая PlantUML-диаграмма"
+    scenario: "Файл не содержит @enduml и должен fail-closed по DIAG-001."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: DIAG-001, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-22
+    title: "Неподписанная связь на диаграмме"
+    scenario: "Корректная C4-диаграмма содержит одну стрелку без протокола или IF-ID."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: DIAG-004, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-23
+    title: "Лишняя связь на контекстной диаграмме"
+    scenario: "Одна связь подтверждена context-flow, вторая не имеет описания потока."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: DIAG-005, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-24
+    title: "Изолированный узел BI на диаграмме"
+    scenario: "Все узлы корректно именованы, но AS-0007 не имеет ни одной связи."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: DIAG-006, severity: minor}
+      outcome: approve_with_warnings
+
+  - id: pr-25
+    title: "ADR ссылается на незарегистрированную АС"
+    scenario: "Полный ADR с корректным статусом содержит в systems отсутствующую AS-0099."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: ADR-003, severity: major}
+      outcome: request_changes_escalate
+
+  - id: pr-26
+    title: "ADR без даты и автора"
+    scenario: "Структура, статус и systems валидны, но оба аудит-атрибута отсутствуют."
+    materialized: true
+    expected:
+      findings:
+        - {rule_id: ADR-004, severity: minor}
+      outcome: approve_with_warnings

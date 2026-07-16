@@ -1,0 +1,40 @@
+archtool.plugins.editable-table.errors.data_errors.data:
+  row_1:
+    text: Строка
+    select: option_1
+    multiple-select:
+      - option_1
+      - option_3
+  row_2:
+    text:
+    select:           # Для заголовка с типом "select" получен массив
+      - item
+      - item
+    multiple-select:  # Для заголовка с типом "multiple" получена строка
+      data: item
+  row_3:
+    text: Строка
+    select:           # Для заголовка с типом "select" получен массив
+      data: value
+    multiple-select:
+  row_4:
+    text:             # Для заголовка с типом "text" получен массив
+      - item
+      - item
+    select:
+    multiple-select:
+      - option_1
+      - option_2
+      - option_3
+  row_5:
+    text:             # Для заголовка с типом "text" получен объект
+      text: Строка
+      number: 123
+    select: option_2
+    multiple-select:
+      - option_2
+      - option_3
+  row_6:
+    text: Строка
+    select: option_2
+    multiple-select: option_3  # Для заголовка с типом "multiple" получена строка

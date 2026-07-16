@@ -1,0 +1,184 @@
+{
+  "manifest": {
+    "rules": {
+      "validators": {
+        "dochub": {
+          "title": "DocHub"
+        },
+        "dochub.metamodel": {
+          "title": "Контроль ядра метамодели"
+        },
+        "dochub.metamodel.contexts": {
+          "title": "Контроль целостности контекстов"
+        },
+        "dochub.metamodel.contexts.no_found_component": {
+          "title": "Несуществующие компоненты",
+          "source": "([(  \n  $MANIFEST := $;\n  contexts.$spread().(                      \n    $CONTEXT_ID := $keys()[0];\n    *.components.\n      {                   \n        \"contextID\": $CONTEXT_ID,\n        \"componentID\": $\n      };\n  )[$ and $not($substring(componentID, -2) = \".*\") and $not($exists($lookup($MANIFEST.components, componentID)))]\n).{\n    \"uid\": \"$dh-mm-nfc-\" & contextID & \"-\" & componentID,\n    \"correction\": \"Определите компонент или удалите ссылку на него в контексте\",\n    \"description\": \"Возможно компонент [\" & componentID & \"] не описан или описан в подключаемой \n    кодовой базе архитектуры, которая сейчас недоступна.\",\n    \"location\": \"/architect/contexts/\" & contextID\n}])\n"
+        },
+        "dochub.metamodel.contexts.outof": {
+          "title": "Компоненты вне контекста",
+          "source": "(\n  $MANIFEST := $;\n  $USED := $distinct(contexts.*.components);\n  [components.$spread().(\n      $ID := $keys()[0];\n      {\n          \"id\" : $ID,\n          \"mask\" : $USED[$wcard($ID, $)]\n      }\n  )[$not($exists(mask))].{\n    \"uid\": \"$dh-mm-ofb-\" & id,\n    \"correction\": \"Добавьте компонент в контекст\",\n    \"description\": \"Предполагается, что компонент не включенный в контекст не учтен.\",\n    \"location\": \"/architect/components/\" & id\n  }]\n)\n"
+        },
+        "dochub.metamodel.components": {
+          "title": "Контроль целостности компонентов"
+        },
+        "dochub.metamodel.components.no_found_aspect": {
+          "title": "Аспект не определен",
+          "source": "([(  \n  $MANIFEST := $;\n  components.$spread().(                      \n    $COMPONENT_ID := $keys()[0];\n    *.aspects.\n      {                   \n        \"componentID\": $COMPONENT_ID,\n        \"aspectID\": $\n      };\n  )[$ and $not($exists($lookup($MANIFEST.aspects, aspectID)))]\n).{\n    \"uid\": \"$dh-mm-nfa-\" & contextID & \"-\" & componentID,\n    \"correction\": \"Определите аспект или удалите ссылку на него\",\n    \"description\": \"Возможно аспект [\" & aspectID & \"] не описан или описан в подключаемой \n    кодовой базе архитектуры, которая сейчас недоступна.\",\n    \"location\": \"/architect/spects/\" & aspectID\n}])\n"
+        },
+        "dochub.metamodel.components.no_define_parent": {
+          "title": "Компонент верхнего уровня не определен",
+          "source": "(\n    $ens := function($id) {\n        (\n            $ids := $split($id, \".\");\n            $join($map($ids, function($v, $i, $a) {\n                    $i < $count($ids) - 1 ? $v : undefined\n            }), \".\")\n        )\n    };\n\n    $MANIFEST := $;\n\n    [[$distinct(components.$spread().(\n        $ens($keys()[0])\n    ))[$not($exists($lookup($MANIFEST.components, $)))]].{\n        \"uid\": \"$dh-mm-cmp-ndp-\" & $,\n        \"correction\": \"Опишите компонент с идентификатором [\" & $ & \"]\",\n        \"description\": \"Предполагается, что для всех уровней компоненты определены.\"\n    }]\n)\n"
+        },
+        "dochub.metamodel.components.links": {
+          "title": "Связь компонентов"
+        },
+        "dochub.metamodel.components.links.nofound": {
+          "title": "Связь с несуществующими компонентами",
+          "source": "(\n    $MANIFEST := $;\n    [[components.$spread().(\n        $ID := $keys()[0];\n        $.*.links.{\n            \"ownerID\": $ID,\n            \"linkID\": id\n        }\n    )[$ and $not($exists($lookup($MANIFEST.components, linkID)))]].{\n        \"uid\": \"$dh-mm-cmp-lnk-nf-\" & ownerID & \"-\" & linkID,\n        \"correction\": \"Определите компонент [\" & linkID & \"] или удалите ссылку на него\",\n        \"description\": \"Возможно компонент [\" & linkID & \"] не описан или описан в подключаемой \n        кодовой базе архитектуры, которая сейчас недоступна.\",\n        \"location\": \"/architect/components/\" & ownerID\n    }]\n)\n"
+        },
+        "dochub.metamodel.aspects": {
+          "title": "Контроль целостности аспектов"
+        },
+        "dochub.metamodel.aspects.no_define_parent": {
+          "title": "Аспект верхнего уровня не определен",
+          "source": "(\n    $ens := function($id) {\n        (\n            $ids := $split($id, \".\");\n            $join($map($ids, function($v, $i, $a) {\n                    $i < $count($ids) - 1 ? $v : undefined\n            }), \".\")\n        )\n    };\n\n    $MANIFEST := $;\n\n    [[$distinct(aspects.$spread().(\n        $ens($keys()[0])\n    ))[$not($exists($lookup($MANIFEST.aspects, $)))]].{\n        \"uid\": \"$dh-mm-apt-ndp-\" & $,\n        \"correction\": \"Опишите аспект с идентификатором [\" & $ & \"]\",\n        \"description\": \"Предполагается, что для всех уровней аспекты определены.\"\n    }]\n)\n"
+        }
+      }
+    },
+    "entities": {
+      "entities": {
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$": {
+              "title": "Идентификатор сущности",
+              "type": "object",
+              "properies": {
+                "presentations": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[a-zA-Z0-9_]*$": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "$doctypes"
+                            },
+                            "template": {
+                              "type": "$file"
+                            },
+                            "source": {
+                              "type": "$jsonata"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "template",
+                            "source"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "$doctypes"
+                            },
+                            "source": {
+                              "type": "$file"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "source"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "mergeMap": {
+    "/rules": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.contexts": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.contexts.no_found_component": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.contexts.outof": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.components": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.components.no_found_aspect": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.components.no_define_parent": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.components.links": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.components.links.nofound": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.aspects": [
+      "file:///front.yaml"
+    ],
+    "/rules/validators/dochub.metamodel.aspects.no_define_parent": [
+      "file:///front.yaml"
+    ],
+    "/entities": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/type": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/additionalProperties": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/patternProperties": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/patternProperties/^[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/patternProperties/^[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$/title": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/patternProperties/^[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$/type": [
+      "file:///front.yaml"
+    ],
+    "/entities/entities/schema/patternProperties/^[a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]*)*$/properies": [
+      "file:///front.yaml"
+    ]
+  }
+}

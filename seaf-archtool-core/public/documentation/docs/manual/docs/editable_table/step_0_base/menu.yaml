@@ -1,0 +1,6 @@
+docs:
+  archtool.plugins.editable-table.base.menu:
+    toc: true
+    location: SEAF.ArchTool/Руководство/Документы/Редактируемая таблица/Базовый пример
+    type: markdown
+    source: template.md

@@ -1,0 +1,42 @@
+# OS and editors
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / ArchTool
+node_modules/
+dist/
+coverage/
+seaf-archtool-core/public/workspace/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Repeatable AGA runtime output. Release evidence lives under docs/evidence/.
+aga-skill/build/
+aga-skill/logs/reviews.jsonl
+aga-skill/logs/evolution.jsonl
+
+# Local staging and backups
+.tmp/
+tmp/
+*.bak
+*.orig
+

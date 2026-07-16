@@ -1,0 +1,52 @@
+{
+  "seaf.company.ta.services.dc_regions": {
+    "region.main": {
+      "title": "Main region"
+    }
+  },
+  "seaf.company.ta.services.dc_offices": {
+    "office.main": {
+      "title": "Office",
+      "region": "region.main"
+    }
+  },
+  "seaf.company.ta.services.dcs": {
+    "dc.main": {
+      "title": "Data center",
+      "region": "region.main"
+    }
+  },
+  "seaf.company.ta.services.network_segments": {
+    "segment.office": {
+      "title": "Office segment",
+      "location": "office.main",
+      "zone": "INT-NET"
+    },
+    "segment.dc": {
+      "title": "DC segment",
+      "location": "dc.main",
+      "zone": "INT-NET"
+    }
+  },
+  "seaf.company.ta.components.networks": {
+    "device.office": {
+      "title": "Office switch",
+      "type": "switch",
+      "segment": "segment.office"
+    },
+    "device.dc": {
+      "title": "DC switch",
+      "type": "switch",
+      "segment": "segment.dc"
+    }
+  },
+  "seaf.company.ta.services.logical_links": {
+    "link.cross": {
+      "title": "Cross-page logical link",
+      "source": "device.office",
+      "target": "device.dc",
+      "direction": "==>",
+      "topology": "star"
+    }
+  }
+}

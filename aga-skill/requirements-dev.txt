@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest==9.0.3
+iniconfig==1.1.1
+packaging==24.1
+pluggy==1.6.0
+Pygments==2.15.1
+setuptools==80.9.0

@@ -1,0 +1,268 @@
+{
+    "symbols": {
+      "cloud": "  <g>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(94.901961%,94.901961%,94.901961%);fill-opacity:1;\" d=\"M 68.824219 0.761719 C 60.589844 0.816406 52.472656 4.582031 49.652344 11.417969 C 35.867188 -7.007812 5.546875 10.285156 14.34375 28.722656 C -6.519531 24.824219 -1.726562 58.761719 17.738281 55.453125 C 26.097656 64.210938 38.914062 65.644531 52.789062 59.449219 L 52.796875 59.449219 C 69.566406 65.59375 84.152344 61.015625 90.726562 56.324219 C 130.199219 66.6875 116.003906 3.222656 90.101562 19.78125 C 89.898438 6.59375 79.269531 0.6875 68.824219 0.761719 Z M 68.824219 0.761719 \"/>\n                          <path style=\"fill:none;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke:rgb(31.764706%,31.764706%,31.764706%);stroke-opacity:1;stroke-miterlimit:4;\" d=\"M 470.926948 544.946337 C 515.16959 438.377878 756.551863 445.237516 737.649834 621.635549 M 738.684144 599.926208 C 910.14701 491.019819 1004.114142 908.455771 742.821388 840.270455 M 759.37036 825.831816 C 727.617019 861.954105 606.188937 913.773918 467.151714 850.829673 M 491.664879 860.823678 C 399.843941 901.570442 315.004602 892.167343 259.668976 834.566936 M 283.587413 828.015596 C 135.163819 883.637755 90.895319 631.603862 237.198575 658.759808 M 249.765451 679.544254 C 150.10961 543.610378 401.524696 400.893938 486.726045 570.586483 \" transform=\"matrix(0.151067,0,0,0.152044,-21.489076,-71.438006)\"/>\n                        </g>",
+      "database": "<g>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;\" d=\"M 1.027344 69.859375 C 1.882812 72.171875 3.5625 73.277344 4.898438 74.167969 C 19.738281 84.027344 58.808594 81.089844 62.972656 69.859375 C 62.972656 73.890625 62.972656 77.917969 62.972656 81.945312 C 59.863281 90.328125 35.691406 94.863281 16.511719 90.679688 C 10.769531 89.425781 7.121094 87.726562 4.898438 86.25 C 3.5625 85.363281 1.882812 84.257812 1.027344 81.945312 C 1.027344 77.917969 1.027344 73.890625 1.027344 69.859375 Z M 1.027344 69.859375 \"/>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;\" d=\"M 1.027344 56.6875 C 1.882812 59 3.5625 60.105469 4.898438 60.996094 C 19.738281 70.855469 58.808594 67.917969 62.972656 56.6875 C 62.972656 60.71875 62.972656 64.746094 62.972656 68.773438 C 59.863281 77.15625 35.691406 81.695312 16.511719 77.507812 C 10.769531 76.253906 7.121094 74.554688 4.898438 73.078125 C 3.5625 72.191406 1.882812 71.085938 1.027344 68.773438 C 1.027344 64.746094 1.027344 60.71875 1.027344 56.6875 Z M 1.027344 56.6875 \"/>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;\" d=\"M 1.027344 43.519531 C 1.882812 45.828125 3.5625 46.933594 4.898438 47.824219 C 19.738281 57.683594 58.808594 54.746094 62.972656 43.519531 C 62.972656 47.546875 62.972656 51.574219 62.972656 55.601562 C 59.863281 63.984375 35.691406 68.523438 16.511719 64.335938 C 10.769531 63.082031 7.121094 61.382812 4.898438 59.90625 C 3.5625 59.019531 1.882812 57.914062 1.027344 55.601562 C 1.027344 51.574219 1.027344 47.546875 1.027344 43.519531 Z M 1.027344 43.519531 \"/>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;\" d=\"M 1.027344 30.347656 C 1.882812 32.65625 3.5625 33.761719 4.898438 34.652344 C 19.738281 44.511719 58.808594 41.574219 62.972656 30.347656 C 62.972656 34.375 62.972656 38.402344 62.972656 42.429688 C 59.863281 50.8125 35.691406 55.351562 16.511719 51.164062 C 10.769531 49.910156 7.121094 48.214844 4.898438 46.734375 C 3.5625 45.847656 1.882812 44.742188 1.027344 42.429688 C 1.027344 38.402344 1.027344 34.375 1.027344 30.347656 Z M 1.027344 30.347656 \"/>\n                          <path style=\" stroke:none;fill-rule:nonzero;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;\" d=\"M 62.972656 29.171875 C 62.972656 23.582031 49.105469 19.050781 32 19.050781 C 14.894531 19.050781 1.027344 23.582031 1.027344 29.171875 C 1.027344 34.761719 14.894531 39.292969 32 39.292969 C 49.105469 39.292969 62.972656 34.761719 62.972656 29.171875 Z M 62.972656 29.171875 \"/>\n                        </g>",
+      "user": "<g>\n                        <path style=\"fill-rule:evenodd;fill:rgb(18.039216%,36.862745%,60%);fill-opacity:1;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 767.442451 599.512237 C 802.43905 599.512237 812.440669 609.512165 815.764469 629.615428 C 819.08827 649.724773 817.438456 669.511736 767.442451 669.511736 C 717.440403 669.511736 717.440403 649.511879 722.43819 629.512022 C 727.442021 609.512165 732.439808 599.512237 767.442451 599.512237 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill-rule:evenodd;fill:rgb(100%,100%,100%);fill-opacity:1;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 757.440833 599.512237 L 782.441857 599.512237 L 767.442451 654.511843 Z M 757.440833 599.512237 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill-rule:evenodd;fill:rgb(38.039216%,38.039216%,100%);fill-opacity:1;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 752.437002 594.512273 L 762.43862 604.512201 L 757.440833 609.512165 Z M 752.437002 594.512273 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill-rule:evenodd;fill:rgb(38.039216%,38.039216%,100%);fill-opacity:1;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 777.438026 604.512201 L 787.439644 594.512273 L 782.441857 609.512165 Z M 777.438026 604.512201 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill:none;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 742.441427 629.512022 C 737.099173 638.575218 734.494522 648.994851 734.941724 659.511808 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill:none;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(11.764706%,29.019608%,52.156863%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 799.937135 659.511808 C 800.879886 649.244241 799.151509 638.915848 794.939347 629.512022 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                        <path style=\"fill-rule:evenodd;fill:rgb(100%,85.098039%,70.980392%);fill-opacity:1;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(100%,69.019608%,40.784314%);stroke-opacity:1;stroke-miterlimit:10;\" d=\"M 797.441263 577.012398 C 797.441263 592.194771 785.125071 604.512201 769.938323 604.512201 C 754.751576 604.512201 742.441427 592.194771 742.441427 577.012398 C 742.441427 561.817859 754.751576 549.512595 769.938323 549.512595 C 785.125071 549.512595 797.441263 561.817859 797.441263 577.012398 \" transform=\"matrix(0.64638,0,0,0.642192,-464.785836,-351.916082)\"/>\n                    </g>"
+    },
+    "nodes": {
+      "node1": {
+        "title": "Node 1",
+        "symbol": "user"
+      },
+      "node1.node1": {
+        "title": "Node 1",
+        "symbol": "user"
+      },
+      "node1.node2": {
+        "title": "Node 2",
+        "symbol": "cloud"
+      },
+      "node1.node3": {
+        "title": "Node 3",
+        "symbol": "database"
+      },
+      "node1.node3.node1": {
+        "title": "Node 1",
+        "symbol": "database"
+      },
+      "node1.node3.node2": {
+        "title": "Node 2",
+        "symbol": "user"
+      },
+      "node2.node2": {
+        "title": "Node 2",
+        "symbol": "cloud"
+      },
+      "node2.node3": {
+        "title": "Node 3",
+        "symbol": "user"
+      },
+      "node2.node3.node1": {
+        "title": "Node 1",
+        "symbol": "database"
+      },
+      "node2.node3.node2": {
+        "title": "Node 1",
+        "symbol": "database"
+      },
+      "node2.node3.node3": {
+        "title": "Node 1",
+        "symbol": "cloud"
+      },
+      "node3": {
+        "title": "Node 3",
+        "symbol": "database"
+      },
+      "node4": {
+        "title": "Node 4",
+        "symbol": "database"
+      },
+      "node5": {
+        "title": "Node 5",
+        "symbol": "database"
+      },
+      "node5.node1": {
+        "title": "Node 1",
+        "symbol": "user"
+      },
+      "node5.node2": {
+        "title": "Node 2",
+        "symbol": "database"
+      }
+
+    },
+    "links": [
+      {
+        "from": "node2.node3.node1",
+        "to": "node1.node3.node1",
+        "style": "<->",
+        "title": "1"
+      },
+      {
+        "from": "node1.node2",
+        "to": "node1.node3.node1",
+        "style": "<->",
+        "title": "2"
+      },
+      {
+        "from": "node2.node3.node3",
+        "to": "node1.node3.node1",
+        "style": "->",
+        "title": "3"
+      },
+      {
+        "from": "node2.node3.node1",
+        "to": "node2.node3.node2",
+        "style": "->",
+        "title": "4"
+      },
+      {
+        "from": "node2.node3.node3",
+        "to": "node2.node2",
+        "style": "->",
+        "title": "5"
+      },
+      {
+        "from": "node1.node1",
+        "to": "node2.node2",
+        "style": "->",
+        "title": "6"
+      },
+      {
+        "from": "node1.node1",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "7"
+      },
+      {
+        "from": "node5.node2",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "8"
+      },
+      {
+        "from": "node5.node1",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "9"
+      }
+    ],
+    "animation": {
+      "actions": {
+        "hello": [
+          {
+            "action": "info",
+            "text": "Сейчас начнется сказка!"
+          }
+        ],
+        "focus1": [
+          {
+            "action": "focus-node",
+            "target": "node1.node3.node1"
+          },
+          {
+            "action": "info",
+            "text": "Это самая главная база"
+          }
+        ],
+        "focus2": [
+          {
+            "action": "focus-node",
+            "target": "node1.node3.node2"
+          },
+          {
+            "action": "info",
+            "text": "Это самый крутой пользователь здесь"
+          }
+        ],
+        "focus3": [
+          {
+            "action": "focus-neighbors",
+            "target": "^node1\\..*$"
+          },
+          {
+            "action": "info",
+            "text": "Он отвечает за всю это колбасню"
+          }
+        ],
+        "bay": [
+          {
+            "action": "info",
+            "text": "Надеюсь тебе это так же понравилось как и мне ;)"
+          }
+        ],
+        "clean": [
+          {
+            "action": "clean",
+            "target": ".*"
+          }
+        ]
+      },
+      "scenarios": {
+        "case1": [
+          {
+            "action": "hello",
+            "delay": 100
+          },
+          {
+            "action": "focus1",
+            "delay": 100
+          },
+          {
+            "action": "clean"
+          },
+          {
+            "action": "focus2",
+            "delay": 100
+          },
+          {
+            "action": "focus3",
+            "delay": 100
+          },
+          {
+            "action": "bay",
+            "delay": 100
+          },
+          {
+            "action": "clean"
+          }
+        ]
+      }
+    },
+    "dlinks": [
+      {
+        "from": "node2.node3.node1",
+        "to": "node1.node3.node1",
+        "style": "<->",
+        "title": "1"
+      },
+      {
+        "from": "node1.node2",
+        "to": "node1.node3.node1",
+        "style": "<->",
+        "title": "2"
+      },
+      {
+        "from": "node2.node3.node3",
+        "to": "node1.node3.node1",
+        "style": "->",
+        "title": "3"
+      },
+      {
+        "from": "node2.node3.node1",
+        "to": "node2.node3.node2",
+        "style": "->",
+        "title": "4"
+      },
+      {
+        "from": "node2.node3.node3",
+        "to": "node2.node2",
+        "style": "->",
+        "title": "5"
+      },
+      {
+        "from": "node1.node1",
+        "to": "node2.node2",
+        "style": "->",
+        "title": "6"
+      },
+      {
+        "from": "node1.node1",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "7"
+      },
+      {
+        "from": "node5.node2",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "8"
+      },
+      {
+        "from": "node5.node1",
+        "to": "node1.node3.node2",
+        "style": "->",
+        "title": "9"
+      }
+    ]
+  }

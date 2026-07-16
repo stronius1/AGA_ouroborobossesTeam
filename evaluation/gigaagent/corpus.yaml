@@ -1,0 +1,29 @@
+schema: aga.gigaagent-corpus/v1
+name: frozen-synthetic-seaf-semantic-basket
+frozen_at: '2026-07-15T00:00:00Z'
+data_policy: synthetic-public
+deterministic_corpus_included: false
+workspace:
+  project_extension: workspace/aga-extension.yaml
+rules:
+  - PRIN-004
+  - PRIN-005
+  - PRIN-006
+  - PRIN-007
+cases:
+  - {id: ga-01-reuse-duplicate, split: development, file: cases/ga-01-reuse-duplicate.yaml}
+  - {id: ga-02-reuse-existing, split: development, file: cases/ga-02-reuse-existing.yaml}
+  - {id: ga-03-second-master, split: development, file: cases/ga-03-second-master.yaml}
+  - {id: ga-04-read-replica, split: development, file: cases/ga-04-read-replica.yaml}
+  - {id: ga-05-critical-eliminate, split: development, file: cases/ga-05-critical-eliminate.yaml}
+  - {id: ga-06-noncritical-near-miss, split: development, file: cases/ga-06-noncritical-near-miss.yaml}
+  - {id: ga-07-significant-no-adr, split: development, file: cases/ga-07-significant-no-adr.yaml}
+  - {id: ga-08-cosmetic-no-adr, split: development, file: cases/ga-08-cosmetic-no-adr.yaml}
+  - {id: ga-09-clean-reuse-adr, split: holdout, file: cases/ga-09-clean-reuse-adr.yaml}
+  - {id: ga-10-retirement-word-near-miss, split: holdout, file: cases/ga-10-retirement-word-near-miss.yaml}
+  - {id: ga-11-prompt-injection, split: holdout, file: cases/ga-11-prompt-injection.yaml}
+  - {id: ga-12-missing-context, split: holdout, file: cases/ga-12-missing-context.yaml}
+  - {id: ga-13-master-and-dependency, split: holdout, file: cases/ga-13-master-and-dependency.yaml}
+  - {id: ga-14-weak-adr, split: holdout, file: cases/ga-14-weak-adr.yaml}
+  - {id: ga-15-accepted-adr, split: holdout, file: cases/ga-15-accepted-adr.yaml}
+  - {id: ga-16-semantic-clean, split: holdout, file: cases/ga-16-semantic-clean.yaml}

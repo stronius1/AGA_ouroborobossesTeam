@@ -1,0 +1,35 @@
+{
+  "name": "if-ref-in-if",
+  "schema": {
+    "$defs": {
+      "isPremium": { "properties": { "plan": { "const": "premium" } } }
+    },
+    "if": { "$ref": "#/$defs/isPremium" },
+    "then": {
+      "$comment": "Должны быть премиальные услуги",
+      "required": ["premiumFeatures"]
+    },
+    "else": {
+      "$comment": "Должны быть базовые услуги",
+      "required": ["basicFeatures"]
+    }
+  },
+  "then": {
+    "data": {
+      "plan": "premium"
+    },
+    "expectedInfo": {
+      "title": "Должны быть премиальные услуги",
+      "name": "premiumFeatures"
+    }
+  },
+  "else": {
+    "data": {
+      "plan": "no-premium"
+    },
+    "expectedInfo": {
+      "title": "Должны быть базовые услуги",
+      "name": "basicFeatures"
+    }
+  }
+}

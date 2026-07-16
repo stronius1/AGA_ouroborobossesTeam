@@ -1,0 +1,12 @@
+schema: aga.gigaagent-case/v1
+id: ga-14-weak-adr
+split: holdout
+labels: [positive, PRIN-007, major, weak-rationale]
+change:
+  base: {documents: {model/adrs.yaml: {seaf.change.adr: {}}}}
+  head: {documents: {model/adrs.yaml: {seaf.change.adr: {demo.weak: {title: Choose broker, moment: '2026-07-15', status: accepted, issue: Need integration, decision: Use Broker X because it is best, context: [{area: technology, vector: unknown, content: No alternatives or constraints recorded}], consequences: [{area: technology, vector: unknown, content: Unknown}]}}}}}
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-007, severity: major, artifact: model/adrs.yaml, location: /seaf.change.adr/demo.weak, evidence_contains: alternatives}

@@ -1,0 +1,21 @@
+{
+  "artifacts": [
+    "rules.diff",
+    "metrics-baseline.json",
+    "metrics-candidate.json",
+    "evolution-pr.md",
+    "CHANGELOG-entry.md",
+    "0001-dmz-file-exchange.md"
+  ],
+  "branch_name": null,
+  "cycle_id": "aga-20260715T192259Z-53fc4d09",
+  "details": {
+    "candidate_branch": "skill/evolution-2026-07-15-PRIN-002",
+    "draft_requested": true,
+    "message": "artifacts validated; no branch, commit, push, or PR created"
+  },
+  "draft_pr_url": null,
+  "external_side_effects": false,
+  "publisher": "dry-run",
+  "status": "dry_run"
+}

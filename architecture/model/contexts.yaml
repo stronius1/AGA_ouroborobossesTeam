@@ -1,0 +1,25 @@
+contexts:
+  demo.integration:
+    title: Synthetic integration landscape
+    location: AGA Demo/Integrations
+    presentation: integration
+    extra-links: false
+    components:
+      - demo
+      - demo.portal
+      - demo.profile
+      - demo.gateway
+      - demo.legacy_scoring
+      - demo.analytics
+
+  demo.review_story:
+    title: AGA governance review story
+    location: AGA Demo/Review Story
+    presentation: plantuml
+    extra-links: false
+    components:
+      - demo.portal
+      - demo.gateway
+      - demo.profile
+      - demo.legacy_scoring
+    uml: diagrams/review-story.puml
