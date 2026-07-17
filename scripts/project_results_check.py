@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate local Project Results evidence without claiming external proofs."""
+"""Validate core runtime contracts and retained local evidence."""
 
 from __future__ import annotations
 
@@ -20,25 +20,21 @@ REQUIRED = (
     "compose.yaml",
     "architecture/dochub.yaml",
     "architecture/metamodel/aga-extension.yaml",
+    "docs/CURRENT-STATUS-AND-NEXT-STEPS.md",
+    "docs/OUROBOROS-MVP-INTEGRATION-GUIDE.md",
     "docs/SEAF-CANONICAL-MAPPING.md",
     "docs/MCP-CONTRACT.md",
-    "docs/submission/PROJECT-PROPOSAL.md",
-    "docs/submission/PROPOSAL-TRACEABILITY.md",
-    "docs/submission/PROJECT-RESULTS.md",
-    "docs/submission/DEMO-SCRIPT.md",
-    "docs/submission/presentation-source.md",
-    "docs/submission/presentation.css",
-    "docs/submission/presentation.pdf",
     "evaluation/gigaagent/corpus.yaml",
     "evaluation/gigaagent/corpus.lock.json",
     "evaluation/gigaagent/gate.yaml",
     "evaluation/gigaagent/results.json",
     "evaluation/gigaagent/fixture-results.json",
     "evaluation/gigaagent/fixtures/sanitized-response-bundle.json",
-    "docs/evidence/baseline/2026-07-15.md",
     "docs/evidence/evaluation/RESULTS.md",
-    "docs/evidence/gigaagent/README.md",
-    "docs/evidence/implementation/2026-07-15.md",
+    "docs/evidence/ouroboros/README.md",
+    "docs/evidence/ouroboros/run-sanitized.json",
+    "docs/evidence/ouroboros/development-sanitized.json",
+    "docs/evidence/ouroboros/frozen-run-failure-sanitized.json",
     "docs/evidence/snapshots/deterministic-2026-07-15-v2/README.md",
     "docs/evidence/snapshots/deterministic-2026-07-15-v2/SHA256SUMS",
     "docs/evidence/snapshots/deterministic-2026-07-15-v2/metrics-baseline.json",
@@ -46,25 +42,16 @@ REQUIRED = (
 )
 ACTIVE_MARKDOWN = (
     "README.md",
-    "AGA-README.md",
     "aga-skill/README.md",
     "aga-skill/SKILL.md",
     "aga-skill/evolver/EVOLVER.md",
-    "aga-skill/docs/CURRENT-STATE-AND-ROADMAP.md",
-    "aga-skill/docs/PROJECT-RESULTS.md",
-    "aga-skill/docs/RESULTS-EXAMPLES.md",
+    "aga-skill/docs/AGA-external-enforcement-checklist.md",
+    "docs/CURRENT-STATUS-AND-NEXT-STEPS.md",
     "docs/SEAF-CANONICAL-MAPPING.md",
     "docs/MCP-CONTRACT.md",
-    "docs/submission/PROJECT-RESULTS.md",
-    "docs/submission/presentation-source.md",
-    "docs/submission/DEMO-SCRIPT.md",
     "docs/evidence/evaluation/RESULTS.md",
-    "docs/evidence/gigaagent/README.md",
+    "docs/evidence/ouroboros/README.md",
     "docs/evidence/snapshots/deterministic-2026-07-15-v2/README.md",
-)
-PLACEHOLDER_RE = re.compile(
-    r"\{\{[^}]+\}\}|<PUBLIC_URL>|\b(?:TODO|TBD|CHANGEME|INSERT[_ -]HERE)\b",
-    re.IGNORECASE,
 )
 MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -933,10 +920,6 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         if "Стабильность" in text:
             errors.append(f"obsolete C6 name in active document: {relative}")
-        if relative.startswith("docs/submission/"):
-            match = PLACEHOLDER_RE.search(text)
-            if match:
-                errors.append(f"placeholder in submission artifact {relative}: {match.group(0)}")
         check_links(path, errors)
 
     current_rules = list((ROOT / "aga-skill" / "rules").glob("*.yaml"))
@@ -1067,24 +1050,8 @@ def main() -> int:
             detail = (completed.stderr or completed.stdout).strip().splitlines()
             errors.append(f"{' '.join(command[1:])} failed: {detail[0] if detail else 'unknown error'}")
 
-    pdf = ROOT / "docs/submission/presentation.pdf"
-    if pdf.is_file():
-        try:
-            completed = subprocess.run(
-                ["pdfinfo", str(pdf)], check=True, capture_output=True, text=True, timeout=15
-            )
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            warnings.append("pdfinfo unavailable; presentation page count not checked")
-        else:
-            page = re.search(r"^Pages:\s+(\d+)$", completed.stdout, re.MULTILINE)
-            if not page or int(page.group(1)) != 8:
-                errors.append("presentation.pdf must contain exactly 8 concise pages")
-
     warnings.extend(
         [
-            "public repository URL is an external action",
-            "narrated public video is an external action",
-            "original Project Proposal is absent",
             "GitHub Action tags and Docker base-image tags are not content-addressed",
             "Python dependency artifacts are version-pinned but do not have hashes",
             "container OS packages are not locked to a reproducible snapshot",
@@ -1096,7 +1063,7 @@ def main() -> int:
         for error in errors:
             print(f"PROJECT RESULTS ERROR: {error}", file=sys.stderr)
         return 1
-    print("PROJECT RESULTS LOCAL CHECKS OK")
+    print("CORE RUNTIME AND EVIDENCE CHECKS OK")
     return 0
 
 

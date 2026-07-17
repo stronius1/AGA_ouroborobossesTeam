@@ -5,6 +5,13 @@
 **Целевой Ouroboros:** стабильный `v6.64.1`  
 **Результат работы:** код, тесты и воспроизводимые evidence-артефакты, а не ещё один обзор
 
+> Этот файл сохранён как технический протокол выполненной интеграции. Текущий
+> статус, команды и следующий план находятся в
+> [`CURRENT-STATUS-AND-NEXT-STEPS.md`](CURRENT-STATUS-AND-NEXT-STEPS.md).
+> Упомянутые ниже презентационные/submission-файлы после прогона намеренно
+> удалены как не нужные для запуска агента; их следует создать заново только
+> после успешного нового release gate.
+
 ## 1. Как использовать этот документ
 
 Передай исполняющей модели весь репозиторий и этот файл. Дополнительно передай
@@ -47,7 +54,7 @@ agentic-систем. Требуется:
 Перед изменениями полностью прочитай:
 
 - `verdict.md`;
-- `README.md` и `AGA-README.md`;
+- `README.md` и `docs/CURRENT-STATUS-AND-NEXT-STEPS.md`;
 - `aga-skill/SKILL.md`;
 - `aga-skill/tools/a2a.py`;
 - `aga-skill/tools/llm.py`;
@@ -59,8 +66,8 @@ agentic-систем. Требуется:
 - `evaluation/gigaagent/runner.py`, `corpus.yaml`, `corpus.lock.json` и
   `gate.yaml`;
 - `compose.yaml`, `Makefile`, `.env.example`, `THIRD_PARTY.md`;
-- `docs/submission/PROJECT-RESULTS.md` и `docs/submission/DEMO-SCRIPT.md`;
-- PDF `2. Гайд по Ouroboros.pdf`.
+- `docs/evidence/ouroboros/README.md` и
+  `docs/evidence/evaluation/RESULTS.md`.
 
 Факты, которые уже подтверждены независимой проверкой и не требуют переписывания:
 

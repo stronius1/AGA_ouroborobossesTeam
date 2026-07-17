@@ -309,3 +309,11 @@ def test_makefile_keeps_smoke_fixed_and_all_paid_targets_double_gated() -> None:
             in makefile
         )
     assert "ifeq ($(OUROBOROS_FULL_RUN_APPROVED),yes)" in makefile
+
+
+def test_core_checker_does_not_require_pruned_submission_artifacts() -> None:
+    assert "docs/CURRENT-STATUS-AND-NEXT-STEPS.md" in checker.REQUIRED
+    assert all(
+        not relative.startswith("docs/submission/")
+        for relative in checker.REQUIRED + checker.ACTIVE_MARKDOWN
+    )

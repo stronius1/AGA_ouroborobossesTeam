@@ -22,8 +22,8 @@ OpenRouter key хранится только в owner-only настройках 
 вне Git; hard cap установлен в `50 USD`. В OpenRouter отправлялись только
 `synthetic-public` данные. Санитизированные smoke/development evidence и
 non-release отчёт о frozen FAIL находятся в `docs/evidence/ouroboros/`.
-Исходный offline baseline зафиксирован в
-[`docs/evidence/implementation/2026-07-15.md`](docs/evidence/implementation/2026-07-15.md).
+Понятный статус и план продолжения:
+[`docs/CURRENT-STATUS-AND-NEXT-STEPS.md`](docs/CURRENT-STATUS-AND-NEXT-STEPS.md).
 
 ## Слои продукта
 
@@ -47,7 +47,7 @@ trusted base/head Git diff → safe snapshot → AGA canonical model
 - `architecture/vendor/seaf-core/` — pinned GitVerse submodule
   `60ce335832d2734814c020306a85d1e8b12cf67b`.
   Project-owned logic в upstream trees не вносится.
-- [`docs/`](docs/) — контракты, evidence и Project Results.
+- [`docs/`](docs/) — текущий handoff, технические контракты и evidence.
 
 ## Быстрая локальная проверка
 
@@ -133,7 +133,7 @@ Real runner повторно валидирует и материализует 
 | `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development` | Non-release real 8-case development diagnostic; только в новом цикле |
 | `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout` | Не запускать для текущего freeze: frozen holdout уже раскрыт измерением |
 | `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all` | Не повторять текущий failed freeze; будущий цикл требует новой untouched holdout и разрешения |
-| `make project-results-check` | Hygiene, evidence и C1–C6 consistency checks |
+| `make project-results-check` | Core hygiene, pins, contracts и evidence checks |
 
 Machine-readable deterministic evidence is frozen with hashes in
 [`docs/evidence/snapshots/deterministic-2026-07-15-v2/`](docs/evidence/snapshots/deterministic-2026-07-15-v2/README.md).
@@ -173,8 +173,7 @@ Machine-readable deterministic evidence is frozen with hashes in
   action SHAs, image/OS-package digests и artifact hashes; текущие exact-claims
   ограничены Git commit pins, package versions и npm lock integrity.
 
-Исходный расширенный handoff сохранён в
-[`AGA-README.md`](AGA-README.md). Supply-chain и rollback:
-[`THIRD_PARTY.md`](THIRD_PARTY.md). Актуальный Project Results:
-[`docs/submission/PROJECT-RESULTS.md`](docs/submission/PROJECT-RESULTS.md).
+Текущий handoff:
+[`docs/CURRENT-STATUS-AND-NEXT-STEPS.md`](docs/CURRENT-STATUS-AND-NEXT-STEPS.md).
+Supply-chain и rollback: [`THIRD_PARTY.md`](THIRD_PARTY.md).
 MCP correlation/deployment contract: [`docs/MCP-CONTRACT.md`](docs/MCP-CONTRACT.md).

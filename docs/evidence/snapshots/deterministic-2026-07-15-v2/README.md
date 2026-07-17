@@ -1,9 +1,9 @@
 # Deterministic regression evidence snapshot v2
 
 This directory freezes the hardened local synthetic run produced after the
-evaluation-input and candidate-validation controls were completed. It keeps
-the earlier `deterministic-2026-07-15` directory immutable as historical
-evidence instead of silently replacing it.
+evaluation-input and candidate-validation controls were completed. It is the
+only retained deterministic snapshot; the superseded pre-hardening copy was
+removed during repository cleanup.
 
 The run evaluates 26 materialized cases. Baseline precision/recall/outcome
 accuracy/exact-case accuracy/weighted cost are
