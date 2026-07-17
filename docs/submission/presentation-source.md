@@ -32,8 +32,9 @@ Git base/head -> safe import closure -> aga.canonical/v2
  -> agent semantic review -> MCP finalize -> HITL
 ```
 
-Локально проверены Git → SEAF → MCP prepare/finalize boundaries. Official-agent
-stage — external / not run; real denominator равен 0.
+Git → SEAF → MCP prepare/finalize и official-agent stage проверены через
+Ouroboros `v6.64.1` и OpenRouter. Канонический blocker smoke прошёл; frozen
+16-case run технически завершился, но semantic release gate получил `FAIL`.
 
 Каждый finding сохраняет commit, file, JSON Pointer, hash и реальный
 versioned source reference.
@@ -73,16 +74,18 @@ Agent denominator не смешивается с этими числами.
   unsafe approve = 0; `release_evidence: false`.
 - Gate до запуска: blocker recall 1.0; unsafe approve 0; schema-valid 1.0;
   precision/recall ≥ 0.80; outcome accuracy ≥ 0.85.
+- Frozen real: development 6/8, holdout 4/8; overall P/R/blocker =
+  0.50/0.50/0.50, outcome = 0.8125, schema = 1.0, unsafe approve = 2.
 
-**Текущий real denominator: 0 — официальный запуск ещё не разрешён.**
+**Real measurement denominator: 16; release gate: FAIL. Повтора holdout нет.**
 
 # Честный статус и следующие шаги
 
-Локально: 489 tests + 32 subtests (98 unittest), offline Git→SEAF→finding, MCP contracts,
-regression и frozen basket. Ожидают разрешения: upstream submodules; внешне ещё
-нужны официальный GigaAgent trace, public repo, озвученное видео <180 s и
-исходный Project Proposal. Action/image/package digests и clean-clone CI —
-также release-owner checks, а не локальное доказательство.
+Локально: 600 tests + 32 subtests (99 unittest), offline Git→SEAF→finding, MCP
+contracts и реальный Ouroboros loop. Следующий semantic цикл требует generic
+redesign без tuning на раскрытом holdout и новую untouched holdout. Внешне ещё
+нужны public repo, озвученное видео <180 s и исходный Project Proposal.
+Action/image/package digests и clean-clone CI — также release-owner checks.
 
 **Narrative:** один SEAF source → agent semantic reasoning → deterministic
 safety → evidence → человек принимает решение.

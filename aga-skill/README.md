@@ -6,10 +6,11 @@ diff из Git, безопасно материализует import/context clos
 candidate изменения правил по подтверждённым прецедентам. Blocker/major всегда
 уходят человеку; auto-merge отсутствует.
 
-Текущий доказанный scope — offline deterministic MVP, trusted Git snapshot,
-SEAF-native adapter и локальные transport/contract tests. Реальные ГигаАгент,
-Ouroboros A2A и draft-PR connector не подключены; они перечислены как внешние
-действия, а не как готовый функционал.
+Текущий доказанный scope включает offline deterministic MVP, trusted Git
+snapshot, SEAF-native adapter и реальный trusted Ouroboros backend. Канонический
+blocker smoke прошёл, а единственный frozen 16-case run технически завершился,
+но semantic release gate получил `FAIL` (10/16 exact, два unsafe approve).
+Draft-PR/VCS connector остаётся внешним действием.
 
 Актуальный командный handoff со статусом, ограничениями и приоритетным планом:
 [`docs/CURRENT-STATE-AND-ROADMAP.md`](docs/CURRENT-STATE-AND-ROADMAP.md).
@@ -84,9 +85,13 @@ python3 scripts/run_seaf_review.py --case demo-critical-dependency --mode gigaag
   offline fixture LLM adapter. Legacy LLM boundary привязывает finding к
   trusted catalog, changed artifact, разрешающейся location и SHA-256;
   low-confidence major/blocker дают machine-readable incomplete/HITL.
-  Network adapter по умолчанию отсутствует, а синхронный adapter
+  Legacy direct-CLI network adapter по умолчанию отсутствует, а синхронный adapter
   обязан сам соблюдать `timeout_seconds` (finite, не более 120 с).
   Разрешение сети принимается только как явный boolean.
+- Project-owned trusted Ouroboros `v6.64.1` backend выполняет synthetic-public
+  prepare/retrieval/finalize flow, проверяет receipts, exact model route и
+  authoritative usage; frozen quality failure не превращается в approve или
+  release evidence.
 
 ## Воспроизводимые результаты
 
@@ -151,14 +156,14 @@ rules/ · fixtures/ · golden/ · precedents/ · tests/
 | Критерий | Вес | Текущее доказательство / статус |
 |---|---:|---|
 | Отчёт о результатах MVP | 20% | root `docs/submission/PROJECT-RESULTS.md` + 8-page PDF |
-| Применение ГигаАгента | 10% | **external action required**: реальный ГигаАгент не подключён |
+| Применение ГигаАгента | 10% | Ouroboros `v6.64.1` live loop выполнен; frozen release gate **FAIL** |
 | ДЕМО-видео | 30% | сценарий готов; озвученное видео `<180 s` ещё нужно записать |
 | Документация и код | 10% | README, Git target commits и package versions готовы; content-addressed supply chain, clean install и public repo не подтверждены |
-| Результаты на примерах | 20% | 26 deterministic cases + frozen 16-case agent basket; real denominator 0 |
+| Результаты на примерах | 20% | 26 deterministic cases + real 16-case basket: 10/16 exact, release **FAIL** |
 | Качество материалов | 10% | единая структура материалов; требуется финальный дизайн/вычитка |
 
-Нельзя закрыть локальным кодом: публикацию репозитория, запись видео, реальное
-подключение ГигаАгента/Ouroboros и настройки branch protection.
+Нельзя закрыть локальным кодом: публикацию репозитория, запись видео, новый
+untouched holdout для следующего semantic цикла и настройки branch protection.
 
 ## Зависимости и лицензии
 

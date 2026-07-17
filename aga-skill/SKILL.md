@@ -123,8 +123,11 @@ malformed YAML, missing required field или unsafe path — структури
 ## 7. Декомпозиция A2A (Ouroboros: schedule_task)
 
 Исполняемый protocol `schedule_task` → `wait_for_task` → `get_task_result`
-реализован с local backend для offline tests. Реальный Ouroboros adapter пока
-не подключён; его API нельзя считать доказанным до внешней интеграции.
+реализован с local backend для offline tests и trusted Ouroboros `v6.64.1`
+backend для synthetic-public real runs. API/tool-receipt path доказан
+каноническим blocker smoke и 16 завершёнными frozen cases, но semantic release
+gate получил `FAIL`; этот результат нельзя считать release evidence или
+повторять на том же holdout.
 
 | Подзадача | Правила | Модель | Инструменты |
 |---|---|---|---|

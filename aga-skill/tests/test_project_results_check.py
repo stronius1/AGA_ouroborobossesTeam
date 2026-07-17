@@ -35,6 +35,7 @@ def _raw_capture(index: int, normalized: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "task_id": f"ouroboros-task-{index}",
         "task_status": "failed" if incomplete else "succeeded",
+        "final_answer_envelope": "strict_json",
         "rendered_prompt_sha256": "a" * 64,
         "receipts": {
             "review_id_sha256": review_hash,
@@ -167,6 +168,19 @@ def test_fixture_result_cannot_be_used_as_canonical_real_trace() -> None:
         expected_prompt_hash=fixture["prompt_hash"],
     )
     assert any("fixture" in error for error in errors)
+
+
+def test_canonical_smoke_trace_rejects_untrusted_final_answer_envelope() -> None:
+    trace = _valid_smoke_trace("6" * 64, "7" * 64)
+    trace["run"]["raw_sanitized"]["final_answer_envelope"] = "free_text"
+
+    assert not checker.check_ouroboros_trace_payload(
+        trace,
+        errors := [],
+        expected_corpus_hash="6" * 64,
+        expected_prompt_hash="7" * 64,
+    )
+    assert any("accepted ga-05 smoke" in error for error in errors)
 
 
 def test_results_accept_only_full_all_case_trusted_pass() -> None:

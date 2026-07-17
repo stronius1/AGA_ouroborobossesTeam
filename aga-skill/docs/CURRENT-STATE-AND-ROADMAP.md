@@ -1,7 +1,8 @@
 # AGA: текущее состояние и план работ
 
-**Дата среза:** 15 июля 2026 года  
-**Текущая стадия:** локальный SEAF-native MVP; внешние submission-доказательства не готовы.
+**Дата среза:** 17 июля 2026 года
+**Текущая стадия:** live Ouroboros integration работает; frozen semantic gate
+не пройден, внешние submission-доказательства не готовы.
 
 Главная landing page — [`../../README.md`](../../README.md), актуальный отчёт
 по C1–C6 —
@@ -30,11 +31,12 @@
 - `make demo-offline` воспроизводимо создаёт синтетические SEAF-native base/head
   commits и обнаруживает новую зависимость на component со статусом
   `target_status: eliminate`. Это диагностический, не agent run.
-- Отдельная frozen basket содержит 16 синтетических SEAF changes: 8 development
-  и 8 holdout, с locked human expected и release gate до реального запуска.
+- Frozen basket содержит 16 синтетических SEAF changes: 8 development и 8
+  holdout, с locked human expected и release gate. Единственный real run
+  завершил все cases, но прошёл только 10/16 и получил `FAIL`.
 - Root Compose настроен на read-only project architecture, MCP в internal
-  Docker network и project-owned ArchTool `gigachat` scenario; runtime ещё не
-  запускался без pinned upstream деревьев.
+  Docker network и project-owned ArchTool `gigachat` scenario; ArchTool
+  runtime/UI ещё не проверен в Node 20 environment.
 - Blocker/major всегда требуют HITL; auto-merge, commit, push и publisher side
   effects отсутствуют.
 
@@ -44,12 +46,12 @@
 |---|---|
 | SEAF-native Git → adapter → finding | локально реализовано и покрыто тестами |
 | MCP protocol и prepare/finalize | локальный unit/contract scope |
-| SEAF.ArchTool UI/build/runtime | ожидает pinned submodules и Node 20 environment |
-| SEAF upstream provenance | pins задокументированы; submodules не созданы без разрешения на fetch |
-| Официальный ГигаАгент | real adapter/credentials/trace отсутствуют; denominator `0` |
-| Agent basket | 16 frozen cases готовы; real results `not_run` |
+| SEAF.ArchTool UI/build/runtime | pinned submodules присутствуют; Node 20 run ещё не подтверждён |
+| SEAF upstream provenance | два exact GitVerse revision оформлены pinned submodules и проходят integrity contract |
+| Официальный ГигаАгент | Ouroboros `v6.64.1` live backend и sanitized smoke доказаны; release gate `FAIL` |
+| Agent basket | real denominator `16`: development 6/8, holdout 4/8, unsafe approve `2`; no retry |
 | Git root | локально инициализирован; remote и public URL отсутствуют |
-| Root review revisions | проектный `HEAD`/base commit отсутствует: commit не был разрешён |
+| Root review revisions | meaningful local commits существуют; push/remote отсутствуют |
 | CI | workflow подготовлен; public clean-clone run отсутствует |
 | Project Proposal | исходный документ не предоставлен; traceability заблокирована |
 | Demo video | есть план `2:50`; запись, `ffprobe` proof и public URL отсутствуют |
@@ -71,27 +73,25 @@ make bootstrap
 make test-seaf
 ```
 
-`make demo-e2e` — explicit opt-in. Без проверенного официального agent adapter
-он обязан завершиться exit `2` со статусом `incomplete`, а не подменить агент
-fixture-ответом.
+`make demo-e2e` — explicit opt-in trusted smoke; он уже прошёл на настроенном
+локальном профиле. Без проверенного runtime/configuration команда по-прежнему
+обязана завершиться exit `2`, а не подменить agent fixture-ответом.
 
 ## Следующие действия
 
-### Локально после разрешения на read-only upstream fetch
+### Локально в следующем цикле
 
-1. Сравнить существующий `seaf-archtool-core` с tag `v2026.29.0`, сохранить
-   любые отличия и безопасный backup вне Git-root.
-2. Подключить ArchTool и `architecture/vendor/seaf-core` как recursive
-   submodules на задокументированных commits, без branch tracking.
+1. Переработать generic semantic strategy без tuning на раскрытом holdout.
+2. Создать и заморозить новую untouched holdout до следующего paid run.
 3. Проверить LICENSE/NOTICE, pins, штатные validators, Node tests/backend build,
    Compose health и отображение project manifest в UI.
-4. Повторить все проверки из чистого локального clone.
+4. Повторить все проверки из чистого локального clone после появления remote.
 
 ### Только владелец или отдельное явное разрешение
 
 1. Предоставить официальный Project Proposal и контракт ГигаАгента.
-2. Настроить разрешённые credentials и выполнить real E2E без раскрытия
-   секретов; сохранить sanitized trace и отдельно прогнать development/holdout.
+2. Отдельно разрешить новый paid release cycle только после новой untouched
+   holdout; текущий frozen holdout не повторять.
 3. Создать remote/public repository, запустить public CI и проверить clone без
    авторизации.
 4. Записать непрерывно озвученное видео строго короче 180 секунд, проверить

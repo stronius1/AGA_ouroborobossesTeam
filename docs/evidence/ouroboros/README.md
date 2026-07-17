@@ -1,17 +1,24 @@
 # Ouroboros integration runbook and evidence boundary
 
-**Status: real smoke and development evidence captured; frozen holdout has not
-run.** `run-sanitized.json` records the canonical `ga-05-critical-eliminate`
-smoke on orchestration prompt v1.0.5. `development-sanitized.json` records the
-complete eight-case development selection on the same prompt and configuration.
-Both were produced atomically by the trusted runner after locally validating
+**Status: the real runtime and all 16 frozen cases ran; the frozen release gate
+FAILED.** `run-sanitized.json` records the canonical
+`ga-05-critical-eliminate` smoke on orchestration prompt v1.0.5, and
+`development-sanitized.json` records the final pre-freeze eight-case development
+selection. Both were produced atomically by the trusted runner after validating
 the full `aga_prepare_review → semantic review → aga_finalize_review` flow.
 
-The development measurement captured at `2026-07-17T03:36:34Z` is 8/8 exact
-PASS: precision, recall, blocker recall, outcome accuracy and schema-valid rate
-are all `1.0`; unsafe approve count is `0`. Its authoritative model cost is
-`0.231359 USD`. This remains non-release diagnostic evidence until the single
-post-freeze 16-case development+holdout measurement succeeds.
+The single authorized post-freeze development+holdout run completed all 16
+tasks through OpenRouter and the pinned Ouroboros runtime, but only 10 cases
+passed exact scoring. The holdout contained two unsafe approvals, so the run is
+not release evidence and must not be retried or used for prompt tuning. The
+sanitized non-release failure record is
+[`frozen-run-failure-sanitized.json`](frozen-run-failure-sanitized.json).
+
+The pre-freeze development measurement captured at `2026-07-17T03:36:34Z` is
+8/8 exact PASS: precision, recall, blocker recall, outcome accuracy and
+schema-valid rate are all `1.0`; unsafe approve count is `0`. Its authoritative
+model cost is `0.231359 USD`. It remains development-only diagnostic evidence;
+the later frozen measurement is the release decision and failed its gate.
 
 ## Pinned runtime
 
@@ -183,18 +190,31 @@ selection uses these frozen-candidate values:
 | Corpus SHA-256 | `df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951` |
 | Ground truth SHA-256 | `80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01` |
 
-After the meaningful local code-freeze commit is recorded, the canonical
-release measurement must run all 16 cases once in one trusted in-process
-selection:
+The canonical release measurement was run once after the meaningful local
+code-freeze commit, in one trusted in-process selection:
 
 ```bash
 OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all
 ```
 
-Do not run `evaluate-ouroboros-holdout` separately: `evaluate-ouroboros-all`
-already contains both frozen splits. The frozen holdout must not be used for
-prompt tuning. A transport/provider failure does not authorize an unrecorded
-repeat; owner direction is required before any retry.
+It finished at `2026-07-17T04:17:39Z`: all 16 technical task executions
+completed, with 85 accounted model calls and `0.409884 USD` authoritative cost.
+There was no transport, provider, receipt or schema failure. The semantic gate
+failed as follows:
+
+| Scope | Exact cases | Precision | Recall | Blocker recall | Outcome | Schema valid | Unsafe approve | Gate |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Development | 6/8 | 0.75 | 0.75 | 1.0 | 0.875 | 1.0 | 0 | FAIL |
+| Holdout | 4/8 | 0.25 | 0.25 | 0.0 | 0.75 | 1.0 | 2 | FAIL |
+| Overall | 10/16 | 0.50 | 0.50 | 0.50 | 0.8125 | 1.0 | 2 | FAIL |
+
+`evaluation/gigaagent/results.json` was deliberately not overwritten because
+the trusted writer publishes that canonical file only after a gate PASS. Its
+checked-in zero-denominator sentinel is therefore not the record of this failed
+attempt; the explicitly non-release diagnostic linked above is. Do not run
+`evaluate-ouroboros-holdout` or `evaluate-ouroboros-all` again for this freeze.
+The holdout result must not be used for prompt tuning. A future evaluation
+cycle requires a revised generic strategy and a new untouched holdout.
 
 ## Sanitized capture contract
 

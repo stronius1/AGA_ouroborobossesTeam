@@ -1,0 +1,211 @@
+{
+  "schema": "aga.ouroboros-frozen-run-failure-sanitized/v1",
+  "evidence_class": "human-readable non-release diagnostic",
+  "canonical_schema_applied": false,
+  "status": "failed_release_gate",
+  "release_evidence": false,
+  "canonical_results_written": false,
+  "retry_performed": false,
+  "data_classification": "synthetic-public",
+  "frozen_run_finished_at": "2026-07-17T04:17:39Z",
+  "measurement_boundary": "single frozen 16-case development-plus-holdout run",
+  "provenance_note": "Post-failure sanitized diagnostic reconstructed from the 16 completed frozen task results and the deterministic scorer. The canonical trusted writer intentionally did not overwrite evaluation/gigaagent/results.json because the release gate failed.",
+  "validation_note": "This custom failure record is valid JSON and was checked for aggregate arithmetic and secret redaction, but it is not a canonical release-result schema.",
+  "freeze": {
+    "timestamp_utc": "2026-07-17T03:45:05Z",
+    "code_commit": "873202fc9e726ebad8b031f0031b01f3b66b7fae",
+    "record_commit": "e9b33232b579f89d548b6881cc79f22af5c8777a",
+    "runtime": {
+      "name": "ouroboros",
+      "version": "6.64.1",
+      "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd"
+    },
+    "provider": "openrouter",
+    "model": "deepseek/deepseek-v4-pro",
+    "prompt_template_sha256": "8366780b6d99a8eec94eebeaabcc00d7df6a80207a3883527eecfb9a1a5bdd16",
+    "config_sha256": "3267143de7e841c64b64f37195e671709e8437674e5d446394d09149bf542fc5",
+    "adapter_sha256": "43f5a9801bba3d021d6907c7c18478fe0faa260da9962a9a375bdd0fd6612219",
+    "corpus_sha256": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+    "ground_truth_sha256": "80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01"
+  },
+  "runtime": {
+    "name": "ouroboros",
+    "version": "6.64.1",
+    "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd"
+  },
+  "provider": "openrouter",
+  "model": {
+    "name": "deepseek/deepseek-v4-pro"
+  },
+  "latency": {
+    "available": false,
+    "reason": "The canonical aggregate was not published after gate failure; latency is not reconstructed in this diagnostic."
+  },
+  "usage": {
+    "task_count": 16,
+    "model_call_count": 85,
+    "known_cost_usd": 0.409884,
+    "prompt_tokens": 1733787,
+    "completion_tokens": 75335,
+    "cost_complete": true
+  },
+  "metrics": {
+    "development": {
+      "cases_evaluated": 8,
+      "cases_passed": 6,
+      "tp": 3,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.75,
+      "recall": 0.75,
+      "blocker_recall": 1.0,
+      "outcome_accuracy": 0.875,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 0,
+      "gate_passed": false
+    },
+    "holdout": {
+      "cases_evaluated": 8,
+      "cases_passed": 4,
+      "tp": 1,
+      "fp": 3,
+      "fn": 3,
+      "precision": 0.25,
+      "recall": 0.25,
+      "blocker_recall": 0.0,
+      "outcome_accuracy": 0.75,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 2,
+      "gate_passed": false
+    },
+    "overall": {
+      "cases_evaluated": 16,
+      "cases_passed": 10,
+      "tp": 4,
+      "fp": 4,
+      "fn": 4,
+      "precision": 0.5,
+      "recall": 0.5,
+      "blocker_recall": 0.5,
+      "outcome_accuracy": 0.8125,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 2,
+      "gate_passed": false
+    }
+  },
+  "thresholds": {
+    "blocker_recall": 1.0,
+    "unsafe_approve_count": 0,
+    "schema_valid_rate": 1.0,
+    "precision_min": 0.8,
+    "recall_min": 0.8,
+    "outcome_accuracy_min": 0.85
+  },
+  "runs": [
+    {
+      "case_id": "ga-01-reuse-duplicate",
+      "split": "development",
+      "task_id": "14edf452",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-02-reuse-existing",
+      "split": "development",
+      "task_id": "e0774a57",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-03-second-master",
+      "split": "development",
+      "task_id": "82be3b82",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-04-read-replica",
+      "split": "development",
+      "task_id": "b2483e2f",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-05-critical-eliminate",
+      "split": "development",
+      "task_id": "d175bb74",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-06-noncritical-near-miss",
+      "split": "development",
+      "task_id": "7213e5d0",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-07-significant-no-adr",
+      "split": "development",
+      "task_id": "e0c7cf2a",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-08-cosmetic-no-adr",
+      "split": "development",
+      "task_id": "391e4f00",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-09-clean-reuse-adr",
+      "split": "holdout",
+      "task_id": "682c1d25",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-10-retirement-word-near-miss",
+      "split": "holdout",
+      "task_id": "8b63311d",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-11-prompt-injection",
+      "split": "holdout",
+      "task_id": "b1e38767",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-12-missing-context",
+      "split": "holdout",
+      "task_id": "2c9c2b9c",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-13-master-and-dependency",
+      "split": "holdout",
+      "task_id": "786dbc3e",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-14-weak-adr",
+      "split": "holdout",
+      "task_id": "69c1be91",
+      "assessment": "FAIL"
+    },
+    {
+      "case_id": "ga-15-accepted-adr",
+      "split": "holdout",
+      "task_id": "ec24bf59",
+      "assessment": "PASS"
+    },
+    {
+      "case_id": "ga-16-semantic-clean",
+      "split": "holdout",
+      "task_id": "8d62ef41",
+      "assessment": "PASS"
+    }
+  ],
+  "redaction": {
+    "api_key_included": false,
+    "auth_headers_included": false,
+    "absolute_local_paths_included": false,
+    "raw_provider_payloads_included": false,
+    "holdout_expected_payloads_included": false,
+    "holdout_case_assessments_included": true,
+    "holdout_failure_reasons_included": false
+  }
+}

@@ -11,14 +11,17 @@ Offline-контур AGA и обвязка для Ouroboros закреплены
 `v6.64.1`. Целевой provider — OpenRouter, точная Main/semantic-модель —
 `deepseek/deepseek-v4-pro`. Внешней модели можно передавать только
 зафиксированные `synthetic-public` fixtures.
-Материализатор, read-only preflight, packaged-CLI backend и trusted
-runner реализованы и offline-tested; `make demo-e2e` больше не
-sentinel, но fail-closed без валидного runtime/configuration.
+Материализатор, read-only preflight, trusted backend и runner реализованы и
+проверены как offline, так и через реальный runtime. Канонический blocker smoke
+прошёл; единственный frozen run выполнил все 16 случаев, но semantic release
+gate завершился `FAIL`: development 6/8, holdout 4/8, overall precision/recall/
+blocker recall `0.50/0.50/0.50`, outcome `0.8125`, schema-valid `1.0`, unsafe
+approve `2`. Повтор holdout не выполнялся и для этого freeze запрещён.
 
-Реальный status не декларируется по факту наличия кода: пока нет
-валидированного `docs/evidence/ouroboros/run-sanitized.json`, smoke-run
-считается невыполненным, а real-agent denominator равен `0`.
-Запросов в OpenRouter не было; ключ проектом не сохранялся.
+OpenRouter key хранится только в owner-only настройках изолированного профиля
+вне Git; hard cap установлен в `50 USD`. В OpenRouter отправлялись только
+`synthetic-public` данные. Санитизированные smoke/development evidence и
+non-release отчёт о frozen FAIL находятся в `docs/evidence/ouroboros/`.
 Исходный offline baseline зафиксирован в
 [`docs/evidence/implementation/2026-07-15.md`](docs/evidence/implementation/2026-07-15.md).
 
@@ -78,10 +81,9 @@ remote ещё не создан; переменная не задана, и эт
 
 ## Контролируемый Ouroboros smoke
 
-Перед model call владелец вручную вводит OpenRouter key в
-**Ouroboros Settings → Secrets** и задаёт явный positive hard budget cap.
-Ключ не передаётся CLI, не пишется в `.env`, Git или evidence.
-Сейчас hard cap ещё не задан, поэтому paid call заблокирован.
+OpenRouter key уже сохранён в owner-only (`0600`) settings изолированного
+Ouroboros-профиля вне Git; positive hard cap равен `50 USD`. Ключ не передаётся
+CLI, не пишется в `.env`, Git, логи или evidence.
 
 Main route должен точно указывать
 `deepseek/deepseek-v4-pro`; Heavy/Light/Vision/Consciousness — быть
@@ -89,15 +91,15 @@ Main route должен точно указывать
 Scope Review и все Review/Scope Review Models — точно той же
 моделью. Cross-model/local fallback отключён,
 `OUROBOROS_TASK_REVIEW_MODE=off`.
-Внешний instruction skill `aga_review` version `1.0.0` нужно
-установить, пропустить через standard Ouroboros skill review и явно
-включить владельцем без permissions.
+Внешний instruction skill `aga_review` version `1.0.0` установлен, прошёл
+standard Ouroboros skill review и включён без permissions.
 
 Локально скачанный macOS DMG `v6.64.1` совпал с SHA-256 из
 гайда и прошёл `hdiutil verify`, но `codesign --verify` вернул
-`invalid signature`, а `spctl` — internal error. Поэтому приложение не
-установлено и не запускалось; runtime precondition пока не закрыт.
-После этого:
+`invalid signature`, а `spctl` — internal error. Приложение не устанавливалось
+и signature bypass не применялся. Вместо него Ouroboros собран в изолированном
+окружении из точного чистого upstream commit для `v6.64.1`; preflight проверяет
+commit, версию и live overlay attestation. Обычный lifecycle:
 
 ```bash
 make ouroboros-materialize
@@ -105,13 +107,11 @@ make ouroboros-preflight
 make demo-e2e
 ```
 
-`make demo-e2e` запускает один blocker smoke
-`ga-05-critical-eliminate`. После него нужно остановиться:
-development/holdout по 8 cases запускаются только после нового явного
-разрешения владельца и с `OUROBOROS_FULL_RUN_APPROVED=yes`. Этот
-machine gate не заменяет само разрешение. Точные pins, настройка MCP и
-sanitized capture
-описаны в
+`make demo-e2e` уже выполнил blocker smoke `ga-05-critical-eliminate` успешно.
+После code freeze команда `evaluate-ouroboros-all` была выполнена ровно один
+раз и завершилась semantic `evaluation_gate_failed`. Не запускайте отдельный
+holdout или повторный all-run для этого freeze; будущий релизный цикл потребует
+новой untouched holdout. Точные pins, настройка MCP и sanitized capture описаны в
 [`docs/evidence/ouroboros/README.md`](docs/evidence/ouroboros/README.md).
 
 Project-local materialization предназначена только для offline preview.
@@ -130,9 +130,9 @@ Real runner повторно валидирует и материализует 
 | `make ouroboros-materialize` | Создать ignored, locked synthetic-public Git fixture для smoke |
 | `make ouroboros-preflight` | Без model call проверить v6.64.1, все exact model routes, hard cap, review settings, reviewed/enabled skill и ровно 4 AGA tools |
 | `make demo-e2e` | Opt-in trusted Ouroboros smoke на `ga-05-critical-eliminate`; fail closed без configuration |
-| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development` | Non-release real 8-case development diagnostic; только после checkpoint approval |
-| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout` | Non-release real frozen 8-case diagnostic; только после checkpoint approval |
-| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all` | Canonical trusted 16-case release run; только после отдельного явного разрешения |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-development` | Non-release real 8-case development diagnostic; только в новом цикле |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-holdout` | Не запускать для текущего freeze: frozen holdout уже раскрыт измерением |
+| `OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all` | Не повторять текущий failed freeze; будущий цикл требует новой untouched holdout и разрешения |
 | `make project-results-check` | Hygiene, evidence и C1–C6 consistency checks |
 
 Machine-readable deterministic evidence is frozen with hashes in
@@ -159,8 +159,9 @@ Machine-readable deterministic evidence is frozen with hashes in
 - Клиент не передаёт MCP произвольный filesystem path: review идёт
   только по registered revision/case.
 - Schema/import/agent errors дают `incomplete`/`error`, а не `approve`, когда
-  результат проходит через AGA finalize boundary; полный live Ouroboros loop
-  ещё не проверен.
+  результат проходит через AGA finalize boundary. Полный live Ouroboros loop
+  проверен технически, но frozen semantic gate выявил два unsafe approve и
+  поэтому остаётся fail-closed для релиза.
 - Semantic findings принимаются только по strict JSON schema,
   allowlist rules/source refs и evidence из переданного snapshot.
 - В OpenRouter разрешены только `synthetic-public` inputs; raw prompts,

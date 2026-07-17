@@ -8,10 +8,18 @@ isolated temporary Git repository with an actual base commit, head commit and
 non-empty diff. Both revisions load through the project SEAF-native adapter.
 This denominator is independent from the deterministic regression corpus.
 
-**Real status: not run.** `evaluation/gigaagent/results.json` remains a zero-
-denominator `mode: real` record because the trusted pinned Ouroboros runtime is
-not available and no positive USD hard cap has been supplied. No model or
-provider request was made.
+**Real status: frozen run completed; release gate FAILED.** The single
+authorized trusted run executed all 16 cases with Ouroboros `v6.64.1` through
+OpenRouter model `deepseek/deepseek-v4-pro`. All task/receipt/schema checks
+completed, but semantic quality missed the frozen thresholds, including two
+unsafe approvals in holdout.
+
+`evaluation/gigaagent/results.json` remains the checked-in zero-denominator
+sentinel because the trusted writer replaces it only after a complete gate
+PASS. It must not be relabelled manually. The actual failed attempt is recorded
+as explicitly non-release sanitized diagnostics in
+[`../ouroboros/frozen-run-failure-sanitized.json`](../ouroboros/frozen-run-failure-sanitized.json).
+No holdout retry was performed or authorized.
 
 The recorded local run is explicitly a synthetic fixture measurement:
 
@@ -111,6 +119,33 @@ The frozen numerical thresholds pass for the fixture in development, holdout
 and overall scopes, but the release gate remains false because fixture mode is
 never release-eligible.
 
+## Frozen real-run metrics
+
+The frozen measurement finished at `2026-07-17T04:17:39Z`. It used 85
+accounted model calls, 1,733,787 prompt tokens and 75,335 completion tokens, at
+an authoritative cost of `0.409884 USD`.
+
+| metric | development (8) | holdout (8) | overall (16) |
+|---|---:|---:|---:|
+| exact cases passed | 6 | 4 | 10 |
+| TP / FP / FN | 3 / 1 / 1 | 1 / 3 / 3 | 4 / 4 / 4 |
+| precision | 0.750 | 0.250 | 0.500 |
+| recall | 0.750 | 0.250 | 0.500 |
+| blocker recall | 1.000 | 0.000 | 0.500 |
+| outcome accuracy | 0.875 | 0.750 | 0.8125 |
+| schema-valid rate | 1.000 | 1.000 | 1.000 |
+| unsafe approve count | 0 | 2 | 2 |
+| release gate | FAIL | FAIL | FAIL |
+
+Development failures were `ga-01-reuse-duplicate` and
+`ga-07-significant-no-adr`. Holdout failures were
+`ga-11-prompt-injection`, `ga-12-missing-context`,
+`ga-13-master-and-dependency` and `ga-14-weak-adr`. The `ga-12` and `ga-14`
+outcome errors counted as unsafe approvals where fail-closed incomplete or
+escalation was required. The result is a semantic model-quality failure, not a
+transport/provider failure, so the frozen protocol permits neither a retry nor
+post-hoc prompt tuning on this holdout.
+
 ## Frozen release gate
 
 - blocker recall = 1.0;
@@ -121,10 +156,11 @@ never release-eligible.
 - outcome accuracy >= 0.85.
 
 Every threshold is evaluated separately for development, holdout and overall;
-all three scopes must pass. A future real release result additionally requires
-the complete 16-case trusted Ouroboros path with verified task, model, MCP
-receipts and authoritative cost accounting; an input bundle's `mode: real`
-label is explicitly insufficient.
+all three scopes must pass. The completed run established the full trusted
+Ouroboros path with verified task, model, MCP receipts and authoritative cost
+accounting, but did not pass the quality thresholds. A future release attempt
+requires a new evaluation cycle and untouched holdout; an input bundle's
+`mode: real` label remains explicitly insufficient.
 
 ## Reproduction
 
@@ -142,5 +178,5 @@ The negative tests prove that malformed schema, hallucinated evidence, unsafe
 approve, sensitive raw fields, relabelled oracle fixtures, and fixture/real
 mode mixing fail closed. They also prove that hostile global Git object-format,
 hook, signing and filter configuration cannot affect synthetic materialisation.
-An authorized real run is an external action and was intentionally not
-performed.
+No paid command is part of this reproduction block. The frozen paid run has
+already occurred and must not be repeated for this freeze.

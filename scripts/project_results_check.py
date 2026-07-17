@@ -211,6 +211,7 @@ def _valid_trusted_raw_capture(value: Any, normalized: Mapping[str, Any]) -> boo
     if not isinstance(value, Mapping) or set(value) != {
         "task_id",
         "task_status",
+        "final_answer_envelope",
         "rendered_prompt_sha256",
         "receipts",
         "model_usage",
@@ -221,6 +222,8 @@ def _valid_trusted_raw_capture(value: Any, normalized: Mapping[str, Any]) -> boo
         not isinstance(value.get("task_id"), str)
         or TASK_ID_RE.fullmatch(value["task_id"]) is None
         or value.get("task_status") != ("failed" if expected_incomplete else "succeeded")
+        or value.get("final_answer_envelope")
+        not in {"strict_json", "single_json_fence"}
         or not _is_sha256(value.get("rendered_prompt_sha256"))
     ):
         return False
@@ -708,13 +711,13 @@ def check_real_results_payload(
     expected_corpus_hash: str,
     expected_ground_truth_hash: str,
 ) -> bool:
-    """Accept zero-denominator not-run state or a full all-case trusted PASS."""
+    """Accept the PASS-only sentinel state or a full all-case trusted PASS."""
 
     if not isinstance(results, Mapping):
         errors.append("GigaAgent results must be a JSON object")
         return False
     if results.get("status") == "not_run":
-        warnings.append("trusted Ouroboros all-case evidence is not run")
+        warnings.append("canonical trusted Ouroboros all-case PASS evidence is absent")
         if (
             results.get("schema") != RESULTS_SCHEMA
             or results.get("mode") != "real"

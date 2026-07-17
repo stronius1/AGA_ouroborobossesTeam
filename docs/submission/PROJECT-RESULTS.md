@@ -1,19 +1,20 @@
 # AGA + SEAF Project Results
 
-Evidence baseline: 2026-07-15; integration status updated 2026-07-16. Data is
+Evidence baseline: 2026-07-15; integration status updated 2026-07-17. Data is
 synthetic and contains no production banking records or closed identifiers.
 
 AGA turns a SEAF-native Architecture-as-Code change into an advisory,
 evidence-backed governance review. SEAF.ArchTool is configured to render the
-same manifest, but the pinned UI/runtime has not yet been executed locally;
+same manifest, but the pinned SEAF.ArchTool UI has not yet been executed locally;
 AGA derives changed paths from immutable Git base/head revisions, maps SEAF
 objects into `aga.canonical/v2`, performs deterministic guardrails, and exposes
 prepare/lookup/diagram/finalize tools over MCP. Semantic PRIN-004..PRIN-007
 tasks are reserved for the Ouroboros semantic stage. A missing or failed agent
 stage is `incomplete`, never `approve`, at the AGA finalize boundary;
-blocker/major always require HITL and merge is never automatic. Enforcement by
-the complete live loop remains unverified until a real sanitized Ouroboros
-capture exists.
+blocker/major always require HITL and merge is never automatic. The complete
+live Ouroboros loop is now verified technically by a canonical blocker smoke
+and a 16-case frozen run; that frozen run nevertheless failed its semantic
+release gate and is not release evidence.
 
 ## 1. Отчёт о результатах фазы MVP — 20%
 
@@ -52,34 +53,37 @@ SEAF.ArchTool + pinned seaf-core + synthetic architecture repo
 
 ## 2. Применение ГигаАгента в MVP — 10%
 
-**Status: external runtime action required.** The pinned packaged-CLI adapter,
-preflight and capture contract are implemented, but they do not prove a live
-Ouroboros run. No real task, model request or sanitized trace has completed.
-The OpenRouter key has not been persisted in project files or passed by the
-runner, and no hard budget cap has yet been supplied for a paid call.
-The downloaded macOS `v6.64.1` DMG matched the guide SHA-256 and passed
-`hdiutil verify`, but `codesign --verify` reported an invalid signature and
-`spctl` returned an internal error. It was therefore not installed or launched.
+**Status: live integration works; frozen quality gate failed.** Ouroboros
+`v6.64.1` was built from the exact verified upstream source commit in an
+isolated owner-only profile after the downloaded macOS DMG failed signature
+validation. Preflight attested the clean source, installed version, exact model
+routes, reviewed skill and exactly four loopback AGA MCP tools. The OpenRouter
+credential is persisted only in owner-only runtime settings outside Git, with
+a `50 USD` hard cap.
 
 The exact model route is `deepseek/deepseek-v4-pro`. The intended key scope is
 semantic and impractical as simple field checks:
 reuse-before-build (PRIN-004), one master (PRIN-005), prose-described critical
 dependency (PRIN-006), and ADR necessity/quality (PRIN-007). Structured output
 is allowlisted against prepared artifacts and trusted rule source references.
-Raw prose cannot alter the verdict. The real run must produce sanitized
-prepare, retrieval and finalize traces; their absence leaves the result
-`incomplete`.
+Raw prose cannot alter the verdict. The trusted runner captured prepare,
+retrieval and finalize receipts, enforced exactly one public finalize result,
+and accounted for model cost/tokens symmetrically. The canonical
+`ga-05-critical-eliminate` smoke passed with a PRIN-006 blocker, mandatory HITL
+and `auto_merge: false`.
 
-Current real-agent denominator: **0**. Fixture/local adapters remain
-development evidence only.
+Current frozen real-agent denominator: **16**. Ten cases passed exact scoring,
+but holdout produced two unsafe approvals; therefore release status is
+**FAIL**, not ready.
 
 ## 3. ДЕМО-видео — 30%
 
 **Status: external action required.** No narrated public video or verified URL
 exists. The recording plan in [`DEMO-SCRIPT.md`](DEMO-SCRIPT.md) is 2:50 and
 shows the SEAF change, real Ouroboros run, MCP tools, deterministic and semantic
-findings, final HITL verdict, and separate quality metrics. It must not be
-recorded as final until a permitted Ouroboros E2E succeeds.
+findings, final HITL verdict, and separate quality metrics. A recording may now
+show the successful blocker smoke, but it must also state that the frozen
+16-case release gate failed.
 
 ## 4. Документация и код — 10%
 
@@ -93,9 +97,9 @@ chain evidence is not claimed.
 
 The recorded pre-integration baseline is **381 pytest tests and 32 subtests
 pass**; the independent unittest discovery reports **98 tests OK**. The
-post-integration offline verification on 2026-07-16 is **489 pytest tests and
-32 subtests pass**, with the same **98 unittest tests OK**. This does not alter
-the real-agent denominator.
+final post-integration verification on 2026-07-17 is **600 pytest tests and 32
+subtests pass**, plus **99 unittest tests OK**, when loopback-dependent tests
+run with the required local socket permission.
 
 The two exact GitVerse revisions are recorded as pinned submodules and pass the
 local gitlink/checkout integrity contract. Upstream Node/SEAF build and UI
@@ -114,13 +118,11 @@ make project-results-check
 ```
 
 `make demo-e2e` now invokes the opt-in trusted Ouroboros runner for
-`ga-05-critical-eliminate`; it is not a fixture/sentinel. Without the pinned
-runtime and complete owner configuration it fails closed as `not_configured`
-and creates no evidence. It is not run in public CI. A successful first smoke
-must stop at that one case; the full 16-case development/holdout evaluation
-requires a separate explicit confirmation. The canonical release command is
-`OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all`; individual
-split commands produce non-release diagnostic evidence only.
+`ga-05-critical-eliminate`; it is not a fixture/sentinel. The authorized smoke
+completed successfully and its sanitized evidence is retained. The canonical
+`OUROBOROS_FULL_RUN_APPROVED=yes make evaluate-ouroboros-all` command was then
+executed exactly once after code freeze. It completed all tasks but exited with
+`evaluation_gate_failed`; it must not be repeated for this frozen holdout.
 
 ## 5. Результаты на примерах — 20%
 
@@ -139,10 +141,11 @@ manifest are frozen in the
 
 GigaAgent basket:
 
-| Split | Materialized cases | Real cases evaluated | Metrics status |
-|---|---:|---:|---|
-| Development | 8 | 0 | not run |
-| Frozen holdout | 8 | 0 | not run |
+| Split | Real cases | Exact pass | Precision | Recall | Blocker recall | Outcome | Schema valid | Unsafe approve | Gate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Development | 8 | 6 | 0.75 | 0.75 | 1.0 | 0.875 | 1.0 | 0 | FAIL |
+| Frozen holdout | 8 | 4 | 0.25 | 0.25 | 0.0 | 0.75 | 1.0 | 2 | FAIL |
+| Overall | 16 | 10 | 0.50 | 0.50 | 0.50 | 0.8125 | 1.0 | 2 | FAIL |
 
 The transport-free fixture scorer validates the basket/scoring machinery:
 16/16 fixture cases pass, development and holdout precision/recall/blocker
@@ -151,17 +154,20 @@ recall/outcome/schema-valid are `1.0`, unsafe approve is `0`. This result has
 
 The basket covers positive/negative PRIN-004..007 cases, clean and blocker
 outcomes, near-misses, prompt injection, missing context and multiple findings.
-Human expected outputs and the release gate were locked before a real run.
-See [`../evidence/evaluation/RESULTS.md`](../evidence/evaluation/RESULTS.md).
+Human expected outputs and the release gate were locked before the real run.
+The run used 85 accounted model calls and cost `0.409884 USD`. See
+[`../evidence/evaluation/RESULTS.md`](../evidence/evaluation/RESULTS.md) and the
+explicitly non-release
+[`frozen failure record`](../evidence/ouroboros/frozen-run-failure-sanitized.json).
 
 ## 6. Качество материалов — 10%
 
 **Status: partial.** Current materials follow one narrative: problem → SEAF
 source → role of the agent → AGA safety boundary → E2E → measured results →
 limitations → next actions. C6 is consistently named «Качество материалов».
-Presentation source and generated PDF use one compact visual system. A final
-independent editorial review is still required after real metrics and video
-links exist.
+Presentation source and regenerated 8-page PDF use one compact visual system
+and report the failed real gate rather than a zero denominator. A final
+independent editorial review and video link are still required.
 
 ## Limitations and owner actions
 
@@ -171,17 +177,11 @@ external actions are:
 1. the original Project Proposal;
 2. verify ArchTool build/UI and SEAF validators, then prove a recursive clean
    clone after a permitted public remote exists;
-3. register only the full immutable synthetic base/head SHAs produced by the
-   trusted materializer for the local E2E;
-4. resolve the blocked Ouroboros runtime installation, configure the exact
-   model routes, reviewed/enabled `aga_review` skill, isolated AGA MCP,
-   Advisory enforcement, `OUROBOROS_TASK_REVIEW_MODE=off`, credential and an
-   explicit positive hard budget cap;
-5. run only the permitted `ga-05-critical-eliminate` smoke and retain sanitized
-   evidence only after all capture checks pass;
-6. separately confirm spend before the full 16-case development/holdout run;
-7. a public repository and unauthenticated clean-clone proof;
-8. a narrated video strictly shorter than 180 seconds and a verified public URL;
-9. verified immutable GitHub Action SHAs, Docker image/OS-package digests and
+3. redesign the generic semantic strategy without tuning on the revealed
+   holdout, then freeze a new untouched holdout before any future paid release
+   cycle;
+4. a public repository and unauthenticated clean-clone proof;
+5. a narrated video strictly shorter than 180 seconds and a verified public URL;
+6. verified immutable GitHub Action SHAs, Docker image/OS-package digests and
    Python artifact hashes, followed by a clean-clone CI run;
-10. final submission and any external communication.
+7. final submission and any external communication.
