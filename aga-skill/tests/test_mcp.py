@@ -1511,6 +1511,30 @@ class SchemaContractTests(unittest.TestCase):
                 assert_strict(tool["inputSchema"])
                 assert_strict(tool["outputSchema"])
 
+    def test_finalize_schema_distinguishes_rule_source_from_evidence_provenance(self):
+        finalize = next(
+            tool for tool in TOOL_DEFINITIONS if tool["name"] == "aga_finalize_review"
+        )
+        finding = finalize["inputSchema"]["properties"]["semantic_result"][
+            "properties"
+        ]["findings"]["items"]
+
+        self.assertIn("prepared semantic task", finding["properties"]["severity"]["description"])
+        evidence_description = finding["properties"]["evidence"]["description"]
+        self.assertIn("prepared artifacts", evidence_description)
+        self.assertIn("Preserve verbatim", evidence_description)
+        self.assertIn("synonym-only paraphrase", evidence_description)
+        self.assertIn("prepared semantic task", finding["properties"]["evidence_refs"]["description"])
+        source_description = finding["properties"]["source_ref"]["description"]
+        self.assertIn("semantic_tasks[].source_ref", source_description)
+        self.assertIn("Never use an artifact", source_description)
+        self.assertIn("artifact source_ref values are invalid", finalize["description"])
+        parse_diagram = next(
+            tool for tool in TOOL_DEFINITIONS if tool["name"] == "aga_parse_diagram"
+        )
+        self.assertIn("non-empty diagram_format", parse_diagram["description"])
+        self.assertIn("non-diagram entity IDs", parse_diagram["description"])
+
     def test_client_schemas_expose_no_filesystem_path_argument(self):
         serialized = json.dumps(
             {item["name"]: item["inputSchema"] for item in TOOL_DEFINITIONS},
@@ -1705,6 +1729,8 @@ class MCPApplicationTests(unittest.TestCase):
             )
         self.assertEqual(caught.exception.code, -32602)
         self.assertEqual(app.trace[0]["status"], "error")
+        self.assertRegex(app.trace[0]["review_id_sha256"], r"^[0-9a-f]{64}$")
+        self.assertNotIn("review-1", json.dumps(app.trace[0]))
 
     def test_unavailable_review_is_structured_tool_error(self):
         app = self.make_application()

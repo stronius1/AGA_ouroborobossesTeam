@@ -23,6 +23,8 @@ import sys
 import tempfile
 import time
 from typing import Any, Callable, Mapping, Protocol, Sequence
+import urllib.error
+import urllib.request
 import uuid
 
 
@@ -43,8 +45,12 @@ from tools.mcp_server import (  # noqa: E402
     validate_json_schema,
 )
 from tools.ouroboros_backend import (  # noqa: E402
+    CommandOutputTooLargeError,
+    CommandTimeoutError,
     OuroborosBackendConfig,
     OuroborosBackendError,
+    OuroborosContractError,
+    OuroborosIdempotencyConflict,
     OuroborosNotConfiguredError,
     OuroborosTaskBackend,
 )
@@ -60,12 +66,12 @@ MODEL_ID = preflight.EXPECTED_MODEL
 MCP_HOST = "127.0.0.1"
 MCP_PORT = 8788
 MCP_ENDPOINT = "/mcp"
+GATEWAY_URL = "http://127.0.0.1:8765"
 PROMPT_PATH = (
     REPOSITORY_ROOT
-    / "ouroboros-skill"
-    / "aga-review"
+    / "aga-skill"
     / "prompts"
-    / "orchestration-v1.0.0.txt"
+    / "ouroboros-orchestration-v1.0.5.txt"
 )
 DEFAULT_EVIDENCE_OUT = (
     REPOSITORY_ROOT / "docs" / "evidence" / "ouroboros" / "run-sanitized.json"
@@ -146,7 +152,7 @@ class ServerHandle(Protocol):
 Materialize = Callable[..., Mapping[str, Any]]
 ServerFactory = Callable[[str, Path], ServerHandle]
 PreflightCheck = Callable[[], PreflightReady]
-BackendFactory = Callable[[Path, ServerHandle, str, float], TaskBackend]
+BackendFactory = Callable[[Path, ServerHandle, str, float, bool], TaskBackend]
 
 
 def _utc_now() -> datetime:
@@ -198,15 +204,62 @@ def _default_preflight() -> PreflightReady:
     return PreflightReady(payload=dict(payload), executable=executable)
 
 
+def _register_local_project(project_id: str) -> None:
+    """Idempotently register an isolated hashed scope before task creation."""
+
+    if re.fullmatch(r"aga-[0-9a-f]{32}", project_id) is None:
+        raise OuroborosContractError("local project id is invalid")
+    body = json.dumps(
+        {"id": project_id, "name": "AGA synthetic-public review"},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{GATEWAY_URL}/api/projects",
+        data=body,
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=5.0) as response:
+            if response.status != 200:
+                raise OuroborosNotConfiguredError(
+                    "local project registration was rejected"
+                )
+            raw = response.read(65_537)
+    except (OSError, urllib.error.URLError) as exc:
+        raise OuroborosNotConfiguredError(
+            "local project registration is unavailable"
+        ) from exc
+    if len(raw) > 65_536:
+        raise OuroborosContractError(
+            "local project registration response is oversized"
+        )
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise OuroborosContractError(
+            "local project registration response is invalid"
+        ) from exc
+    project = payload.get("project") if isinstance(payload, Mapping) else None
+    if not isinstance(project, Mapping) or project.get("id") != project_id:
+        raise OuroborosContractError(
+            "local project registration correlation failed"
+        )
+
+
 def _default_backend_factory(
     workspace: Path,
     server: ServerHandle,
     executable: str,
     timeout_seconds: float,
+    all_model_routes_pinned: bool,
 ) -> OuroborosTaskBackend:
     return OuroborosTaskBackend(
         OuroborosBackendConfig(
             command_prefix=(executable,),
+            gateway_url=GATEWAY_URL,
             runtime_version=PINNED_VERSION,
             model_id=MODEL_ID,
             workspaces={workspace.name: workspace},
@@ -214,6 +267,9 @@ def _default_backend_factory(
             task_timeout_seconds=timeout_seconds,
             server_id=preflight.MCP_SERVER_ID,
             receipt_source=lambda: tuple(server.trace),
+            project_registrar=_register_local_project,
+            all_model_routes_pinned=all_model_routes_pinned,
+            disable_diagram_tool=True,
         )
     )
 
@@ -414,22 +470,70 @@ def _trusted_receipts(
         for item in trace
         if isinstance(item, Mapping) and item.get("review_id_sha256") == review_hash
     ]
-    names = [item.get("tool") for item in matching]
+    physical_names = [item.get("tool") for item in matching]
     allowed = set(preflight.MCP_TOOL_NAMES)
+    prepares = [
+        (index, item)
+        for index, item in enumerate(matching)
+        if item.get("tool") == "aga_prepare_review"
+    ]
+    finalizes = [
+        (index, item)
+        for index, item in enumerate(matching)
+        if item.get("tool") == "aga_finalize_review"
+    ]
     if (
-        not names
-        or any(name not in allowed for name in names)
-        or names[0] != "aga_prepare_review"
-        or names[-1] != "aga_finalize_review"
-        or names.count("aga_prepare_review") != 1
-        or names.count("aga_finalize_review") != 1
+        not physical_names
+        or any(name not in allowed for name in physical_names)
+        or len(prepares) != 1
+        or len(finalizes) not in {1, 2}
+        or physical_names[0] != "aga_prepare_review"
     ):
         raise E2ERunnerError("failed", "trusted_receipts_missing")
+    first_finalize_index, finalize = finalizes[0]
+    if any(
+        index > first_finalize_index
+        and item.get("tool") != "aga_finalize_review"
+        for index, item in enumerate(matching)
+    ):
+        raise E2ERunnerError("failed", "trusted_receipts_missing")
+    finalize_fields = (
+        "args_sha256",
+        "status",
+        "output_status",
+        "output_incomplete",
+        "output_sha256",
+        "review_digest",
+        "task_digest",
+    )
+    finalize_projection = {
+        key: finalize.get(key) for key in finalize_fields
+    }
+    for _index, item in finalizes:
+        _require_sha256(item.get("args_sha256"), "final_receipt_hash_missing")
+    if any(
+        {key: item.get(key) for key in finalize_fields} != finalize_projection
+        for _index, item in finalizes[1:]
+    ):
+        raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
+    logical = [
+        item
+        for index, item in enumerate(matching)
+        if item.get("tool") != "aga_finalize_review"
+        or index == first_finalize_index
+    ]
+    names = [item.get("tool") for item in logical]
     metadata_names = metadata.get("tool_names")
     if not isinstance(metadata_names, list) or names != metadata_names:
         raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
-    prepare = matching[0]
-    finalize = matching[-1]
+    optional_receipts = [
+        item
+        for item in matching
+        if item.get("tool") in {"aga_seaf_lookup", "aga_parse_diagram"}
+    ]
+    if any(item.get("status") != "ok" for item in optional_receipts):
+        raise E2ERunnerError("failed", "trusted_optional_tool_failed")
+    prepare = prepares[0][1]
     if (
         prepare.get("status") != "ok"
         or prepare.get("output_status") != "ready"
@@ -583,6 +687,9 @@ def _task_response(
     prompt_sha256 = _require_sha256(
         metadata.get("prompt_sha256"), "rendered_prompt_hash_missing"
     )
+    final_answer_envelope = metadata.get("final_answer_envelope")
+    if final_answer_envelope not in {"strict_json", "single_json_fence"}:
+        raise E2ERunnerError("failed", "final_answer_envelope_missing")
     receipt_summary = _trusted_receipts(
         trace,
         review_id=review_id,
@@ -596,6 +703,7 @@ def _task_response(
         "task_id": result.task_id,
         "task_status": result.status.value,
         "rendered_prompt_sha256": prompt_sha256,
+        "final_answer_envelope": final_answer_envelope,
         "receipts": receipt_summary,
         "model_usage": {
             "provider": PROVIDER,
@@ -812,12 +920,16 @@ def run_trusted_case(
                 raise E2ERunnerError("failed", "preflight_contract_mismatch")
             if ready.payload.get("status") != "ready":
                 raise E2ERunnerError("failed", "preflight_contract_mismatch")
+            all_model_routes_pinned = ready.payload.get("all_model_routes_pinned")
+            if all_model_routes_pinned is not True:
+                raise E2ERunnerError("failed", "preflight_contract_mismatch")
             try:
                 backend = dependencies.backend_factory(
                     workspace,
                     server,
                     ready.executable,
                     float(timeout_seconds),
+                    all_model_routes_pinned,
                 )
             except OuroborosNotConfiguredError as exc:
                 raise E2ERunnerError("not_configured", "backend_not_configured") from exc
@@ -834,11 +946,44 @@ def run_trusted_case(
             started = dependencies.monotonic()
             try:
                 task_id = backend.schedule_task("aga:review", payload)
+            except OuroborosNotConfiguredError as exc:
+                raise E2ERunnerError(
+                    "not_configured", "runtime_schedule_not_configured"
+                ) from exc
+            except OuroborosIdempotencyConflict as exc:
+                raise E2ERunnerError(
+                    "failed", "runtime_schedule_idempotency_conflict"
+                ) from exc
+            except CommandTimeoutError as exc:
+                raise E2ERunnerError("failed", "runtime_schedule_timeout") from exc
+            except CommandOutputTooLargeError as exc:
+                raise E2ERunnerError(
+                    "failed", "runtime_schedule_output_too_large"
+                ) from exc
+            except OuroborosContractError as exc:
+                raise E2ERunnerError(
+                    "failed", "runtime_schedule_contract_mismatch"
+                ) from exc
+            except (OuroborosBackendError, OSError, TypeError, ValueError) as exc:
+                raise E2ERunnerError("failed", "runtime_schedule_failed") from exc
+            try:
                 result = backend.wait_for_task(task_id)
             except OuroborosNotConfiguredError as exc:
-                raise E2ERunnerError("not_configured", "runtime_task_not_configured") from exc
+                raise E2ERunnerError(
+                    "not_configured", "runtime_wait_not_configured"
+                ) from exc
+            except CommandTimeoutError as exc:
+                raise E2ERunnerError("failed", "runtime_wait_timeout") from exc
+            except CommandOutputTooLargeError as exc:
+                raise E2ERunnerError(
+                    "failed", "runtime_wait_output_too_large"
+                ) from exc
+            except OuroborosContractError as exc:
+                raise E2ERunnerError(
+                    "failed", "runtime_wait_contract_mismatch"
+                ) from exc
             except (OuroborosBackendError, OSError, TypeError, ValueError) as exc:
-                raise E2ERunnerError("failed", "runtime_task_failed") from exc
+                raise E2ERunnerError("failed", "runtime_wait_failed") from exc
             latency_ms = max(0.0, (dependencies.monotonic() - started) * 1000.0)
             if latency_ms > 3_600_000:
                 raise E2ERunnerError("failed", "task_latency_out_of_bounds")
@@ -869,6 +1014,11 @@ def run_trusted_case(
             "review_mode": preflight.EXPECTED_REVIEW_MODE,
             "mcp_server_id": preflight.MCP_SERVER_ID,
             "mcp_tools": list(preflight.MCP_TOOL_NAMES),
+            "gateway_url": GATEWAY_URL,
+            "project_registration": "loopback_idempotent",
+            "task_disabled_tools": [
+                f"mcp_{preflight.MCP_SERVER_ID}__aga_parse_diagram"
+            ],
             "memory_mode": "empty",
             "task_timeout_seconds": float(timeout_seconds),
             "data_classification": "synthetic-public",

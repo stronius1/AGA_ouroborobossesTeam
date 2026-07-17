@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -200,7 +201,10 @@ def _run(
     responses: dict[tuple[str, ...], preflight.CommandResult] | None = None,
 ) -> tuple[dict[str, Any], int, FakeRunner]:
     runner = FakeRunner(responses or _healthy_responses())
-    payload, exit_code = preflight.run_preflight(runner)
+    payload, exit_code = preflight.run_preflight(
+        runner,
+        overlay_validator=lambda: None,
+    )
     return payload, exit_code, runner
 
 
@@ -209,7 +213,19 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
 
     assert exit_code == preflight.EXIT_READY
     assert payload["status"] == "ready"
-    assert payload["runtime"] == {"version": "6.64.1"}
+    assert payload["all_model_routes_pinned"] is True
+    assert payload["runtime"] == {
+        "version": "6.64.1",
+        "source_commit": preflight.PINNED_SOURCE_COMMIT,
+        "overlay": {
+            "active": True,
+            "consolidation_model": "deepseek/deepseek-v4-pro",
+            "spawn_workers_pinned": True,
+            "bootstrap_mode": "deferred_runtime_import_hooks",
+            "finalize_transport_retry": "exception_group_once",
+            "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
+        },
+    }
     assert payload["configuration"] == {
         "provider": "openrouter",
         "credential_present": True,
@@ -217,6 +233,7 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
         "single_model_routes": True,
         "cross_model_fallback": False,
         "global_hard_cap_present": True,
+        "global_hard_cap_max_usd": 50.0,
         "review_mode": "advisory",
     }
     assert payload["mcp"]["tool_count"] == 4
@@ -246,6 +263,7 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
         (("settings", "get", "OUROBOROS_REVIEW_MODELS"), "private/other-model", "model_routes_not_configured"),
         (("settings", "get", "OUROBOROS_MODEL_FALLBACKS"), "private/other-model", "fallback_model_not_disabled"),
         (("settings", "get", "TOTAL_BUDGET"), 0, "budget_not_configured"),
+        (("settings", "get", "TOTAL_BUDGET"), 50.01, "budget_exceeds_owner_limit"),
         (("settings", "get", "OUROBOROS_REVIEW_ENFORCEMENT"), "blocking", "review_mode_not_configured"),
         (("settings", "get", "OUROBOROS_TASK_REVIEW_MODE"), "auto", "task_review_not_disabled"),
     ],
@@ -421,6 +439,127 @@ def test_main_without_runtime_emits_one_typed_sanitized_json(
     assert "/" not in payload["code"]
 
 
+def _write_live_overlay_fixture(
+    tmp_path: Path,
+    *,
+    model: str = preflight.EXPECTED_MODEL,
+    pid: int = 424242,
+) -> preflight.RuntimeOverlayPaths:
+    state_dir = tmp_path / "home" / "Ouroboros" / "data" / "state"
+    state_dir.mkdir(parents=True, mode=0o700)
+    state_dir.chmod(0o700)
+    launcher = tmp_path / "ouroboros_runtime_overlay.py"
+    launcher.write_text("# synthetic-public launcher\n", encoding="utf-8")
+    launcher_hash = hashlib.sha256(launcher.read_bytes()).hexdigest()
+    bootstrap = tmp_path / "sitecustomize.py"
+    bootstrap.write_text("# synthetic-public spawn bootstrap\n", encoding="utf-8")
+    bootstrap_hash = hashlib.sha256(bootstrap.read_bytes()).hexdigest()
+    attestation = state_dir / preflight.OVERLAY_ATTESTATION_FILENAME
+    attestation.write_text(
+        json.dumps(
+            {
+                "schema": preflight.OVERLAY_ATTESTATION_SCHEMA,
+                "pid": pid,
+                "runtime_version": preflight.PINNED_VERSION,
+                "source_commit": preflight.PINNED_SOURCE_COMMIT,
+                "source_clean": True,
+                "model": model,
+                "consolidation_model": model,
+                "launcher_sha256": launcher_hash,
+                "spawn_bootstrap": True,
+                "bootstrap_mode": "deferred_runtime_import_hooks",
+                "bootstrap_sha256": bootstrap_hash,
+                "finalize_transport_retry": "exception_group_once",
+                "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
+            }
+        ),
+        encoding="utf-8",
+    )
+    attestation.chmod(0o600)
+    pid_path = state_dir / preflight.PROFILE_PID_FILENAME
+    pid_path.write_text(
+        json.dumps({"schema": preflight.PROFILE_PID_SCHEMA, "pid": pid}),
+        encoding="utf-8",
+    )
+    pid_path.chmod(0o600)
+    return preflight.RuntimeOverlayPaths(
+        attestation_path=attestation,
+        pid_path=pid_path,
+        launcher_path=launcher,
+        bootstrap_path=bootstrap,
+    )
+
+
+def test_live_overlay_attests_exact_model_source_runtime_and_pid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _write_live_overlay_fixture(tmp_path)
+    monkeypatch.setattr(preflight, "_pid_alive", lambda pid: pid == 424242)
+    monkeypatch.setattr(
+        preflight,
+        "_runtime_process_command",
+        lambda pid: (
+            f"python {paths.launcher_path} --source-dir /synthetic/source "
+            "-- server --host 127.0.0.1 --port 8765 --no-ui"
+        ),
+    )
+
+    preflight._validate_live_runtime_overlay(paths)
+
+
+@pytest.mark.parametrize("mutation", ["model", "mode", "pid"])
+def test_live_overlay_mismatch_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    paths = _write_live_overlay_fixture(tmp_path)
+    if mutation == "model":
+        payload = json.loads(paths.attestation_path.read_text(encoding="utf-8"))
+        payload["model"] = "different/model"
+        paths.attestation_path.write_text(json.dumps(payload), encoding="utf-8")
+        paths.attestation_path.chmod(0o600)
+    elif mutation == "mode":
+        paths.attestation_path.chmod(0o644)
+    else:
+        payload = json.loads(paths.pid_path.read_text(encoding="utf-8"))
+        payload["pid"] = 424243
+        paths.pid_path.write_text(json.dumps(payload), encoding="utf-8")
+        paths.pid_path.chmod(0o600)
+    monkeypatch.setattr(preflight, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(
+        preflight,
+        "_runtime_process_command",
+        lambda pid: f"python {paths.launcher_path} --source-dir /x -- server",
+    )
+
+    with pytest.raises(preflight.PreflightFailure) as caught:
+        preflight._validate_live_runtime_overlay(paths)
+
+    assert caught.value.status == "failed"
+    assert caught.value.code == "runtime_overlay_attestation_mismatch"
+
+
+def test_missing_or_dead_overlay_is_not_configured(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _write_live_overlay_fixture(tmp_path)
+    monkeypatch.setattr(preflight, "_pid_alive", lambda pid: False)
+
+    with pytest.raises(preflight.PreflightFailure) as dead:
+        preflight._validate_live_runtime_overlay(paths)
+    assert dead.value.status == "not_configured"
+    assert dead.value.code == "runtime_overlay_not_active"
+
+    paths.attestation_path.unlink()
+    with pytest.raises(preflight.PreflightFailure) as missing:
+        preflight._validate_live_runtime_overlay(paths)
+    assert missing.value.status == "not_configured"
+    assert missing.value.code == "runtime_overlay_not_active"
+
+
 def test_bounded_runner_does_not_use_a_shell_and_strips_sensitive_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -514,7 +653,10 @@ def test_runner_timeout_maps_to_sanitized_failed_status() -> None:
             ("status", "--json"): preflight.CommandTimeout("private timeout detail"),
         }
     )
-    payload, exit_code = preflight.run_preflight(runner)
+    payload, exit_code = preflight.run_preflight(
+        runner,
+        overlay_validator=lambda: None,
+    )
 
     assert exit_code == preflight.EXIT_FAILED
     assert payload["code"] == "command_timeout"
@@ -531,7 +673,10 @@ def test_unexpected_runner_error_is_sanitized() -> None:
             ),
         }
     )
-    payload, exit_code = preflight.run_preflight(runner)
+    payload, exit_code = preflight.run_preflight(
+        runner,
+        overlay_validator=lambda: None,
+    )
 
     assert exit_code == preflight.EXIT_FAILED
     assert payload["code"] == "internal_preflight_error"

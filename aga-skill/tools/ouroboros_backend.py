@@ -9,6 +9,7 @@ attested by a trusted AGA MCP receipt hash.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 import hashlib
 import ipaddress
 import json
@@ -35,6 +36,8 @@ from tools.review_service import TOOL_DEFINITIONS
 TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}$")
 REVISION_RE = re.compile(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+MCP_TOOL_ERROR_MARKER = "\n\n⚠️ MCP_TOOL_ERROR:"
 SECRET_RE = re.compile(
     r"(?i)(?:sk-or-v1-|sk-|ghp_|github_pat_|Bearer\s+)[A-Za-z0-9._~+/=-]{8,}"
 )
@@ -112,6 +115,12 @@ FAILED_STATUSES = frozenset(
 BAD_ARTIFACT_STATUSES = frozenset(
     {"failed", "pending", "finalizing", "missing"}
 )
+# ``tasks list --limit 500`` returns the full public task projection.  A small
+# dedicated AGA history can therefore exceed one MiB even though every
+# individual trusted result remains bounded separately.  Eight MiB keeps the
+# local CLI pipe bounded while covering the frozen basket and its reconciliation
+# history without weakening the one-MiB JSON/result contract below.
+DEFAULT_CLI_STDOUT_BYTES = 8_388_608
 
 
 class OuroborosBackendError(RuntimeError):
@@ -130,12 +139,32 @@ class OuroborosIdempotencyConflict(OuroborosContractError):
     """One logical review key was reused with different immutable inputs."""
 
 
+class OuroborosMCPTransportError(OuroborosContractError):
+    """A model-facing MCP transport failure was hidden by the public log."""
+
+
+class OuroborosMCPServiceError(OuroborosContractError):
+    """AGA returned a structured fail-closed service error."""
+
+
 class CommandTimeoutError(OuroborosBackendError):
     """A CLI subprocess exceeded its local command deadline."""
 
 
 class CommandOutputTooLargeError(OuroborosBackendError):
     """A CLI subprocess exceeded the configured output bound."""
+
+
+class _CostAccountingPending(OuroborosBackendError):
+    """The root task is terminal but its durable cost checkpoint is not visible yet."""
+
+
+class _CostAccountingError(OuroborosBackendError):
+    """A terminal cost projection is contradictory or permanently non-authoritative."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -158,7 +187,7 @@ class BoundedCommandRunner:
     def __init__(
         self,
         *,
-        max_stdout_bytes: int = 1_048_576,
+        max_stdout_bytes: int = DEFAULT_CLI_STDOUT_BYTES,
         max_stderr_bytes: int = 262_144,
         environment: Mapping[str, str] | None = None,
     ) -> None:
@@ -279,6 +308,7 @@ class BoundedCommandRunner:
 
 
 ReceiptSource = Callable[[], Sequence[Mapping[str, Any]]]
+ProjectRegistrar = Callable[[str], None]
 
 
 @dataclass(frozen=True)
@@ -297,6 +327,20 @@ class OuroborosBackendConfig:
     max_json_bytes: int = 1_048_576
     server_id: str = "aga"
     receipt_source: ReceiptSource | None = None
+    # The v6.64.1 worker waits for its periodic 300-second project-registry
+    # reconcile when an explicit isolated project id has not been registered
+    # before task creation.  A trusted loopback-only runner may supply this
+    # idempotent registrar so the normal task-done/artifact path is immediate.
+    project_registrar: ProjectRegistrar | None = None
+    # The frozen 16-case semantic basket contains no diagram artifacts.  Its
+    # trusted runner withholds the optional diagram tool at the task-contract
+    # layer while preflight still verifies that the MCP server exposes all
+    # four integration tools.
+    disable_diagram_tool: bool = False
+    # This must only be enabled from a successful trusted preflight that has
+    # verified every runtime model route, including post-task synthesis.  The
+    # public v6.64.1 event stream can omit those auxiliary physical attempts.
+    all_model_routes_pinned: bool = False
 
 
 @dataclass
@@ -310,6 +354,8 @@ class _BackendTask:
     frozen_result: TaskResult | None = None
     cancel_attempted: bool = False
     cancel_confirmed: bool = False
+    terminal_completed: bool = False
+    cost_finalization_pending: bool = False
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -343,6 +389,23 @@ def _strict_json(text: str, context: str) -> Any:
         raise OuroborosContractError(f"{context} is not strict JSON") from exc
 
 
+def _strict_final_json(text: str) -> tuple[Any, str]:
+    """Decode the terminal answer with one narrowly bounded presentation repair.
+
+    Some providers wrap an otherwise exact tool result in a single JSON
+    Markdown fence despite an explicit bare-JSON instruction.  The wrapper is
+    accepted only as the entire document.  The caller still validates the
+    strict schema and requires the canonical object hash to equal the trusted
+    AGA finalize receipt, so this cannot change or invent a verdict.
+    """
+
+    if text.startswith("```json\n") and text.endswith("\n```"):
+        body = text[len("```json\n") : -len("\n```")]
+        if body.startswith("{") and body.endswith("}"):
+            return _strict_json(body, "fenced final task answer"), "single_json_fence"
+    return _strict_json(text, "final task answer"), "strict_json"
+
+
 def _redact(value: Any, *, limit: int = 1000) -> str:
     text = SECRET_RE.sub("***REDACTED***", str(value or ""))
     return text[:limit]
@@ -369,6 +432,10 @@ class OuroborosTaskBackend(TaskBackend):
             raise ValueError("command_prefix must contain executable argv strings")
         if config.runtime_version != "6.64.1":
             raise ValueError("this dialect is pinned to Ouroboros 6.64.1")
+        if config.project_registrar is not None and not callable(
+            config.project_registrar
+        ):
+            raise ValueError("project_registrar must be callable")
         if config.gateway_url:
             parsed_gateway = urlsplit(config.gateway_url)
             hostname = parsed_gateway.hostname or ""
@@ -392,8 +459,17 @@ class OuroborosTaskBackend(TaskBackend):
                 )
         if not isinstance(config.model_id, str) or not config.model_id.strip():
             raise OuroborosNotConfiguredError("OpenRouter model ID is not configured")
+        if not isinstance(config.all_model_routes_pinned, bool):
+            raise ValueError("all_model_routes_pinned must be a boolean attestation")
+        if not isinstance(config.disable_diagram_tool, bool):
+            raise ValueError("disable_diagram_tool must be a boolean")
         if not ID_RE.fullmatch(config.server_id):
             raise ValueError("server_id must be a non-path identifier")
+        self._disabled_tools = DISABLED_WORKSPACE_TOOLS + (
+            (f"mcp_{config.server_id}__aga_parse_diagram",)
+            if config.disable_diagram_tool
+            else ()
+        )
         if (
             config.task_timeout_seconds <= 0
             or config.finalization_grace_seconds < 0
@@ -446,12 +522,21 @@ class OuroborosTaskBackend(TaskBackend):
         return argv
 
     def _run(self, *parts: str, timeout: float | None = None) -> CommandResult:
-        return self._runner.run(
-            self._argv(*parts),
-            timeout=float(
-                self.config.command_timeout_seconds if timeout is None else timeout
-            ),
+        command_timeout = float(
+            self.config.command_timeout_seconds if timeout is None else timeout
         )
+        argv = self._argv(*parts)
+        try:
+            return self._runner.run(
+                argv,
+                timeout=command_timeout,
+            )
+        except OuroborosBackendError:
+            raise
+        except (OSError, TypeError, ValueError) as exc:
+            raise OuroborosContractError(
+                "CLI command runner raised an unchecked exception"
+            ) from exc
 
     def _normalise_request(
         self, task_name: str, payload: Mapping[str, Any] | None
@@ -571,7 +656,7 @@ class OuroborosTaskBackend(TaskBackend):
             "data_classification": "synthetic-public",
             "expected_model_id": self.config.model_id,
             "allowed_resources": {"network": True, "web": False},
-            "disabled_tools": list(DISABLED_WORKSPACE_TOOLS),
+            "disabled_tools": list(self._disabled_tools),
         }
         metadata = json.dumps(
             metadata_values,
@@ -592,6 +677,15 @@ class OuroborosTaskBackend(TaskBackend):
         )
         if reconciled is not None:
             return reconciled
+        if self.config.project_registrar is not None:
+            try:
+                self.config.project_registrar(project_id)
+            except OuroborosBackendError:
+                raise
+            except Exception as exc:
+                raise OuroborosNotConfiguredError(
+                    "trusted local project registration failed"
+                ) from exc
         try:
             completed = self._run(
                 "run",
@@ -607,7 +701,7 @@ class OuroborosTaskBackend(TaskBackend):
                 "--task-metadata-json",
                 metadata,
                 "--disable-tools",
-                ",".join(DISABLED_WORKSPACE_TOOLS),
+                ",".join(self._disabled_tools),
                 prompt,
             )
         except OuroborosBackendError as exc:
@@ -698,7 +792,7 @@ class OuroborosTaskBackend(TaskBackend):
                     and metadata.get("allowed_resources")
                     == {"network": True, "web": False}
                     and metadata.get("disabled_tools")
-                    == list(DISABLED_WORKSPACE_TOOLS)
+                    == list(self._disabled_tools)
                 ):
                     matches.append(item)
             if not matches:
@@ -827,7 +921,7 @@ class OuroborosTaskBackend(TaskBackend):
             "expected_model_id": self.config.model_id,
             "aga_prompt_sha256": record.prompt_sha256,
             "allowed_resources": {"network": True, "web": False},
-            "disabled_tools": list(DISABLED_WORKSPACE_TOOLS),
+            "disabled_tools": list(self._disabled_tools),
         }
         if any(metadata.get(key) != value for key, value in expected.items()):
             raise OuroborosContractError("task result metadata correlation mismatch")
@@ -838,7 +932,7 @@ class OuroborosTaskBackend(TaskBackend):
         if (
             contract.get("allowed_resources") != {"network": True, "web": False}
             or not isinstance(disabled, list)
-            or disabled != list(DISABLED_WORKSPACE_TOOLS)
+            or disabled != list(self._disabled_tools)
         ):
             raise OuroborosContractError("task result policy correlation mismatch")
 
@@ -904,7 +998,7 @@ class OuroborosTaskBackend(TaskBackend):
 
     def _tool_flow(
         self, record: _BackendTask, entries: Any
-    ) -> tuple[list[str], Mapping[str, Any], Mapping[str, Any]]:
+    ) -> tuple[list[str], Mapping[str, Any], list[Mapping[str, Any]]]:
         if not isinstance(entries, list) or len(entries) > 2000:
             raise OuroborosContractError("tool log entries are invalid or oversized")
         selected: list[tuple[int, str, Mapping[str, Any]]] = []
@@ -918,6 +1012,31 @@ class OuroborosTaskBackend(TaskBackend):
                     "non-AGA tool invocation was recorded"
                 )
             if tool is not None:
+                preview = raw.get("result_preview")
+                if isinstance(preview, str) and (
+                    preview.startswith("⚠️ MCP_TOOL_ERROR:")
+                    or MCP_TOOL_ERROR_MARKER in preview
+                ):
+                    marker = "⚠️ MCP_TOOL_ERROR:"
+                    body = preview.split(marker, 1)[1].strip()
+                    if body.startswith("{") and body.endswith("}"):
+                        try:
+                            service_error = _strict_json(body, "MCP service error")
+                        except OuroborosContractError:
+                            service_error = None
+                        if (
+                            isinstance(service_error, Mapping)
+                            and service_error.get("type") == "review_service_error"
+                            and isinstance(service_error.get("code"), str)
+                            and ID_RE.fullmatch(service_error["code"]) is not None
+                        ):
+                            raise OuroborosMCPServiceError(
+                                f"{tool} returned AGA service error "
+                                f"{service_error['code']}"
+                            )
+                    raise OuroborosMCPTransportError(
+                        f"{tool} returned an MCP transport error"
+                    )
                 logged_task_id = raw.get("task_id")
                 call_id = raw.get("tool_call_id")
                 if (
@@ -931,12 +1050,14 @@ class OuroborosTaskBackend(TaskBackend):
                         "tool log correlation identifiers are missing"
                     )
                 key = (logged_task_id, call_id)
+                # The gateway adds only these two origin markers while merging
+                # the byte-identical root and headless-child log rows.  Every
+                # other public field is part of the mirrored projection and
+                # must agree before the duplicate can be collapsed.
                 projection = {
-                    "tool": tool,
-                    "task_id": logged_task_id,
-                    "args": raw.get("args"),
-                    "status": raw.get("status"),
-                    "is_error": raw.get("is_error"),
+                    item_key: item_value
+                    for item_key, item_value in raw.items()
+                    if item_key not in {"_source_root", "_line"}
                 }
                 prior = seen_calls.get(key)
                 if prior is not None:
@@ -949,16 +1070,22 @@ class OuroborosTaskBackend(TaskBackend):
                 selected.append((index, tool, raw))
         prepares = [item for item in selected if item[1] == "aga_prepare_review"]
         finalizes = [item for item in selected if item[1] == "aga_finalize_review"]
-        names = [tool for _, tool, _ in selected]
         if (
             len(prepares) != 1
             or len(finalizes) != 1
-            or not names
-            or names[0] != "aga_prepare_review"
-            or names[-1] != "aga_finalize_review"
+            or not selected
+            or selected[0][1] != "aga_prepare_review"
         ):
             raise OuroborosContractError(
                 "tool flow must contain one ordered prepare and one final finalize"
+            )
+        first_finalize_index = finalizes[0][0]
+        if any(
+            index > first_finalize_index and tool != "aga_finalize_review"
+            for index, tool, _entry in selected
+        ):
+            raise OuroborosContractError(
+                "the single public finalize must be the final tool call"
             )
         for _, _, entry in (prepares[0], finalizes[0]):
             if entry.get("task_id") != record.task_id:
@@ -978,9 +1105,13 @@ class OuroborosTaskBackend(TaskBackend):
                 )
 
         prepare_args = prepares[0][2].get("args")
-        finalize_args = finalizes[-1][2].get("args")
-        if not isinstance(prepare_args, Mapping) or not isinstance(finalize_args, Mapping):
+        finalize_args = [item[2].get("args") for item in finalizes]
+        if (
+            not isinstance(prepare_args, Mapping)
+            or any(not isinstance(args, Mapping) for args in finalize_args)
+        ):
             raise OuroborosContractError("tool log correlation arguments are missing")
+        finalize_args = [dict(args) for args in finalize_args]
         expected_prepare = {
             "repository_id": record.request["repository_id"],
             "base": record.request["base"],
@@ -989,11 +1120,16 @@ class OuroborosTaskBackend(TaskBackend):
         }
         if any(prepare_args.get(key) != value for key, value in expected_prepare.items()):
             raise OuroborosContractError("prepare arguments do not match immutable request")
-        if finalize_args.get("review_id") != record.request["review_id"]:
-            raise OuroborosContractError("finalize review_id does not match")
-        for key in ("review_digest", "task_digest"):
-            if not isinstance(finalize_args.get(key), str):
-                raise OuroborosContractError(f"finalize {key} is missing")
+        for args in finalize_args:
+            if args.get("review_id") != record.request["review_id"]:
+                raise OuroborosContractError("finalize review_id does not match")
+            for key in ("review_digest", "task_digest"):
+                if not isinstance(args.get(key), str):
+                    raise OuroborosContractError(f"finalize {key} is missing")
+                if args.get(key) != finalize_args[0].get(key):
+                    raise OuroborosContractError(
+                        f"finalize retry {key} conflicts with the logical finalize"
+                    )
         for _, tool, entry in selected:
             if tool not in {"aga_seaf_lookup", "aga_parse_diagram"}:
                 continue
@@ -1001,18 +1137,23 @@ class OuroborosTaskBackend(TaskBackend):
             if (
                 not isinstance(args, Mapping)
                 or args.get("review_id") != record.request["review_id"]
-                or args.get("review_digest") != finalize_args["review_digest"]
+                or args.get("review_digest") != finalize_args[0]["review_digest"]
                 or not isinstance(args.get("entity_id"), str)
             ):
                 raise OuroborosContractError(
                     f"{tool} receipt correlation mismatch"
                 )
-        return names, prepare_args, finalize_args
+        logical_names = [
+            tool
+            for index, tool, _entry in selected
+            if tool != "aga_finalize_review" or index == first_finalize_index
+        ]
+        return logical_names, prepare_args, finalize_args
 
     def _aga_receipts(
         self,
         record: _BackendTask,
-        finalize_args: Mapping[str, Any],
+        finalize_args: Sequence[Mapping[str, Any]],
     ) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
         source = self.config.receipt_source
         if source is None:
@@ -1044,12 +1185,59 @@ class OuroborosTaskBackend(TaskBackend):
             for index, item in enumerate(matching)
             if item.get("tool") == "aga_finalize_review"
         ]
-        if len(prepares) != 1 or len(finalizes) != 1:
+        # The managed runtime may replay one idempotent physical finalize when
+        # MCP 1.28.1 raises a post-success transport ExceptionGroup.  Ouroboros
+        # records one logical tool row, while the in-process AGA service then
+        # records either one receipt (first attempt did not arrive) or two
+        # identical receipts (the first attempt committed before teardown).
+        if (
+            len(finalize_args) != 1
+            or len(prepares) != 1
+            or len(finalizes) not in {1, 2}
+        ):
             raise OuroborosContractError("trusted AGA prepare/finalize receipt is missing")
         prepare_index, prepare = prepares[0]
         finalize_index, finalize = finalizes[0]
         if prepare_index >= finalize_index:
             raise OuroborosContractError("trusted AGA receipts are unordered")
+        finalize_fields = (
+            "args_sha256",
+            "status",
+            "output_status",
+            "output_incomplete",
+            "output_sha256",
+            "review_digest",
+            "task_digest",
+        )
+        finalize_projection = {
+            key: finalize.get(key) for key in finalize_fields
+        }
+        if any(
+            {key: item.get(key) for key in finalize_fields} != finalize_projection
+            for _index, item in finalizes[1:]
+        ):
+            raise OuroborosContractError(
+                "trusted finalize retry conflicts with the logical finalize"
+            )
+        # The packaged CLI deliberately sanitizes deeply nested tool arguments
+        # in tools.jsonl (for example, evidence_refs become ``_depth_limit``
+        # markers).  Therefore a hash recomputed from the public log projection
+        # is not the hash of the request received by AGA.  Correlate each
+        # physical call through the unique review id, ordered call count and the
+        # unredacted top-level digests instead.  The trusted MCP receipt must
+        # still contain the same well-formed hash of its complete input on both
+        # physical attempts, and the exact trusted output hash is checked
+        # against the terminal answer below.
+        for _index, receipt in finalizes:
+            if SHA256_RE.fullmatch(str(receipt.get("args_sha256") or "")) is None:
+                raise OuroborosContractError(
+                    "trusted finalize input hash is missing"
+                )
+            for key in ("review_digest", "task_digest"):
+                if receipt.get(key) != finalize_args[0].get(key):
+                    raise OuroborosContractError(
+                        f"trusted finalize {key} mismatch"
+                    )
         if prepare.get("status") not in {"ok", "incomplete"}:
             raise OuroborosContractError("trusted prepare receipt failed")
         if (
@@ -1069,9 +1257,9 @@ class OuroborosTaskBackend(TaskBackend):
         ).hexdigest():
             raise OuroborosContractError("trusted prepare arguments mismatch")
         for key in ("review_digest", "task_digest"):
-            if prepare.get(key) != finalize_args.get(key):
+            if prepare.get(key) != finalize_args[0].get(key):
                 raise OuroborosContractError(f"trusted prepare {key} mismatch")
-            if finalize.get(key) != finalize_args.get(key):
+            if finalize.get(key) != finalize_args[0].get(key):
                 raise OuroborosContractError(f"trusted finalize {key} mismatch")
         if not isinstance(finalize.get("output_sha256"), str):
             raise OuroborosContractError("trusted finalize output hash is missing")
@@ -1099,12 +1287,37 @@ class OuroborosTaskBackend(TaskBackend):
         if isinstance(raw_final, str):
             if len(raw_final.encode("utf-8")) > self.config.max_json_bytes:
                 raise OuroborosContractError("final AGA JSON exceeded its bound")
-            parsed = _strict_json(raw_final, "final task answer")
+            parsed, final_answer_envelope = _strict_final_json(raw_final)
             if not isinstance(parsed, Mapping):
                 raise OuroborosContractError("final task answer must be a JSON object")
             final = dict(parsed)
         else:
             raise OuroborosContractError("task result does not contain final AGA JSON")
+        expected_receipt_hash = finalize_receipt.get("output_sha256")
+        projection_repair = "none"
+        expected_hash = hashlib.sha256(_canonical_bytes(final)).hexdigest()
+        if expected_hash != expected_receipt_hash:
+            # The pinned runtime can project the model's terminal JSON without
+            # the empty ``analysis_errors`` member even though the immediately
+            # preceding AGA tool result contained it.  Restore exactly this one
+            # schema-required empty field only when the resulting canonical
+            # object is cryptographically identical to the trusted in-process
+            # finalize receipt.  This cannot bless any untrusted finding or
+            # non-empty value and every other projection difference still
+            # fails closed below.
+            if "analysis_errors" not in final:
+                candidate = {**final, "analysis_errors": []}
+                candidate_hash = hashlib.sha256(
+                    _canonical_bytes(candidate)
+                ).hexdigest()
+                if candidate_hash == expected_receipt_hash:
+                    final = candidate
+                    expected_hash = candidate_hash
+                    projection_repair = "attested_empty_analysis_errors"
+            if expected_hash != expected_receipt_hash:
+                raise OuroborosContractError(
+                    "task answer is not the exact AGA finalize output"
+                )
         try:
             validate_json_schema(
                 final,
@@ -1115,11 +1328,6 @@ class OuroborosTaskBackend(TaskBackend):
             raise OuroborosContractError(
                 f"final AGA result failed schema at {exc.path}"
             ) from exc
-        expected_hash = hashlib.sha256(_canonical_bytes(final)).hexdigest()
-        if expected_hash != finalize_receipt.get("output_sha256"):
-            raise OuroborosContractError(
-                "task answer is not the exact AGA finalize output"
-            )
         if final.get("review_id") != record.request["review_id"]:
             raise OuroborosContractError("final AGA review_id mismatch")
         for key in ("review_digest", "task_digest"):
@@ -1168,6 +1376,8 @@ class OuroborosTaskBackend(TaskBackend):
             "tool_names": tool_names,
             "prepare_output_sha256": prepare_receipt.get("output_sha256"),
             "final_output_sha256": expected_hash,
+            "final_answer_envelope": final_answer_envelope,
+            "final_projection_repair": projection_repair,
             "aga_final": final,
         }
         if is_incomplete:
@@ -1190,6 +1400,188 @@ class OuroborosTaskBackend(TaskBackend):
             metadata=metadata,
         )
 
+    @staticmethod
+    def _terminal_accounting_is_final(terminal: Mapping[str, Any]) -> bool:
+        """Validate the public terminal uncertainty fields.
+
+        Ouroboros may temporarily expose a split-drive child projection whose
+        accounting still has ``cost_final=false`` and may contain nonnegative
+        unresolved or unmetered attempts.  That transitional state can only be
+        superseded by the strict durable root ``task_cost_finalized`` event
+        below.  Malformed fields, unavailable accounting, and degraded ledger
+        integrity remain terminal typed failures.
+        """
+
+        status = terminal.get("cost_accounting_status")
+        if status == "unavailable":
+            raise _CostAccountingError(
+                "cost_accounting_unavailable",
+                "terminal task cost accounting is unavailable",
+            )
+        if status != "available":
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task cost accounting status is invalid",
+            )
+        degraded = terminal.get("ledger_integrity_degraded")
+        if degraded is True:
+            raise _CostAccountingError(
+                "cost_accounting_degraded",
+                "terminal task ledger integrity is degraded",
+            )
+        if degraded is not False:
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task ledger integrity flag is invalid",
+            )
+
+        cost_final = terminal.get("cost_final")
+        if cost_final is not True and cost_final is not False:
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task cost-final flag is invalid",
+            )
+
+        unresolved = terminal.get("unresolved_upper_bound_usd")
+        if (
+            isinstance(unresolved, bool)
+            or not isinstance(unresolved, (int, float))
+            or not math.isfinite(float(unresolved))
+            or float(unresolved) < 0.0
+        ):
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task unresolved-spend field is invalid",
+            )
+        unknown_unmetered = terminal.get("unknown_unmetered")
+        if (
+            isinstance(unknown_unmetered, bool)
+            or not isinstance(unknown_unmetered, int)
+            or unknown_unmetered < 0
+        ):
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task unmetered-attempt field is invalid",
+            )
+        if cost_final is True and (
+            float(unresolved) != 0.0 or unknown_unmetered != 0
+        ):
+            raise _CostAccountingError(
+                "cost_accounting_unresolved",
+                "final terminal task ledger contains unresolved spend",
+            )
+
+        cost = terminal.get("cost_usd")
+        if (
+            isinstance(cost, bool)
+            or not isinstance(cost, (int, float))
+            or not math.isfinite(float(cost))
+            or float(cost) < 0.0
+        ):
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "terminal task ledger cost is invalid",
+            )
+        for key in ("total_rounds", "prompt_tokens", "completion_tokens"):
+            value = terminal.get(key)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < (1 if key == "total_rounds" else 0)
+            ):
+                raise _CostAccountingError(
+                    "cost_accounting_invalid",
+                    "terminal task ledger counters are invalid",
+                )
+
+        return cost_final is True
+
+    @staticmethod
+    def _validated_finalized_cost_event(
+        record: _BackendTask, entries: Sequence[Any]
+    ) -> Mapping[str, Any] | None:
+        """Return the latest exact durable root-cost checkpoint, if final.
+
+        The gateway returns entries in durable order and includes child-drive
+        logs.  A root can also emit a provisional checkpoint before a late
+        naming attempt settles, followed by a superseding ``refresh`` event.
+        Only the latest exact-root projection is therefore authoritative.
+        """
+
+        root_events = [
+            item
+            for item in entries
+            if isinstance(item, Mapping)
+            and item.get("type") == "task_cost_finalized"
+            and item.get("task_id") == record.task_id
+            and item.get("root_task_id") == record.task_id
+        ]
+        if not root_events:
+            return None
+
+        item = root_events[-1]
+        if (
+            item.get("post_task_status") not in {"completed", "degraded"}
+            or item.get("cost_accounting_status") != "available"
+            or item.get("ledger_integrity_degraded") is not False
+            or not isinstance(item.get("cost_final"), bool)
+            or not isinstance(item.get("cost_with_children_partial"), bool)
+        ):
+            raise _CostAccountingError(
+                "cost_finalized_event_invalid",
+                "root task cost-finalized event is malformed",
+            )
+        for key in (
+            "cost_usd",
+            "cost_usd_with_children",
+            "reserved_usd",
+            "unresolved_upper_bound_usd",
+        ):
+            value = item.get(key)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or float(value) < 0.0
+            ):
+                raise _CostAccountingError(
+                    "cost_finalized_event_invalid",
+                    "root task cost-finalized totals are invalid",
+                )
+        for key in ("total_rounds", "prompt_tokens", "completion_tokens"):
+            value = item.get(key)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < (1 if key == "total_rounds" else 0)
+            ):
+                raise _CostAccountingError(
+                    "cost_finalized_event_invalid",
+                    "root task cost-finalized counters are invalid",
+                )
+        unknown = item.get("unknown_unmetered")
+        if (
+            isinstance(unknown, bool)
+            or not isinstance(unknown, int)
+            or unknown < 0
+            or float(item["cost_usd_with_children"]) < float(item["cost_usd"])
+        ):
+            raise _CostAccountingError(
+                "cost_finalized_event_invalid",
+                "root task cost-finalized event has invalid uncertainty fields",
+            )
+        if (
+            item.get("cost_final") is not True
+            or item.get("cost_with_children_partial") is not False
+            or float(item["reserved_usd"]) != 0.0
+            or float(item["unresolved_upper_bound_usd"]) != 0.0
+            or unknown != 0
+        ):
+            raise _CostAccountingPending(
+                "latest root task cost-finalized event is still provisional"
+            )
+        return item
+
     def _validated_model_usage(
         self,
         record: _BackendTask,
@@ -1197,6 +1589,7 @@ class OuroborosTaskBackend(TaskBackend):
         *,
         deadline: float | None = None,
     ) -> Mapping[str, Any]:
+        terminal_cost_final = self._terminal_accounting_is_final(terminal)
         payload = self._json_command(
             record,
             "logs",
@@ -1216,6 +1609,9 @@ class OuroborosTaskBackend(TaskBackend):
             raise OuroborosContractError("event log entries are invalid or oversized")
         usage_rows: list[Mapping[str, Any]] = []
         attempt_projections: dict[str, bytes] = {}
+        observed_cost = Decimal("0")
+        observed_prompt_tokens = 0
+        observed_completion_tokens = 0
         for raw in entries:
             if not isinstance(raw, Mapping) or raw.get("type") != "llm_usage":
                 continue
@@ -1249,6 +1645,25 @@ class OuroborosTaskBackend(TaskBackend):
                 raise OuroborosContractError(
                     "actual provider/model/accounting route differs from the approved route"
                 )
+            raw_cost = raw.get("cost")
+            if (
+                raw.get("cost_known") is not True
+                or isinstance(raw_cost, bool)
+                or not isinstance(raw_cost, (int, float))
+                or not math.isfinite(float(raw_cost))
+                or float(raw_cost) < 0.0
+            ):
+                raise OuroborosContractError(
+                    "LLM physical-attempt cost projection is invalid"
+                )
+            raw_tokens: dict[str, int] = {}
+            for key in ("prompt_tokens", "completion_tokens"):
+                value = raw.get(key)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise OuroborosContractError(
+                        "LLM physical-attempt token projection is invalid"
+                    )
+                raw_tokens[key] = value
             attempt_ids = raw.get("ledger_attempt_ids")
             if (
                 not isinstance(attempt_ids, list)
@@ -1268,6 +1683,10 @@ class OuroborosTaskBackend(TaskBackend):
                 for key in (
                     *required_strings,
                     "ledger_attempt_ids",
+                    "cost_known",
+                    "cost",
+                    "prompt_tokens",
+                    "completion_tokens",
                 )
             }
             try:
@@ -1294,80 +1713,103 @@ class OuroborosTaskBackend(TaskBackend):
             for value in attempt_ids:
                 attempt_projections[value] = fingerprint
             usage_rows.append(raw)
+            observed_cost += Decimal(str(raw_cost))
+            observed_prompt_tokens += raw_tokens["prompt_tokens"]
+            observed_completion_tokens += raw_tokens["completion_tokens"]
+        accounting = terminal
+        accounting_authority = "terminal_task_ledger"
+        if not terminal_cost_final:
+            finalized = self._validated_finalized_cost_event(record, entries)
+            if finalized is None:
+                raise _CostAccountingPending(
+                    "root task cost-finalized event is not visible yet"
+                )
+            accounting = finalized
+            accounting_authority = "root_task_cost_finalized_event"
+
         if not usage_rows:
             raise OuroborosContractError("no correlated LLM usage event was recorded")
 
-        if terminal.get("cost_accounting_status") != "available":
-            raise OuroborosContractError(
-                "terminal task cost accounting is unavailable"
-            )
-        if terminal.get("cost_final") is not True:
-            raise OuroborosContractError(
-                "terminal task cost accounting is not final"
-            )
-        if terminal.get("ledger_integrity_degraded") is not False:
-            raise OuroborosContractError("terminal task ledger integrity is degraded")
-
-        unresolved = terminal.get("unresolved_upper_bound_usd")
-        if (
-            isinstance(unresolved, bool)
-            or not isinstance(unresolved, (int, float))
-            or not math.isfinite(float(unresolved))
-            or float(unresolved) != 0.0
-        ):
-            raise OuroborosContractError(
-                "terminal task ledger has unresolved spend"
-            )
-        unknown_unmetered = terminal.get("unknown_unmetered")
-        if (
-            isinstance(unknown_unmetered, bool)
-            or not isinstance(unknown_unmetered, int)
-            or unknown_unmetered != 0
-        ):
-            raise OuroborosContractError(
-                "terminal task ledger has unknown unmetered attempts"
-            )
-
-        cost = terminal.get("cost_usd")
+        cost = accounting.get("cost_usd")
         if (
             isinstance(cost, bool)
             or not isinstance(cost, (int, float))
             or not math.isfinite(float(cost))
             or float(cost) < 0
         ):
-            raise OuroborosContractError("terminal task ledger cost is invalid")
-        total_rounds = terminal.get("total_rounds")
+            raise _CostAccountingError(
+                "cost_accounting_invalid", "authoritative task ledger cost is invalid"
+            )
+        total_rounds = accounting.get("total_rounds")
         if (
             isinstance(total_rounds, bool)
             or not isinstance(total_rounds, int)
             or total_rounds < 1
         ):
-            raise OuroborosContractError(
-                "terminal task ledger physical-call count is invalid"
+            raise _CostAccountingError(
+                "cost_accounting_invalid",
+                "authoritative task ledger physical-call count is invalid",
             )
-        if total_rounds != len(attempt_projections):
-            raise OuroborosContractError(
-                "terminal task ledger physical-call count does not match usage events"
+        observed_call_count = len(attempt_projections)
+        unobserved_call_count = total_rounds - observed_call_count
+        if unobserved_call_count < 0 or (
+            unobserved_call_count > 0
+            and self.config.all_model_routes_pinned is not True
+        ):
+            raise _CostAccountingError(
+                "cost_accounting_totals_mismatch",
+                "authoritative task ledger call count does not match physical attempts",
             )
         terminal_tokens: dict[str, int] = {}
         for key in ("prompt_tokens", "completion_tokens"):
-            value = terminal.get(key)
+            value = accounting.get(key)
             if (
                 isinstance(value, bool)
                 or not isinstance(value, int)
                 or value < 0
             ):
-                raise OuroborosContractError(
-                    "terminal task ledger token accounting is invalid"
+                raise _CostAccountingError(
+                    "cost_accounting_invalid",
+                    "authoritative task ledger token accounting is invalid",
                 )
             terminal_tokens[key] = value
+
+        # Ouroboros' authoritative projection is deliberately rounded to six
+        # decimal USD while each physical-attempt event retains more precision.
+        # When every call is visible, require equality modulo only that maximum
+        # half-unit cost rounding delta and exact token totals.  An attested
+        # hidden-call gap retains one-sided lower-bound validation because its
+        # per-attempt projections are, by definition, unavailable here.
+        authoritative_cost = Decimal(str(cost))
+        if unobserved_call_count == 0:
+            totals_mismatch = (
+                abs(authoritative_cost - observed_cost) > Decimal("0.0000005")
+                or terminal_tokens["prompt_tokens"] != observed_prompt_tokens
+                or terminal_tokens["completion_tokens"]
+                != observed_completion_tokens
+            )
+        else:
+            totals_mismatch = (
+                authoritative_cost + Decimal("0.0000005") < observed_cost
+                or terminal_tokens["prompt_tokens"] < observed_prompt_tokens
+                or terminal_tokens["completion_tokens"]
+                < observed_completion_tokens
+            )
+        if totals_mismatch:
+            raise _CostAccountingError(
+                "cost_accounting_totals_mismatch",
+                "authoritative task ledger totals do not match observed attempts",
+            )
 
         return {
             "provider": "openrouter",
             "model": self.config.model_id,
-            "accounting_authority": "terminal_task_ledger",
+            "accounting_authority": accounting_authority,
             "call_count": total_rounds,
             "usage_event_count": len(usage_rows),
+            "observed_call_count": observed_call_count,
+            "unobserved_call_count": unobserved_call_count,
+            "all_model_routes_pinned": self.config.all_model_routes_pinned,
             "known_cost_usd": float(cost),
             "cost_complete": True,
             "cost_accounting_status": "available",
@@ -1397,16 +1839,16 @@ class OuroborosTaskBackend(TaskBackend):
                 # loopback POST, which could leave a paid task running.
                 timeout=self.config.command_timeout_seconds,
             )
-        except OuroborosBackendError:
+        except (OuroborosBackendError, OSError, TypeError, ValueError):
             return False
         if completed.returncode != 0:
             return False
-        raw = completed.stdout.encode("utf-8")
-        if len(raw) > self.config.max_json_bytes:
-            return False
         try:
+            raw = completed.stdout.encode("utf-8")
+            if len(raw) > self.config.max_json_bytes:
+                return False
             payload = _strict_json(completed.stdout, "task cancellation output")
-        except OuroborosContractError:
+        except (OuroborosBackendError, OSError, TypeError, ValueError):
             return False
         confirmed = (
             isinstance(payload, Mapping)
@@ -1434,6 +1876,8 @@ class OuroborosTaskBackend(TaskBackend):
             return self._failure(record, "cli_error", "command timeout")
         except OuroborosBackendError as exc:
             return self._failure(record, "cli_error", str(exc))
+        except (OSError, TypeError, ValueError) as exc:
+            return self._failure(record, "cli_error", str(exc))
         status = str(external.get("status") or "").strip().lower()
         if status in PENDING_STATUSES:
             return TaskResult(
@@ -1456,6 +1900,10 @@ class OuroborosTaskBackend(TaskBackend):
                 status or "missing status",
                 external_status=status,
             )
+        with self._lock:
+            record.terminal_completed = True
+            if external.get("cost_final") is False:
+                record.cost_finalization_pending = True
         if self._external_artifact_pending(external):
             return TaskResult(
                 task_id=task_id,
@@ -1498,6 +1946,39 @@ class OuroborosTaskBackend(TaskBackend):
                 prepare_receipt,
                 finalize_receipt,
             )
+        except CommandTimeoutError:
+            if deadline is not None:
+                raise
+            return self._failure(record, "invalid_aga_receipt", "command timeout")
+        except OuroborosMCPTransportError as exc:
+            return self._failure(
+                record,
+                "mcp_tool_transport_error",
+                str(exc),
+                external_status=status,
+            )
+        except OuroborosMCPServiceError as exc:
+            return self._failure(
+                record,
+                "mcp_tool_service_error",
+                str(exc),
+                external_status=status,
+            )
+        except OuroborosBackendError as exc:
+            return self._failure(
+                record,
+                "invalid_aga_receipt",
+                str(exc),
+                external_status=status,
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            return self._failure(
+                record,
+                "invalid_aga_receipt",
+                str(exc),
+                external_status=status,
+            )
+        try:
             model_usage = self._validated_model_usage(
                 record, external, deadline=deadline
             )
@@ -1510,18 +1991,45 @@ class OuroborosTaskBackend(TaskBackend):
                 error=result.error,
                 metadata={**dict(result.metadata), "model_usage": dict(model_usage)},
             )
+        except _CostAccountingPending:
+            with self._lock:
+                record.cost_finalization_pending = True
+            return TaskResult(
+                task_id=task_id,
+                task_name="aga:review",
+                status=TaskStatus.PENDING,
+                metadata={
+                    "external_status": "cost_finalizing",
+                    "review_id": record.request["review_id"],
+                },
+            )
+        except _CostAccountingError as exc:
+            return self._failure(
+                record,
+                exc.code,
+                str(exc),
+                external_status=status,
+            )
         except CommandTimeoutError:
             if deadline is not None:
                 raise
-            return self._failure(record, "invalid_aga_receipt", "command timeout")
+            return self._failure(record, "provider_usage_invalid", "command timeout")
         except OuroborosBackendError as exc:
             return self._failure(
                 record,
-                "invalid_aga_receipt",
+                "provider_usage_invalid",
+                str(exc),
+                external_status=status,
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            return self._failure(
+                record,
+                "provider_usage_invalid",
                 str(exc),
                 external_status=status,
             )
         with self._lock:
+            record.cost_finalization_pending = False
             record.frozen_result = result
         return result
 
@@ -1556,16 +2064,43 @@ class OuroborosTaskBackend(TaskBackend):
                 )
             )
         with self._lock:
+            cost_finalization_timeout = record.cost_finalization_pending
+            terminal_validation_timeout = (
+                record.terminal_completed and not cost_finalization_timeout
+            )
             if not record.cancel_attempted:
                 self._cancel_timed_out_task(record)
+            error_code = (
+                "cost_finalization_timeout"
+                if cost_finalization_timeout
+                else "terminal_validation_timeout"
+                if terminal_validation_timeout
+                else "task_timeout"
+            )
+            external_status = (
+                "cost_finalizing"
+                if cost_finalization_timeout
+                else "completed"
+                if terminal_validation_timeout
+                else "timed_out"
+            )
+            error = (
+                "cost_finalization_timeout: terminal review cost did not finalize "
+                f"within the {budget:g} second wait budget"
+                if cost_finalization_timeout
+                else "terminal_validation_timeout: completed review did not finish "
+                f"trusted validation within the {budget:g} second wait budget"
+                if terminal_validation_timeout
+                else f"task exceeded timeout of {budget:g} seconds"
+            )
             result = TaskResult(
                 task_id=task_id,
                 task_name="aga:review",
                 status=TaskStatus.TIMED_OUT,
-                error=f"task exceeded timeout of {budget:g} seconds",
+                error=error,
                 metadata={
-                    "error_code": "task_timeout",
-                    "external_status": "timed_out",
+                    "error_code": error_code,
+                    "external_status": external_status,
                     "review_id": record.request["review_id"],
                     "verdict": "incomplete",
                     "incomplete": True,

@@ -355,6 +355,16 @@ class MCPApplication:
                 value = output.get(key)
                 if isinstance(value, (str, bool)):
                     event[f"output_{key}"] = value
+        if "review_id_sha256" not in event and isinstance(arguments, Mapping):
+            # Error tool results intentionally have no structuredContent, but
+            # they must remain correlated to the immutable review so the
+            # trusted runner can fail closed instead of silently dropping the
+            # receipt from its review-scoped trace.
+            review_id = arguments.get("review_id")
+            if isinstance(review_id, str):
+                event["review_id_sha256"] = hashlib.sha256(
+                    review_id.encode("utf-8")
+                ).hexdigest()
         with self._trace_lock:
             self._trace.append(event)
         if self._trace_sink is not None:

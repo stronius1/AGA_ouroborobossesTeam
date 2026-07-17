@@ -150,6 +150,28 @@ def test_gate_failure_publishes_no_result(tmp_path: Path) -> None:
     assert not output.exists()
 
 
+def test_aggregate_gate_pass_allows_a_nonperfect_case(tmp_path: Path) -> None:
+    responses = _responses()
+    duplicate = copy.deepcopy(
+        responses["ga-01-reuse-duplicate"]["normalized"]["findings"][0]
+    )
+    duplicate["location"] = "/components/demo.profile"
+    responses["ga-01-reuse-duplicate"]["normalized"]["findings"].append(duplicate)
+
+    result = evaluation.run_evaluation(
+        "development",
+        confirmed=True,
+        output=tmp_path / "development.json",
+        case_runner=_case_runner(responses, []),
+        evidence_root=tmp_path,
+    )
+
+    assert result["development"]["cases_passed"] == 7
+    assert result["development"]["precision"] == 0.8
+    assert result["runs"][0]["assessment"] == "FAIL"
+    assert result["gate"]["evaluation_passed"] is True
+
+
 def test_trusted_scorer_rejects_cherry_picked_measurement_selection() -> None:
     responses = list(_responses().values())[:2]
 

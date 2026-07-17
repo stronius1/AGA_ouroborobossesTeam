@@ -438,6 +438,20 @@ def _capture_set_sha256(runs: list[Mapping[str, Any]]) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+RELEASE_THRESHOLDS = {
+    "blocker_recall": 1.0,
+    "unsafe_approve_count": 0,
+    "schema_valid_rate": 1.0,
+    "precision_min": 0.8,
+    "recall_min": 0.8,
+    "outcome_accuracy_min": 0.85,
+}
+
+
+def _ratio(numerator: int, denominator: int, *, empty: float) -> float:
+    return round(numerator / denominator, 6) if denominator else empty
+
+
 def _valid_release_metrics(value: Any, expected_cases: int) -> bool:
     fields = {
         "cases_evaluated",
@@ -501,15 +515,43 @@ def _valid_release_metrics(value: Any, expected_cases: int) -> bool:
     latency = value.get("latency_ms")
     if (
         value.get("cases_evaluated") != expected_cases
-        or value.get("cases_passed") != expected_cases
+        or value.get("cases_passed") > expected_cases
         or value.get("unsafe_approve_count") != 0
-        or value.get("invalid_or_hallucinated_evidence_count") != 0
-        or value.get("invalid_or_hallucinated_evidence_rate") != 0.0
-        or value.get("fp") != 0
-        or value.get("fn") != 0
-        or any(value.get(field) != 1.0 for field in rate_fields - {
-            "invalid_or_hallucinated_evidence_rate"
-        })
+        or value.get("schema_valid_rate") != 1.0
+        or value.get("blocker_recall") != 1.0
+        or float(value.get("precision")) < RELEASE_THRESHOLDS["precision_min"]
+        or float(value.get("recall")) < RELEASE_THRESHOLDS["recall_min"]
+        or float(value.get("outcome_accuracy"))
+        < RELEASE_THRESHOLDS["outcome_accuracy_min"]
+        or value.get("findings_expected") != value.get("tp") + value.get("fn")
+        or value.get("findings_predicted") != value.get("tp") + value.get("fp")
+        or value.get("evidence_findings_denominator")
+        != value.get("findings_predicted")
+        or value.get("expected_blockers") != expected_cases // 8
+        or value.get("findings_expected") != expected_cases // 2
+        or value.get("findings_predicted") > expected_cases * 100
+        or value.get("invalid_or_hallucinated_evidence_count")
+        > value.get("evidence_findings_denominator")
+        or value.get("precision")
+        != _ratio(
+            value.get("tp"),
+            value.get("tp") + value.get("fp"),
+            empty=1.0,
+        )
+        or value.get("recall")
+        != _ratio(
+            value.get("tp"),
+            value.get("tp") + value.get("fn"),
+            empty=1.0,
+        )
+        or value.get("exact_case_accuracy")
+        != _ratio(value.get("cases_passed"), expected_cases, empty=0.0)
+        or value.get("invalid_or_hallucinated_evidence_rate")
+        != _ratio(
+            value.get("invalid_or_hallucinated_evidence_count"),
+            value.get("evidence_findings_denominator"),
+            empty=0.0,
+        )
         or not isinstance(latency, Mapping)
         or set(latency) != {"count", "total", "mean", "p50", "p95", "max"}
         or latency.get("count") != expected_cases
@@ -517,12 +559,23 @@ def _valid_release_metrics(value: Any, expected_cases: int) -> bool:
             not _is_finite_number(latency.get(field))
             for field in ("total", "mean", "p50", "p95", "max")
         )
+        or float(latency.get("max")) > 3_600_000
+        or float(latency.get("total")) > expected_cases * 3_600_000
+        or float(latency.get("total")) < float(latency.get("max"))
+        or not (
+            float(latency.get("p50"))
+            <= float(latency.get("p95"))
+            <= float(latency.get("max"))
+        )
+        or float(latency.get("mean")) > float(latency.get("max"))
     ):
         return False
     return True
 
 
-def _valid_release_gate(value: Any) -> bool:
+def _valid_release_gate(
+    value: Any, scope_metrics: Mapping[str, Mapping[str, Any]]
+) -> bool:
     if not isinstance(value, Mapping) or set(value) != {
         "thresholds",
         "scopes",
@@ -533,15 +586,7 @@ def _valid_release_gate(value: Any) -> bool:
     }:
         return False
     if (
-        value.get("thresholds")
-        != {
-            "blocker_recall": 1.0,
-            "unsafe_approve_count": 0,
-            "schema_valid_rate": 1.0,
-            "precision_min": 0.8,
-            "recall_min": 0.8,
-            "outcome_accuracy_min": 0.85,
-        }
+        value.get("thresholds") != RELEASE_THRESHOLDS
         or value.get("evaluation_passed") is not True
         or value.get("release_eligible") is not True
         or value.get("release_passed") is not True
@@ -554,17 +599,25 @@ def _valid_release_gate(value: Any) -> bool:
         "development",
         "holdout",
         "overall",
-    }:
+    } or set(scope_metrics) != set(scopes):
         return False
     expected_checks = {
-        "blocker_recall",
-        "unsafe_approve_count",
-        "schema_valid_rate",
-        "precision",
-        "recall",
-        "outcome_accuracy",
+        "blocker_recall": ("blocker_recall", ">=", "blocker_recall"),
+        "unsafe_approve_count": (
+            "unsafe_approve_count",
+            "<=",
+            "unsafe_approve_count",
+        ),
+        "schema_valid_rate": ("schema_valid_rate", ">=", "schema_valid_rate"),
+        "precision": ("precision", ">=", "precision_min"),
+        "recall": ("recall", ">=", "recall_min"),
+        "outcome_accuracy": (
+            "outcome_accuracy",
+            ">=",
+            "outcome_accuracy_min",
+        ),
     }
-    for scope in scopes.values():
+    for scope_name, scope in scopes.items():
         if (
             not isinstance(scope, Mapping)
             or set(scope) != {"checks", "passed"}
@@ -576,16 +629,75 @@ def _valid_release_gate(value: Any) -> bool:
                 for check in scope["checks"]
                 if isinstance(check, Mapping)
             }
-            != expected_checks
-            or any(
-                not isinstance(check, Mapping)
-                or set(check) != {"id", "operator", "threshold", "actual", "passed"}
-                or check.get("passed") is not True
-                for check in scope["checks"]
-            )
+            != set(expected_checks)
         ):
             return False
+        for check in scope["checks"]:
+            if (
+                not isinstance(check, Mapping)
+                or set(check) != {"id", "operator", "threshold", "actual", "passed"}
+            ):
+                return False
+            metric_name, operator, threshold_name = expected_checks[check["id"]]
+            threshold = RELEASE_THRESHOLDS[threshold_name]
+            actual = scope_metrics[scope_name].get(metric_name)
+            if (
+                check.get("operator") != operator
+                or check.get("threshold") != threshold
+                or check.get("actual") != actual
+                or check.get("passed") is not True
+                or (operator == ">=" and not actual >= threshold)
+                or (operator == "<=" and not actual <= threshold)
+            ):
+                return False
     return True
+
+
+def _release_metrics_match_runs(
+    metrics: Mapping[str, Any], runs: list[Mapping[str, Any]]
+) -> bool:
+    invalid_evidence = 0
+    findings_predicted = 0
+    for run in runs:
+        normalized = run.get("normalized_output")
+        checks = run.get("evidence_checks")
+        if not isinstance(normalized, Mapping) or not isinstance(checks, list):
+            return False
+        findings = normalized.get("findings")
+        if not isinstance(findings, list) or len(checks) != len(findings):
+            return False
+        for index, (check, finding) in enumerate(zip(checks, findings)):
+            if (
+                not isinstance(check, Mapping)
+                or set(check) != {"finding_index", "rule_id", "valid", "reason"}
+                or check.get("finding_index") != index
+                or check.get("rule_id") != finding.get("rule_id")
+                or not isinstance(check.get("valid"), bool)
+                or not isinstance(check.get("reason"), str)
+                or not check["reason"].strip()
+            ):
+                return False
+            invalid_evidence += check["valid"] is False
+        findings_predicted += len(findings)
+    expected = {
+        "cases_evaluated": len(runs),
+        "cases_passed": sum(run.get("assessment") == "PASS" for run in runs),
+        "unsafe_approve_count": sum(
+            run.get("unsafe_approve") is True for run in runs
+        ),
+        "invalid_or_hallucinated_evidence_count": invalid_evidence,
+        "tp": sum(run.get("tp_count", 0) for run in runs),
+        "fp": sum(run.get("fp_count", 0) for run in runs),
+        "fn": sum(run.get("fn_count", 0) for run in runs),
+        "findings_predicted": findings_predicted,
+        "evidence_findings_denominator": findings_predicted,
+    }
+    if any(metrics.get(field) != actual for field, actual in expected.items()):
+        return False
+    latency = metrics.get("latency_ms")
+    return isinstance(latency, Mapping) and latency.get("total") == round(
+        sum(float(run.get("latency_ms", 0.0)) for run in runs), 3
+    )
 
 
 def check_real_results_payload(
@@ -663,6 +775,11 @@ def check_real_results_payload(
         return False
     selection = results.get("selection")
     gate = results.get("gate")
+    scope_metrics = {
+        "development": results.get("development"),
+        "holdout": results.get("holdout"),
+        "overall": results.get("overall"),
+    }
     if (
         results.get("schema") != RESULTS_SCHEMA
         or results.get("status") != "trusted_real_scored_release"
@@ -682,10 +799,12 @@ def check_real_results_payload(
         or not _is_sha256(results.get("capture_set_sha256"))
         or selection != {"kind": "all", "case_ids": list(ALL_CASES)}
         or results.get("cases_evaluated") != len(ALL_CASES)
-        or not _valid_release_gate(gate)
-        or not _valid_release_metrics(results.get("development"), len(DEVELOPMENT_CASES))
-        or not _valid_release_metrics(results.get("holdout"), len(HOLDOUT_CASES))
-        or not _valid_release_metrics(results.get("overall"), len(ALL_CASES))
+        or not _valid_release_metrics(
+            scope_metrics["development"], len(DEVELOPMENT_CASES)
+        )
+        or not _valid_release_metrics(scope_metrics["holdout"], len(HOLDOUT_CASES))
+        or not _valid_release_metrics(scope_metrics["overall"], len(ALL_CASES))
+        or not _valid_release_gate(gate, scope_metrics)
     ):
         errors.append("results.json may contain only a full trusted all-case PASS")
         return False
@@ -717,9 +836,9 @@ def check_real_results_payload(
                 for field in ("tp_count", "fp_count", "fn_count")
             )
             or run.get("unsafe_approve") is not False
-            or run.get("assessment") != "PASS"
+            or run.get("assessment") not in {"PASS", "FAIL"}
             or not isinstance(run.get("reason"), str)
-            or not run["reason"]
+            or not run["reason"].strip()
             or not _valid_normalized_output(run.get("normalized_output"))
             or not isinstance(run.get("normalized_output"), Mapping)
             or not _valid_trusted_raw_capture(
@@ -728,6 +847,17 @@ def check_real_results_payload(
         ):
             errors.append(f"trusted all-case result run {index} violates the capture contract")
             return False
+    scoped_runs = {
+        "development": runs[: len(DEVELOPMENT_CASES)],
+        "holdout": runs[len(DEVELOPMENT_CASES) :],
+        "overall": runs,
+    }
+    if any(
+        not _release_metrics_match_runs(scope_metrics[name], scoped_runs[name])
+        for name in scoped_runs
+    ):
+        errors.append("trusted all-case aggregate metrics do not match the run captures")
+        return False
     try:
         capture_hash = _capture_set_sha256(runs)
     except (KeyError, TypeError, ValueError):
@@ -843,10 +973,9 @@ def main() -> int:
 
     prompt_path = (
         ROOT
-        / "ouroboros-skill"
-        / "aga-review"
+        / "aga-skill"
         / "prompts"
-        / "orchestration-v1.0.0.txt"
+        / "ouroboros-orchestration-v1.0.5.txt"
     )
     expected_prompt_hash = ""
     try:

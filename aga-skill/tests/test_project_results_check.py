@@ -112,9 +112,15 @@ def _valid_smoke_trace(corpus_hash: str, prompt_hash: str) -> dict[str, Any]:
     }
 
 
-def _trusted_full_result() -> Mapping[str, Any]:
+def _trusted_full_result(
+    *, with_grounded_false_positive: bool = False
+) -> Mapping[str, Any]:
     bundle = json.loads(FIXTURE_BUNDLE.read_text(encoding="utf-8"))
     responses = copy.deepcopy(bundle["responses"])
+    if with_grounded_false_positive:
+        duplicate = copy.deepcopy(responses[0]["normalized"]["findings"][0])
+        duplicate["location"] = "/components/demo.profile"
+        responses[0]["normalized"]["findings"].append(duplicate)
     for index, response in enumerate(responses, 1):
         response["raw_sanitized"] = _raw_capture(index, response["normalized"])
     return evaluator.score_trusted_ouroboros_responses(
@@ -196,6 +202,57 @@ def test_results_accept_only_full_all_case_trusted_pass() -> None:
     assert any("full trusted all-case PASS" in error for error in errors)
 
 
+def test_results_accept_nonperfect_cases_when_all_aggregate_gates_pass() -> None:
+    result = _trusted_full_result(with_grounded_false_positive=True)
+    errors: list[str] = []
+
+    assert result["development"]["cases_passed"] == 7
+    assert result["development"]["precision"] == 0.8
+    assert result["runs"][0]["assessment"] == "FAIL"
+    assert result["gate"]["release_passed"] is True
+    assert checker.check_real_results_payload(
+        result,
+        errors,
+        [],
+        expected_corpus_hash=result["corpus_hash"],
+        expected_ground_truth_hash=result["ground_truth_hash"],
+    )
+    assert errors == []
+
+
+def test_results_reject_gate_actual_that_disagrees_with_scope_metrics() -> None:
+    result = copy.deepcopy(_trusted_full_result(with_grounded_false_positive=True))
+    precision_check = next(
+        check
+        for check in result["gate"]["scopes"]["development"]["checks"]
+        if check["id"] == "precision"
+    )
+    precision_check["actual"] = 0.9
+
+    assert not checker.check_real_results_payload(
+        result,
+        errors := [],
+        [],
+        expected_corpus_hash=result["corpus_hash"],
+        expected_ground_truth_hash=result["ground_truth_hash"],
+    )
+    assert any("full trusted all-case PASS" in error for error in errors)
+
+
+def test_results_reject_metric_denominator_inconsistency() -> None:
+    result = copy.deepcopy(_trusted_full_result(with_grounded_false_positive=True))
+    result["development"]["findings_predicted"] += 1
+
+    assert not checker.check_real_results_payload(
+        result,
+        errors := [],
+        [],
+        expected_corpus_hash=result["corpus_hash"],
+        expected_ground_truth_hash=result["ground_truth_hash"],
+    )
+    assert any("full trusted all-case PASS" in error for error in errors)
+
+
 def test_fixture_results_cannot_be_relabelled_as_release_results() -> None:
     fixture = json.loads(FIXTURE_RESULTS.read_text(encoding="utf-8"))
     fixture["mode"] = "real"
@@ -225,13 +282,15 @@ def test_makefile_keeps_smoke_fixed_and_all_paid_targets_double_gated() -> None:
     )
     assert (
         "demo-e2e:\n"
-        "\t$(PYTHON) scripts/run_ouroboros_e2e.py --case ga-05-critical-eliminate\n"
+        "\t$(OUROBOROS_PROFILE_MANAGER) exec -- $(PYTHON) "
+        "scripts/run_ouroboros_e2e.py --case ga-05-critical-eliminate\n"
         in makefile
     )
     for split in ("development", "holdout", "all"):
         assert (
             f"evaluate-ouroboros-{split}: ouroboros-full-run-approval\n"
-            f"\t$(PYTHON) scripts/run_ouroboros_evaluation.py --split {split} "
+            "\t$(OUROBOROS_PROFILE_MANAGER) exec -- $(PYTHON) "
+            f"scripts/run_ouroboros_evaluation.py --split {split} "
             "--confirm-full-run\n"
             in makefile
         )

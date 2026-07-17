@@ -1,0 +1,100 @@
+{
+  "captured_at": "2026-07-17T03:39:56Z",
+  "config_sha256": "3267143de7e841c64b64f37195e671709e8437674e5d446394d09149bf542fc5",
+  "corpus_hash": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "data_classification": "synthetic-public",
+  "model": {
+    "name": "deepseek/deepseek-v4-pro"
+  },
+  "preflight": {
+    "attestation_sha256": "5a259558787f3b64afa58686cbc43a699f56f2fb6b179b0094914f61eede7188",
+    "status": "ready",
+    "tool_count": 4,
+    "tools": [
+      "aga_prepare_review",
+      "aga_seaf_lookup",
+      "aga_parse_diagram",
+      "aga_finalize_review"
+    ]
+  },
+  "prompt_template_sha256": "8366780b6d99a8eec94eebeaabcc00d7df6a80207a3883527eecfb9a1a5bdd16",
+  "provider": "openrouter",
+  "redaction": {
+    "absolute_paths_retained": false,
+    "credentials_retained": false,
+    "raw_prompts_retained": false,
+    "raw_provider_payloads_retained": false
+  },
+  "run": {
+    "acceptance": {
+      "assessment": "PASS",
+      "schema_valid": true,
+      "unsafe_approve": false
+    },
+    "base_revision": "5f07e7b66b55c211e4887a1c6df611ba7f7197a5",
+    "case_id": "ga-05-critical-eliminate",
+    "final": {
+      "auto_merge": false,
+      "final_status": "completed",
+      "human_review_required": true,
+      "review_digest": "rvw_9ccb41dd51127def186ebeb3f105c8be5fa899da407ab26e4735a6adb09b4864",
+      "task_digest": "tsk_699f592290e2d1db42fef770c2fbfae91bc356c2b5407d17b2851d3960b0c113",
+      "verdict": "request_changes_escalate"
+    },
+    "head_revision": "6e6f77bd2ccc49997aced97c512f4196785ba434",
+    "latency_ms": 148433.62,
+    "normalized": {
+      "findings": [
+        {
+          "artifact": "model/adrs.yaml",
+          "confidence": 0.95,
+          "evidence": "Mission-critical Payments will synchronously call the retiring Legacy system [decision clause]. [technology/negative] Critical path depends on retirement timeline [consequences/risk]. [technology/negative] Legacy is targeted for elimination [context/risk]. Payments (demo.payments) criticality: mission_critical. Legacy (demo.legacy) target_status: eliminate. A mission_critical system is acquiring a new synchronous dependency on a system targeted for elimination.",
+          "location": "/seaf.change.adr/demo.dependency",
+          "rule_id": "PRIN-006",
+          "severity": "blocker",
+          "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+          "suggested_fix": "Remove the synchronous dependency from mission-critical Payments to the retiring Legacy system, or postpone Legacy elimination until the dependency is resolved."
+        }
+      ],
+      "status": "complete",
+      "verdict": "request_changes_escalate"
+    },
+    "raw_sanitized": {
+      "final_answer_envelope": "strict_json",
+      "model_usage": {
+        "call_count": 5,
+        "cost_complete": true,
+        "known_cost_usd": 0.029781,
+        "model": "deepseek/deepseek-v4-pro",
+        "provider": "openrouter"
+      },
+      "receipts": {
+        "finalize": {
+          "args_sha256": "6a8d54280e59735ef86a2aa6984975235abe03f3d9a623d35fe5cfcface6eb93",
+          "output_sha256": "b84e345debe8247616166d0c5d0feabfca3254196b24264668069bc99f802d59",
+          "status": "completed"
+        },
+        "prepare": {
+          "args_sha256": "252736522827fad5bbb4ad127ac15ab250391d3d45957f19187d9c0db8bb43ba",
+          "output_sha256": "7c5c22c0f28a5bcdea13c162e1817216659b96752de4a81a62291c2e04a0efcb",
+          "status": "ready"
+        },
+        "review_id_sha256": "0428cb9e59a388e0b20368c137f7b38b765f9b2959fbe75eb596c1d109dc82f4",
+        "tool_names": [
+          "aga_prepare_review",
+          "aga_finalize_review"
+        ]
+      },
+      "rendered_prompt_sha256": "5c45031203928cd96b017ccbaf49d608eb580da2349c1591384eac64fe22a0b1",
+      "task_id": "ede1ec50",
+      "task_status": "succeeded"
+    },
+    "review_id_sha256": "0428cb9e59a388e0b20368c137f7b38b765f9b2959fbe75eb596c1d109dc82f4"
+  },
+  "runtime": {
+    "name": "ouroboros",
+    "version": "6.64.1"
+  },
+  "schema": "aga.ouroboros-run-sanitized/v1",
+  "status": "passed"
+}

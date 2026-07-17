@@ -2208,7 +2208,14 @@ def _object_schema(properties: Mapping[str, Any], required: Sequence[str]) -> di
 SEMANTIC_FINDING_INPUT_SCHEMA = _object_schema(
     {
         "rule_id": {"type": "string", "enum": list(SEMANTIC_RULE_IDS)},
-        "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+        "severity": {
+            "type": "string",
+            "enum": ["blocker", "major", "minor"],
+            "description": (
+                "Copy byte-for-byte from the prepared semantic task with the "
+                "same rule_id."
+            ),
+        },
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "entity_id": {"type": "string", "pattern": ID_RE.pattern},
         "location": {
@@ -2216,9 +2223,33 @@ SEMANTIC_FINDING_INPUT_SCHEMA = _object_schema(
             "minLength": 1,
             "pattern": JSON_POINTER_RE.pattern,
         },
-        "evidence": {"type": "string"},
-        "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": True},
-        "source_ref": {"type": "string"},
+        "evidence": {
+            "type": "string",
+            "description": (
+                "Ground the defect in the prepared artifacts named by "
+                "evidence_refs. Preserve verbatim the shortest supporting "
+                "clause or clauses that cover every fact used to classify the "
+                "breach, including decisive identifiers and risk or control "
+                "wording; do not use a synonym-only paraphrase."
+            ),
+        },
+        "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "uniqueItems": True,
+            "description": (
+                "A non-empty subset of evidence_refs from the prepared semantic "
+                "task with the same rule_id."
+            ),
+        },
+        "source_ref": {
+            "type": "string",
+            "description": (
+                "Copy byte-for-byte from semantic_tasks[].source_ref for the same "
+                "rule_id. Never use an artifact or aga_seaf_lookup source_ref."
+            ),
+        },
         "suggested_fix": {"type": "string"},
     },
     [
@@ -2328,7 +2359,11 @@ TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
     },
     {
         "name": "aga_parse_diagram",
-        "description": "Parse or return one prepared diagram by entity ID; filesystem paths are not accepted.",
+        "description": (
+            "Parse or return one prepared diagram by entity ID. Call only when "
+            "the prepared artifact has a non-empty diagram_format and diagram "
+            "kind; non-diagram entity IDs and filesystem paths are invalid."
+        ),
         "inputSchema": _object_schema(
             {
                 "review_id": {"type": "string", "pattern": ID_RE.pattern},
@@ -2364,7 +2399,12 @@ TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
     },
     {
         "name": "aga_finalize_review",
-        "description": "Validate semantic PRIN-004..007 JSON against prepared evidence, merge by precedence and compute a fail-closed verdict.",
+        "description": (
+            "Validate semantic PRIN-004..007 JSON against prepared evidence, "
+            "merge by precedence and compute a fail-closed verdict. Before this "
+            "call, copy every finding severity/source_ref exactly from its "
+            "prepared semantic task; artifact source_ref values are invalid."
+        ),
         "inputSchema": _object_schema(
             {
                 "review_id": {"type": "string", "pattern": ID_RE.pattern},

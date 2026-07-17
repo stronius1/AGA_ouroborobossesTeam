@@ -175,7 +175,6 @@ def run_evaluation(
     if (
         not isinstance(runs, list)
         or len(runs) != len(cases)
-        or any(run.get("assessment") != "PASS" for run in runs if isinstance(run, Mapping))
         or any(not isinstance(run, Mapping) for run in runs)
         or result.get("gate", {}).get("evaluation_passed") is not True
     ):

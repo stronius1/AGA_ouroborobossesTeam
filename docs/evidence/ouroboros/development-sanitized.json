@@ -1,0 +1,721 @@
+{
+  "capture_set_sha256": "b1c50de806abd2daec28797645a2002bba71a232a5ab0e89e76be03b401c5e5f",
+  "captured_at": "2026-07-17T03:36:34Z",
+  "cases_evaluated": 8,
+  "config_hash": "3267143de7e841c64b64f37195e671709e8437674e5d446394d09149bf542fc5",
+  "corpus": "frozen-synthetic-seaf-semantic-basket",
+  "corpus_hash": "df2d16746342fe71dedadb04252bfdec9c670a2bed65fe001b784bba15bba951",
+  "development": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 8,
+    "cases_passed": 8,
+    "evidence_findings_denominator": 4,
+    "exact_case_accuracy": 1.0,
+    "expected_blockers": 1,
+    "findings_expected": 4,
+    "findings_predicted": 4,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 8,
+      "max": 134021.994,
+      "mean": 99879.553,
+      "p50": 101737.915,
+      "p95": 134021.994,
+      "total": 799036.42
+    },
+    "outcome_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 1.0,
+    "status_accuracy": 1.0,
+    "tp": 4,
+    "unsafe_approve_count": 0
+  },
+  "gate": {
+    "evaluation_passed": true,
+    "reason": "partial trusted run is not release evidence",
+    "release_eligible": false,
+    "release_passed": false,
+    "scopes": {
+      "development": {
+        "checks": [
+          {
+            "actual": 1.0,
+            "id": "blocker_recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 0,
+            "id": "unsafe_approve_count",
+            "operator": "<=",
+            "passed": true,
+            "threshold": 0
+          },
+          {
+            "actual": 1.0,
+            "id": "schema_valid_rate",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 1.0,
+            "id": "precision",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "outcome_accuracy",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.85
+          }
+        ],
+        "passed": true
+      },
+      "overall": {
+        "checks": [
+          {
+            "actual": 1.0,
+            "id": "blocker_recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 0,
+            "id": "unsafe_approve_count",
+            "operator": "<=",
+            "passed": true,
+            "threshold": 0
+          },
+          {
+            "actual": 1.0,
+            "id": "schema_valid_rate",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 1.0
+          },
+          {
+            "actual": 1.0,
+            "id": "precision",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "recall",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.8
+          },
+          {
+            "actual": 1.0,
+            "id": "outcome_accuracy",
+            "operator": ">=",
+            "passed": true,
+            "threshold": 0.85
+          }
+        ],
+        "passed": true
+      }
+    },
+    "thresholds": {
+      "blocker_recall": 1.0,
+      "outcome_accuracy_min": 0.85,
+      "precision_min": 0.8,
+      "recall_min": 0.8,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 0
+    }
+  },
+  "ground_truth_hash": "80d465f0b01dff5acad92946b99d7009da987da7eeeb97df01f569415d33ad01",
+  "holdout": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 0,
+    "cases_passed": 0,
+    "evidence_findings_denominator": 0,
+    "exact_case_accuracy": 0.0,
+    "expected_blockers": 0,
+    "findings_expected": 0,
+    "findings_predicted": 0,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 0,
+      "max": null,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "total": 0
+    },
+    "outcome_accuracy": 0.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 0.0,
+    "status_accuracy": 0.0,
+    "tp": 0,
+    "unsafe_approve_count": 0
+  },
+  "measurement_class": "trusted_ouroboros_real",
+  "mode": "real",
+  "model": {
+    "name": "deepseek/deepseek-v4-pro"
+  },
+  "overall": {
+    "blocker_recall": 1.0,
+    "cases_evaluated": 8,
+    "cases_passed": 8,
+    "evidence_findings_denominator": 4,
+    "exact_case_accuracy": 1.0,
+    "expected_blockers": 1,
+    "findings_expected": 4,
+    "findings_predicted": 4,
+    "fn": 0,
+    "fp": 0,
+    "invalid_or_hallucinated_evidence_count": 0,
+    "invalid_or_hallucinated_evidence_rate": 0.0,
+    "latency_ms": {
+      "count": 8,
+      "max": 134021.994,
+      "mean": 99879.553,
+      "p50": 101737.915,
+      "p95": 134021.994,
+      "total": 799036.42
+    },
+    "outcome_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "schema_valid_rate": 1.0,
+    "status_accuracy": 1.0,
+    "tp": 4,
+    "unsafe_approve_count": 0
+  },
+  "prompt_hash": "8366780b6d99a8eec94eebeaabcc00d7df6a80207a3883527eecfb9a1a5bdd16",
+  "provider": "openrouter",
+  "redaction": {
+    "absolute_paths_retained": false,
+    "credentials_retained": false,
+    "raw_prompts_retained": false,
+    "raw_provider_payloads_retained": false
+  },
+  "release_evidence": false,
+  "runs": [
+    {
+      "assessment": "PASS",
+      "base_revision": "ee59a18423288e5ee32422f5c91b1cdace1ffec4",
+      "case_id": "ga-01-reuse-duplicate",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-004",
+          "valid": true
+        }
+      ],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "9d3d8e8e780764d17c7f56b9afd669a8bf41b2b6",
+      "latency_ms": 134021.994,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 1.0,
+            "evidence": "demo.profile_copy description: \"New store with the same customer profile capability\" — duplicates capability of existing reusable candidate demo.profile (Customer Profile Master, \"Existing profile master\").",
+            "location": "/components/demo.profile_copy",
+            "rule_id": "PRIN-004",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/3",
+            "suggested_fix": "Reuse the existing demo.profile (Customer Profile Master) instead of creating a duplicate Portal Profile Store with the same customer profile capability."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.042804,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "81b881cd09f6946bca76f1bd58da290d0c18c363899c93eb8e53c76adb804050",
+            "output_sha256": "8aaadc55f2f14960dcb824e3621b59377a69111f98db55976dd792f85e9daa8e",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "5624c4b90d483179e96a638a55d99124fe388fd45d1fec5220e0848130abfb88",
+            "output_sha256": "1e5427f8ff43bd7be45e91abd309aa05b338c3183325dd0fc8b2f7201eaa5521",
+            "status": "ready"
+          },
+          "review_id_sha256": "30e71144de6b44f81b2dd5175e177c9636c4fbfa52ebf93e3809231e9238dd52",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "e682938ffcc9c97852ecb8880b396486063e97d410a5fa387ad2787c58f632fe",
+        "task_id": "2c4bea52",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 1,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "35574feb716367b97573cb3ba0bbe41eaca40679",
+      "case_id": "ga-02-reuse-existing",
+      "evidence_checks": [],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "405fd34cb431048bc8b5829917e78e082ba5b8f6",
+      "latency_ms": 101737.915,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.024979,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "2b47008eb410f5b7775143e31ecc7339ec928bc1ccf87ad789edea4f44a7a136",
+            "output_sha256": "7ee319c526b31b02245077e9364af4e1b824b3a6eba37e0ce86e20b58d4f244d",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "7ffaa1d4ad3a5bc0292aee9a249a1b23227285e876dd834c5b15139b65e38d0b",
+            "output_sha256": "11f86581b964d2e85a8783518deb81b1b7a6ddf4b05a8fb8f395a97db1bb432a",
+            "status": "ready"
+          },
+          "review_id_sha256": "25f2fe82963592e07eee399b1434ac8ce7efa816a89c586e9a6b13d9c3eeedcc",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "a5c7d58999803177c10d2ecf7564f882b7320d5b5f7c643033077396545d2b0a",
+        "task_id": "ef010da7",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 0,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "7712cdf15896ec0b33df2efc4088d25302f335ab",
+      "case_id": "ga-03-second-master",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-005",
+          "valid": true
+        }
+      ],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "97abf99e2c8a47357947ca67df6c160029bc6f00",
+      "latency_ms": 105190.817,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/components.yaml",
+            "confidence": 1.0,
+            "evidence": "demo.portal: 'Creates and updates a second master copy of customer truth'. The existing reusable master is demo.customer_master which 'Creates and updates customer truth'.",
+            "location": "/components/demo.portal",
+            "rule_id": "PRIN-005",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/4",
+            "suggested_fix": "Consolidate customer data management into the existing demo.customer_master; if Portal needs customer data, it should read from the master rather than maintaining a second writable copy."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.025779,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "142753f15420cff3b0c2bb199166e97c3d91fdc4de66116226444d4c8a66f0b3",
+            "output_sha256": "0f00bf15f34917b8694941cc8d28fb74894a401d690638363b276ca6859e4a68",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "a65bce10b98ce29d7369f5ef4559fe76089172aff803afd0dbdefbebbb780cbf",
+            "output_sha256": "3752e3f92d0d49c5289b130a52f145aa86da470fb75a091dd1c1735030f327ce",
+            "status": "ready"
+          },
+          "review_id_sha256": "99c6052a43c4ebfb696c9aeb790907538ae6e9ccafb3422eb11cf73588a58f19",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "3eede9374ce0a652a27c957ed56e3fd7ac01e4d49328a09db655574209174e14",
+        "task_id": "6dd96a94",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 1,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "28b6b5e4e351fef6ba2bf71a8887b76810181ca7",
+      "case_id": "ga-04-read-replica",
+      "evidence_checks": [],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "8960f4b864cea4454b97041d60becd1a0addd6ae",
+      "latency_ms": 86139.13,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.023466,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "6694f51f222fb3e982c0247b23d550d6432a61afe436cac0829e9b3323c7f90b",
+            "output_sha256": "38ca20035add1b7f61b608780b0895bae541b0f7e5920bf34de3df7c43a01541",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "bc1c40b1dcf98ab3e4614de439a2e1f66aa35596ff96b9a3ad8f2536e385f084",
+            "output_sha256": "86ea9ce7c5828b450b0c59c04a2e99dfa7c2374f957d1b71892f22fbef23821b",
+            "status": "ready"
+          },
+          "review_id_sha256": "5c784f0f591f6307ad01da200fd3aa7febde42582fc518a9b4a12913d957aa61",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "90eb7a50246dd8e7057a484dbef66a90ab1145738848db270da98e5d37331f0f",
+        "task_id": "5ab47fde",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 0,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "5f07e7b66b55c211e4887a1c6df611ba7f7197a5",
+      "case_id": "ga-05-critical-eliminate",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-006",
+          "valid": true
+        }
+      ],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "6e6f77bd2ccc49997aced97c512f4196785ba434",
+      "latency_ms": 119618.409,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/adrs.yaml",
+            "confidence": 1.0,
+            "evidence": "Decision: \"Mission-critical Payments will synchronously call the retiring Legacy system\". Context: \"[technology/negative] Legacy is targeted for elimination\". Consequences: \"[technology/negative] Critical path depends on retirement timeline\". demo.payments criticality: \"mission_critical\". demo.legacy target_status: \"eliminate\". A mission_critical component (Payments) acquires a new synchronous dependency on a system with target_status eliminate (Legacy), and the ADR itself records the explicit risk that the critical path depends on the retirement timeline.",
+            "location": "/seaf.change.adr/demo.dependency",
+            "rule_id": "PRIN-006",
+            "severity": "blocker",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
+            "suggested_fix": "Do not create a synchronous dependency from mission_critical Payments to Legacy while Legacy has target_status eliminate. Either retire Legacy first, introduce an abstraction layer, or use an asynchronous event-driven pattern that decouples Payments from Legacy's availability and retirement timeline."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.026872,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "d246c30fdd1505457d6a23c7352eb18cd14e1e2f0f982c5de320ef3868c64b31",
+            "output_sha256": "34939ca9d8405d661bc8211d21efd1789c7d4b9d869a44bf73def386674c7c20",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "9c79e7a47ea039879324d5f7eeb301a6f67fbca0482e5ed793a4c749edb0e027",
+            "output_sha256": "cebadb62c7948b1f0e0480238a581209863c312beae571b491446ea06138c00f",
+            "status": "ready"
+          },
+          "review_id_sha256": "8a41040dd03b2a8f8e4207050ee5ac24a4246952ffb8aa13cf5bac357bb1470a",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "0dddefe6c0f7686bbd6424a5078e8d4161d2e136cb9b82cd6b9719c102d7048c",
+        "task_id": "f989627b",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 1,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "129db5a3ccfc0654e36ae3dc0379d87dddf2b75c",
+      "case_id": "ga-06-noncritical-near-miss",
+      "evidence_checks": [],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "f36d51ce084afd1c18b08f63eab80a7846055bee",
+      "latency_ms": 101834.897,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.030675,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "0d732958b238fffbdc2e729c3b180514ce2d463b8cf66e600eb3fe110eddadb3",
+            "output_sha256": "b3bfa6ef3f05d8b35c10ac43047dfef39e907cab1c6fa416414bd33731754965",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "0e72430a71ba21b7b35a81e46d24e5234b3643c52e8203fdc5d3b4cdf8db8740",
+            "output_sha256": "f2d298686cc883834c74fcb3f283ee2dfc3a9a016c55fccb60a06b336053fcb8",
+            "status": "ready"
+          },
+          "review_id_sha256": "424a11c2ed5847b9ab9791ce177864debe2e1d2ec4af38f594dbffaff9152ecd",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "d0a6be41582a4ce6c6508142bc150a11d31003f33a9bb8998e59b03c96bd5bc5",
+        "task_id": "94c89966",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 0,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "80dd273c7bc7d641650e8d5f61c54d9d0fe6ecd1",
+      "case_id": "ga-07-significant-no-adr",
+      "evidence_checks": [
+        {
+          "finding_index": 0,
+          "reason": "artifact and JSON Pointer resolve in materialized head",
+          "rule_id": "PRIN-007",
+          "valid": true
+        }
+      ],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "acf412e7a9a7e5c3663bc060bd9c430b26b756fc",
+      "latency_ms": 91994.326,
+      "normalized_output": {
+        "findings": [
+          {
+            "artifact": "model/integrations.yaml",
+            "confidence": 0.9,
+            "evidence": "Replaces synchronous APIs with a new broker and delivery model. No ADR or reference to an existing ADR is present in the prepared change.",
+            "location": "/seaf.app.integrations/demo.new_async_backbone",
+            "rule_id": "PRIN-007",
+            "severity": "major",
+            "source_ref": "aga-skill/rules/principles.yaml#/rules/6",
+            "suggested_fix": "Add an ADR documenting the architectural decision to replace synchronous APIs with an async event backbone, including the trade-offs considered and alternatives rejected."
+          }
+        ],
+        "status": "complete",
+        "verdict": "request_changes_escalate"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.032496,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "595ac04261cf0aae50f62963dda916dbab3c0c4f3d2f4cd5d3125145bc43a3ae",
+            "output_sha256": "24cdc211539a73386c4833132158bde011e92777dcc947cf5f909829952a4b22",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "648b771e0f7e2e45a4f518fd00e00e10a284123b39e29dde02aac2537b6b71d5",
+            "output_sha256": "fa579f7637846572ce90be0b2c3bb37ce9527c4164ab76ad79c91725c91c2b94",
+            "status": "ready"
+          },
+          "review_id_sha256": "05a8f6db0ff0591ad6c3e32a8d4b361d27b821058d657156456eae54d9d7fdc3",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "d636014ca94af0d723c576a3e031ee87cf1877e8071986bc6a79f8e1cef0ec11",
+        "task_id": "c8dbc650",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 1,
+      "unsafe_approve": false
+    },
+    {
+      "assessment": "PASS",
+      "base_revision": "bb2b63a150479dbb62b85d881457a2293e4a9a68",
+      "case_id": "ga-08-cosmetic-no-adr",
+      "evidence_checks": [],
+      "fn_count": 0,
+      "fp_count": 0,
+      "head_revision": "10e33d81185bfeca850b172f9719e55cd75eaa91",
+      "latency_ms": 58498.932,
+      "normalized_output": {
+        "findings": [],
+        "status": "complete",
+        "verdict": "approve"
+      },
+      "raw_sanitized_response": {
+        "final_answer_envelope": "strict_json",
+        "model_usage": {
+          "call_count": 5,
+          "cost_complete": true,
+          "known_cost_usd": 0.024288,
+          "model": "deepseek/deepseek-v4-pro",
+          "provider": "openrouter"
+        },
+        "receipts": {
+          "finalize": {
+            "args_sha256": "4076eba606ba8602e0496b58c41f1b1e4c68a5144a2ff7dce0bc16093a419618",
+            "output_sha256": "92a2fa2dbef5387f97a6385cdfa0ed9f9d148feb02bb9af568d2bea051e290ee",
+            "status": "completed"
+          },
+          "prepare": {
+            "args_sha256": "5839981e5eb9b80ee449430d47a0741a354a255bbb9daca097459c9ab7178b96",
+            "output_sha256": "65b89ff2c8877498398370f68b21b6d7d9819b6d2a22ac463c93587c70869465",
+            "status": "ready"
+          },
+          "review_id_sha256": "8248ca41b279574ed6d5301e97a066edc4873ca032451b4b8b332a182aa00c72",
+          "tool_names": [
+            "aga_prepare_review",
+            "aga_finalize_review"
+          ]
+        },
+        "rendered_prompt_sha256": "43606db66e84c17aae3a15a208f6a94929cba7719f710ab268acdaa998ff9a9f",
+        "task_id": "d6540c6d",
+        "task_status": "succeeded"
+      },
+      "reason": "schema, status, verdict, findings and evidence match frozen ground truth",
+      "schema_errors": [],
+      "schema_valid": true,
+      "split": "development",
+      "tp_count": 0,
+      "unsafe_approve": false
+    }
+  ],
+  "runtime": {
+    "name": "ouroboros",
+    "version": "6.64.1"
+  },
+  "schema": "aga.gigaagent-results/v2",
+  "selection": {
+    "case_ids": [
+      "ga-01-reuse-duplicate",
+      "ga-02-reuse-existing",
+      "ga-03-second-master",
+      "ga-04-read-replica",
+      "ga-05-critical-eliminate",
+      "ga-06-noncritical-near-miss",
+      "ga-07-significant-no-adr",
+      "ga-08-cosmetic-no-adr"
+    ],
+    "kind": "development"
+  },
+  "status": "trusted_real_scored_non_release"
+}

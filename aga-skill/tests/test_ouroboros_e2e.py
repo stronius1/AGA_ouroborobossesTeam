@@ -134,18 +134,24 @@ class FakeBackend:
         *,
         mutate_workspace: Path | None = None,
         technical_failure: bool = False,
+        schedule_error: Exception | None = None,
+        wait_error: Exception | None = None,
     ) -> None:
         self.case_id = case_id
         self.server = server
         self.events = events
         self.mutate_workspace = mutate_workspace
         self.technical_failure = technical_failure
+        self.schedule_error = schedule_error
+        self.wait_error = wait_error
         self.payload: Mapping[str, Any] | None = None
 
     def schedule_task(
         self, task_name: str, payload: Mapping[str, Any] | None = None
     ) -> str:
         self.events.append("schedule")
+        if self.schedule_error is not None:
+            raise self.schedule_error
         assert self.events.index("preflight") < self.events.index("schedule")
         assert task_name == "aga:review"
         assert payload is not None
@@ -165,6 +171,8 @@ class FakeBackend:
     def wait_for_task(self, task_id: str, timeout: float | None = None) -> TaskResult:
         del timeout
         self.events.append("wait")
+        if self.wait_error is not None:
+            raise self.wait_error
         assert task_id == TASK_ID and self.payload is not None
         if self.mutate_workspace is not None:
             (self.mutate_workspace / "model-write.txt").write_text(
@@ -223,6 +231,7 @@ class FakeBackend:
             "tool_names": ["aga_prepare_review", "aga_finalize_review"],
             "prepare_output_sha256": prepare_hash,
             "final_output_sha256": final_hash,
+            "final_answer_envelope": "strict_json",
             "aga_final": final,
             "model_usage": {
                 "provider": e2e.PROVIDER,
@@ -253,6 +262,8 @@ def _dependencies(
     preflight_error: e2e.E2ERunnerError | None = None,
     mutate: bool = False,
     technical_failure: bool = False,
+    schedule_error: Exception | None = None,
+    wait_error: Exception | None = None,
 ) -> e2e._Dependencies:
     server_holder: dict[str, FakeServer] = {}
 
@@ -267,7 +278,8 @@ def _dependencies(
         if preflight_error is not None:
             raise preflight_error
         return e2e.PreflightReady(
-            payload={"status": "ready"}, executable="/synthetic/ouroboros"
+            payload={"status": "ready", "all_model_routes_pinned": True},
+            executable="/synthetic/ouroboros",
         )
 
     def backend_factory(
@@ -275,17 +287,21 @@ def _dependencies(
         server: e2e.ServerHandle,
         executable: str,
         timeout: float,
+        all_model_routes_pinned: bool,
     ) -> FakeBackend:
         events.append("backend_factory")
         assert server is server_holder["server"]
         assert executable == "/synthetic/ouroboros"
         assert timeout == 600.0
+        assert all_model_routes_pinned is True
         return FakeBackend(
             workspace.name,
             server_holder["server"],
             events,
             mutate_workspace=workspace if mutate else None,
             technical_failure=technical_failure,
+            schedule_error=schedule_error,
+            wait_error=wait_error,
         )
 
     ticks = iter((10.0, 10.125))
@@ -340,6 +356,44 @@ def test_blocker_smoke_preflights_before_task_and_writes_sanitized_evidence(
     assert '"raw_prompt":' not in serialized
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": "ready"},
+        {"status": "ready", "all_model_routes_pinned": False},
+        {"status": "ready", "all_model_routes_pinned": 1},
+    ],
+)
+def test_route_attestation_must_be_explicit_true_before_backend_creation(
+    tmp_path: Path, payload: Mapping[str, Any]
+) -> None:
+    events: list[str] = []
+    dependencies = _dependencies(tmp_path, events)
+
+    def unattested_preflight() -> e2e.PreflightReady:
+        events.append("preflight")
+        return e2e.PreflightReady(
+            payload=payload,
+            executable="/synthetic/ouroboros",
+        )
+
+    dependencies = replace(
+        dependencies,
+        preflight_check=unattested_preflight,
+    )
+
+    with pytest.raises(e2e.E2ERunnerError) as caught:
+        e2e.run_trusted_case(
+            "ga-05-critical-eliminate",
+            evidence_out=tmp_path / "must-not-exist.json",
+            _dependencies=dependencies,
+        )
+
+    assert caught.value.code == "preflight_contract_mismatch"
+    assert "backend_factory" not in events
+    assert "schedule" not in events
+
+
 def test_verified_aga_incomplete_is_a_scored_domain_outcome(tmp_path: Path) -> None:
     events: list[str] = []
     run = e2e.run_trusted_case(
@@ -382,6 +436,56 @@ def test_not_configured_preflight_stops_before_backend_and_writes_nothing(
     assert "backend_factory" not in events
     assert "schedule" not in events
     assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    ("phase", "error", "expected_status", "expected_code"),
+    [
+        (
+            "schedule",
+            e2e.OuroborosNotConfiguredError("synthetic"),
+            "not_configured",
+            "runtime_schedule_not_configured",
+        ),
+        (
+            "schedule",
+            e2e.OuroborosContractError("synthetic"),
+            "failed",
+            "runtime_schedule_contract_mismatch",
+        ),
+        (
+            "wait",
+            e2e.CommandTimeoutError("synthetic"),
+            "failed",
+            "runtime_wait_timeout",
+        ),
+        (
+            "wait",
+            e2e.OuroborosContractError("synthetic"),
+            "failed",
+            "runtime_wait_contract_mismatch",
+        ),
+    ],
+)
+def test_runtime_boundary_reports_the_failing_phase_without_external_text(
+    tmp_path: Path,
+    phase: str,
+    error: Exception,
+    expected_status: str,
+    expected_code: str,
+) -> None:
+    options = {f"{phase}_error": error}
+
+    with pytest.raises(e2e.E2ERunnerError) as caught:
+        e2e.run_trusted_case(
+            "ga-05-critical-eliminate",
+            evidence_out=tmp_path / "must-not-exist.json",
+            _dependencies=_dependencies(tmp_path, [], **options),
+        )
+
+    assert caught.value.status == expected_status
+    assert caught.value.code == expected_code
+    assert str(caught.value) == expected_code
 
 
 def test_task_failure_and_workspace_mutation_fail_without_evidence(
@@ -493,6 +597,244 @@ def test_versioned_prompt_contains_no_frozen_case_id() -> None:
     ).hexdigest()
 
 
+def test_versioned_prompt_requires_pre_finalize_rule_source_self_check() -> None:
+    prompt = e2e.PROMPT_PATH.read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    assert "Immediately before finalize" in normalized
+    assert "preserve verbatim the shortest supporting clause or clauses" in normalized
+    assert "Do not translate or replace source wording" in normalized
+    assert "quote that clause verbatim" in normalized
+    assert "For PRIN-006, evidence must preserve" in normalized
+    assert "critical-path clause" in normalized
+    assert "system-passport fields independently establish" in normalized
+    assert "withholds aga_parse_diagram" in normalized
+    assert "Do not attempt to invoke it" in normalized
+    assert "send an incomplete semantic_result to finalize" in normalized
+    assert "source_ref to equal that task's source_ref" in normalized
+    assert "that task's entity_ids (the prepared changed-target list)" in normalized
+    assert "NEVER a valid substitute" in normalized
+    assert "send an incomplete semantic_result" in normalized
+    assert "PRIN-005 requires the changed target itself" in normalized
+    assert 'the word "store"' in normalized
+    assert "Keep the PRIN-004 and PRIN-005 predicates distinct" in normalized
+    assert "report PRIN-005 only" in normalized
+    assert "does not independently establish a PRIN-004" in normalized
+    assert "For PRIN-004, the finding's evidence string must contain both" in normalized
+    assert "exact prepared entity_id of the existing reusable candidate" in normalized
+    assert "Do not leave the reuse candidate only in evidence_refs" in normalized
+    assert "Finalize is an irreversible commit, not a validation probe" in normalized
+    assert 'completed_rule_ids exactly ["PRIN-004", "PRIN-005", "PRIN-006", "PRIN-007"]' in normalized
+    assert "never call it again to correct, expand, retry, or replace" in normalized
+    assert "even when its response is incomplete, error, conflict" in normalized
+    assert "including analysis_errors when it is an empty list" in normalized
+    assert "PRIN-007 requires evidence of a technology" in normalized
+    assert "creating a second writable master" in normalized
+    assert "Absence of an ADR alone is not a finding" in normalized
+    assert "Do not reuse one decisive clause" in normalized
+
+
+def test_trusted_receipts_reject_correlated_optional_tool_error() -> None:
+    review_hash = hashlib.sha256(REVIEW_ID.encode("utf-8")).hexdigest()
+    trace = [
+        {
+            "tool": "aga_prepare_review",
+            "args_sha256": "a" * 64,
+            "status": "ok",
+            "output_status": "ready",
+            "output_incomplete": False,
+            "output_sha256": "b" * 64,
+            "review_id_sha256": review_hash,
+            "review_digest": REVIEW_DIGEST,
+            "task_digest": TASK_DIGEST,
+        },
+        {
+            "tool": "aga_parse_diagram",
+            "args_sha256": "c" * 64,
+            "status": "error",
+            "review_id_sha256": review_hash,
+        },
+        {
+            "tool": "aga_finalize_review",
+            "args_sha256": "d" * 64,
+            "status": "ok",
+            "output_status": "completed",
+            "output_incomplete": False,
+            "output_sha256": "e" * 64,
+            "review_id_sha256": review_hash,
+            "review_digest": REVIEW_DIGEST,
+            "task_digest": TASK_DIGEST,
+        },
+    ]
+    metadata = {
+        "tool_names": [
+            "aga_prepare_review",
+            "aga_parse_diagram",
+            "aga_finalize_review",
+        ],
+        "prepare_output_sha256": "b" * 64,
+        "final_output_sha256": "e" * 64,
+    }
+    final = {
+        "status": "completed",
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+
+    with pytest.raises(e2e.E2ERunnerError) as caught:
+        e2e._trusted_receipts(
+            trace,
+            review_id=REVIEW_ID,
+            metadata=metadata,
+            final=final,
+        )
+
+    assert caught.value.code == "trusted_optional_tool_failed"
+
+
+def test_trusted_receipts_collapse_exact_idempotent_finalize_retry() -> None:
+    review_hash = hashlib.sha256(REVIEW_ID.encode("utf-8")).hexdigest()
+    prepare = {
+        "tool": "aga_prepare_review",
+        "args_sha256": "a" * 64,
+        "status": "ok",
+        "output_status": "ready",
+        "output_incomplete": False,
+        "output_sha256": "b" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    finalize = {
+        "tool": "aga_finalize_review",
+        "args_sha256": "c" * 64,
+        "status": "ok",
+        "output_status": "completed",
+        "output_incomplete": False,
+        "output_sha256": "d" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    metadata = {
+        "tool_names": ["aga_prepare_review", "aga_finalize_review"],
+        "prepare_output_sha256": "b" * 64,
+        "final_output_sha256": "d" * 64,
+    }
+    final = {
+        "status": "completed",
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+
+    retry = dict(finalize)
+    summary = e2e._trusted_receipts(
+        [prepare, finalize, retry],
+        review_id=REVIEW_ID,
+        metadata=metadata,
+        final=final,
+    )
+
+    assert summary["tool_names"] == [
+        "aga_prepare_review",
+        "aga_finalize_review",
+    ]
+
+
+def test_trusted_finalize_receipt_requires_valid_args_sha256() -> None:
+    review_hash = hashlib.sha256(REVIEW_ID.encode("utf-8")).hexdigest()
+    prepare = {
+        "tool": "aga_prepare_review",
+        "args_sha256": "a" * 64,
+        "status": "ok",
+        "output_status": "ready",
+        "output_incomplete": False,
+        "output_sha256": "b" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    finalize = {
+        "tool": "aga_finalize_review",
+        "args_sha256": "not-a-sha256",
+        "status": "ok",
+        "output_status": "completed",
+        "output_incomplete": False,
+        "output_sha256": "d" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    metadata = {
+        "tool_names": ["aga_prepare_review", "aga_finalize_review"],
+        "prepare_output_sha256": "b" * 64,
+        "final_output_sha256": "d" * 64,
+    }
+    final = {
+        "status": "completed",
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+
+    with pytest.raises(e2e.E2ERunnerError) as caught:
+        e2e._trusted_receipts(
+            [prepare, finalize],
+            review_id=REVIEW_ID,
+            metadata=metadata,
+            final=final,
+        )
+
+    assert caught.value.code == "final_receipt_hash_missing"
+
+
+@pytest.mark.parametrize("field", ["args_sha256", "output_sha256"])
+def test_trusted_receipts_reject_conflicting_finalize_retry(field: str) -> None:
+    review_hash = hashlib.sha256(REVIEW_ID.encode("utf-8")).hexdigest()
+    prepare = {
+        "tool": "aga_prepare_review",
+        "args_sha256": "a" * 64,
+        "status": "ok",
+        "output_status": "ready",
+        "output_incomplete": False,
+        "output_sha256": "b" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    finalize = {
+        "tool": "aga_finalize_review",
+        "args_sha256": "c" * 64,
+        "status": "ok",
+        "output_status": "completed",
+        "output_incomplete": False,
+        "output_sha256": "d" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    conflicting = {**finalize, field: "e" * 64}
+    metadata = {
+        "tool_names": ["aga_prepare_review", "aga_finalize_review"],
+        "prepare_output_sha256": "b" * 64,
+        "final_output_sha256": "d" * 64,
+    }
+    final = {
+        "status": "completed",
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+
+    with pytest.raises(e2e.E2ERunnerError) as caught:
+        e2e._trusted_receipts(
+            [prepare, finalize, conflicting],
+            review_id=REVIEW_ID,
+            metadata=metadata,
+            final=final,
+        )
+
+    assert caught.value.code == "tool_receipt_correlation_failed"
+
+
 def test_default_mcp_factory_is_exact_loopback_fixture_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -553,19 +895,98 @@ def test_default_backend_binds_receipts_exact_model_and_versioned_prompt(
 
     monkeypatch.setattr(e2e, "OuroborosTaskBackend", backend)
     result = e2e._default_backend_factory(
-        workspace, server, "/synthetic/ouroboros", 600.0
+        workspace, server, "/synthetic/ouroboros", 600.0, True
     )
 
     assert result is captured["config"]
     config = captured["config"]
     assert config.command_prefix == ("/synthetic/ouroboros",)
+    assert config.gateway_url == e2e.GATEWAY_URL
     assert config.runtime_version == "6.64.1"
     assert config.model_id == "deepseek/deepseek-v4-pro"
     assert config.workspaces == {workspace.name: workspace}
     assert config.prompt_path == e2e.PROMPT_PATH
     assert config.task_timeout_seconds == 600.0
     assert config.server_id == "aga"
+    assert config.all_model_routes_pinned is True
+    assert config.disable_diagram_tool is True
     assert config.receipt_source() == tuple(server.trace)
+    assert config.project_registrar is e2e._register_local_project
+
+
+def test_local_project_registration_is_bounded_correlated_and_secret_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id = "aga-" + "a" * 32
+    captured: dict[str, Any] = {}
+
+    class Response:
+        status = 200
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+        def read(self, limit: int) -> bytes:
+            captured["read_limit"] = limit
+            return json.dumps({"project": {"id": project_id}}).encode("utf-8")
+
+    class Opener:
+        def open(self, request: Any, *, timeout: float) -> Response:
+            captured["request"] = request
+            captured["timeout"] = timeout
+            return Response()
+
+    monkeypatch.setattr(
+        e2e.urllib.request,
+        "build_opener",
+        lambda *_args: Opener(),
+    )
+
+    e2e._register_local_project(project_id)
+
+    request = captured["request"]
+    assert request.full_url == "http://127.0.0.1:8765/api/projects"
+    assert request.method == "POST"
+    assert json.loads(request.data) == {
+        "id": project_id,
+        "name": "AGA synthetic-public review",
+    }
+    assert captured["timeout"] == 5.0
+    assert captured["read_limit"] == 65_537
+    assert b"sk-or-v1-" not in request.data
+
+
+def test_local_project_registration_rejects_wrong_correlation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Response:
+        status = 200
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+        def read(self, _limit: int) -> bytes:
+            return b'{"project":{"id":"aga-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}'
+
+    class Opener:
+        def open(self, _request: Any, *, timeout: float) -> Response:
+            assert timeout == 5.0
+            return Response()
+
+    monkeypatch.setattr(
+        e2e.urllib.request,
+        "build_opener",
+        lambda *_args: Opener(),
+    )
+
+    with pytest.raises(e2e.OuroborosContractError, match="correlation"):
+        e2e._register_local_project("aga-" + "a" * 32)
 
 
 def test_capture_rejects_incomplete_provider_cost_accounting() -> None:

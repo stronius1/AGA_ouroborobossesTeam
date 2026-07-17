@@ -9,6 +9,7 @@ or includes raw command output in its result.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import math
@@ -16,19 +17,22 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import threading
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Callable, Mapping, Protocol, Sequence
 from urllib.parse import urlsplit
 
 
 SCHEMA = "aga.ouroboros-preflight/v1"
 PINNED_VERSION = "6.64.1"
+PINNED_SOURCE_COMMIT = "554b3eeeca345298d6dcc5711195ea9acec450bd"
 EXPECTED_PROVIDER = "openrouter"
 EXPECTED_MODEL = "deepseek/deepseek-v4-pro"
 EXPECTED_REVIEW_MODE = "advisory"
+MAX_BUDGET_USD = 50.0
 MCP_SERVER_ID = "aga"
 MCP_URL = "http://127.0.0.1:8788/mcp"
 SKILL_NAME = "aga_review"
@@ -41,6 +45,18 @@ MCP_TOOL_NAMES = (
 )
 MCP_PREFIXED_TOOL_NAMES = tuple(
     f"mcp_{MCP_SERVER_ID}__{name}" for name in MCP_TOOL_NAMES
+)
+OVERLAY_ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v3"
+PROFILE_PID_SCHEMA = "aga.ouroboros-profile-pid/v1"
+OVERLAY_ATTESTATION_FILENAME = "aga-runtime-overlay.json"
+PROFILE_PID_FILENAME = "aga-profile-runtime.json"
+RUNTIME_OVERLAY_LAUNCHER = Path(__file__).resolve().with_name(
+    "ouroboros_runtime_overlay.py"
+)
+RUNTIME_OVERLAY_BOOTSTRAP = (
+    Path(__file__).resolve().parent
+    / "ouroboros_overlay_bootstrap"
+    / "sitecustomize.py"
 )
 
 EXIT_READY = 0
@@ -64,6 +80,34 @@ class CommandOutputLimit(RuntimeError):
 class CommandResult:
     returncode: int
     stdout: bytes
+
+
+@dataclass(frozen=True)
+class RuntimeOverlayPaths:
+    attestation_path: Path
+    pid_path: Path
+    launcher_path: Path
+    bootstrap_path: Path
+
+    @classmethod
+    def from_environment(
+        cls,
+        environment: Mapping[str, str] | None = None,
+    ) -> "RuntimeOverlayPaths":
+        source = os.environ if environment is None else environment
+        raw_home = str(source.get("HOME") or "").strip()
+        if not raw_home:
+            _fail_not_configured("runtime_overlay_not_active")
+        home = Path(raw_home)
+        if not home.is_absolute():
+            _fail_contract("runtime_overlay_attestation_mismatch")
+        state_dir = home / "Ouroboros" / "data" / "state"
+        return cls(
+            attestation_path=state_dir / OVERLAY_ATTESTATION_FILENAME,
+            pid_path=state_dir / PROFILE_PID_FILENAME,
+            launcher_path=RUNTIME_OVERLAY_LAUNCHER,
+            bootstrap_path=RUNTIME_OVERLAY_BOOTSTRAP,
+        )
 
 
 class CommandRunner(Protocol):
@@ -255,6 +299,7 @@ class PreflightFailure(Exception):
 def _expected_payload() -> dict[str, Any]:
     return {
         "runtime_version": PINNED_VERSION,
+        "runtime_source_commit": PINNED_SOURCE_COMMIT,
         "provider": EXPECTED_PROVIDER,
         "model": EXPECTED_MODEL,
         "review_mode": EXPECTED_REVIEW_MODE,
@@ -278,6 +323,160 @@ def _fail_not_configured(code: str) -> None:
 
 def _fail_contract(code: str) -> None:
     raise PreflightFailure("failed", code)
+
+
+def _read_private_overlay_json(path: Path) -> Mapping[str, Any]:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        _fail_not_configured("runtime_overlay_not_active")
+    except OSError:
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if (
+        stat.S_ISLNK(metadata.st_mode)
+        or not stat.S_ISREG(metadata.st_mode)
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+        or metadata.st_size <= 0
+        or metadata.st_size > 16 * 1024
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    try:
+        raw = path.read_bytes()
+        payload = json.loads(raw.decode("utf-8", errors="strict"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if not isinstance(payload, Mapping):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    return payload
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _runtime_process_command(pid: int) -> str:
+    if os.name != "posix":  # pragma: no cover - current pinned runtime is POSIX
+        return ""
+    proc_cmdline = Path(f"/proc/{pid}/cmdline")
+    if proc_cmdline.is_file():
+        try:
+            return proc_cmdline.read_bytes().replace(b"\0", b" ").decode(
+                "utf-8", errors="replace"
+            )
+        except OSError:
+            return ""
+    environment = {"PATH": os.defpath}
+    for key in ("LANG", "LC_ALL", "LC_CTYPE"):
+        value = os.environ.get(key)
+        if value:
+            environment[key] = value
+    try:
+        result = subprocess.run(
+            ("ps", "-ww", "-p", str(pid), "-o", "command="),
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if result.returncode != 0 or len(result.stdout.encode("utf-8")) > 64 * 1024:
+        return ""
+    return result.stdout.strip()
+
+
+def _validate_live_runtime_overlay(
+    paths: RuntimeOverlayPaths | None = None,
+) -> None:
+    """Verify the live, project-owned route overlay without exposing its paths."""
+
+    overlay_paths = RuntimeOverlayPaths.from_environment() if paths is None else paths
+    state_dir = overlay_paths.attestation_path.parent
+    try:
+        state_metadata = state_dir.lstat()
+    except FileNotFoundError:
+        _fail_not_configured("runtime_overlay_not_active")
+    except OSError:
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if (
+        stat.S_ISLNK(state_metadata.st_mode)
+        or not stat.S_ISDIR(state_metadata.st_mode)
+        or stat.S_IMODE(state_metadata.st_mode) != 0o700
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if hasattr(os, "getuid") and state_metadata.st_uid != os.getuid():
+        _fail_contract("runtime_overlay_attestation_mismatch")
+
+    attestation = _read_private_overlay_json(overlay_paths.attestation_path)
+    pid_record = _read_private_overlay_json(overlay_paths.pid_path)
+    try:
+        launcher_metadata = overlay_paths.launcher_path.lstat()
+        launcher_bytes = overlay_paths.launcher_path.read_bytes()
+        bootstrap_metadata = overlay_paths.bootstrap_path.lstat()
+        bootstrap_bytes = overlay_paths.bootstrap_path.read_bytes()
+    except OSError:
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if stat.S_ISLNK(launcher_metadata.st_mode) or not stat.S_ISREG(
+        launcher_metadata.st_mode
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if stat.S_ISLNK(bootstrap_metadata.st_mode) or not stat.S_ISREG(
+        bootstrap_metadata.st_mode
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    launcher_sha256 = hashlib.sha256(launcher_bytes).hexdigest()
+    bootstrap_sha256 = hashlib.sha256(bootstrap_bytes).hexdigest()
+
+    pid = attestation.get("pid")
+    expected_attestation = {
+        "schema": OVERLAY_ATTESTATION_SCHEMA,
+        "pid": pid,
+        "runtime_version": PINNED_VERSION,
+        "source_commit": PINNED_SOURCE_COMMIT,
+        "source_clean": True,
+        "model": EXPECTED_MODEL,
+        "consolidation_model": EXPECTED_MODEL,
+        "launcher_sha256": launcher_sha256,
+        "spawn_bootstrap": True,
+        "bootstrap_mode": "deferred_runtime_import_hooks",
+        "bootstrap_sha256": bootstrap_sha256,
+        "finalize_transport_retry": "exception_group_once",
+        "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
+    }
+    if (
+        isinstance(pid, bool)
+        or not isinstance(pid, int)
+        or pid <= 1
+        or dict(attestation) != expected_attestation
+        or pid_record.get("schema") != PROFILE_PID_SCHEMA
+        or pid_record.get("pid") != pid
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
+    if not _pid_alive(pid):
+        _fail_not_configured("runtime_overlay_not_active")
+    command = _runtime_process_command(pid)
+    if (
+        not command
+        or str(overlay_paths.launcher_path) not in command
+        or "--source-dir" not in command
+        or "server" not in command
+    ):
+        _fail_contract("runtime_overlay_attestation_mismatch")
 
 
 def _json_command(
@@ -431,6 +630,8 @@ def _validate_configuration(runner: CommandRunner) -> Mapping[str, Any]:
     budget = _settings_value(runner, "TOTAL_BUDGET")
     if not _positive_finite_number(budget):
         _fail_not_configured("budget_not_configured")
+    if float(budget) > MAX_BUDGET_USD:
+        _fail_not_configured("budget_exceeds_owner_limit")
 
     review_mode = _settings_value(runner, "OUROBOROS_REVIEW_ENFORCEMENT")
     if not isinstance(review_mode, str):
@@ -693,7 +894,19 @@ def _ready_payload() -> dict[str, Any]:
         "schema": SCHEMA,
         "status": "ready",
         "code": "ok",
-        "runtime": {"version": PINNED_VERSION},
+        "all_model_routes_pinned": True,
+        "runtime": {
+            "version": PINNED_VERSION,
+            "source_commit": PINNED_SOURCE_COMMIT,
+            "overlay": {
+                "active": True,
+                "consolidation_model": EXPECTED_MODEL,
+                "spawn_workers_pinned": True,
+                "bootstrap_mode": "deferred_runtime_import_hooks",
+                "finalize_transport_retry": "exception_group_once",
+                "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
+            },
+        },
         "configuration": {
             "provider": EXPECTED_PROVIDER,
             "credential_present": True,
@@ -701,6 +914,7 @@ def _ready_payload() -> dict[str, Any]:
             "single_model_routes": True,
             "cross_model_fallback": False,
             "global_hard_cap_present": True,
+            "global_hard_cap_max_usd": MAX_BUDGET_USD,
             "review_mode": EXPECTED_REVIEW_MODE,
         },
         "mcp": {
@@ -721,11 +935,17 @@ def _ready_payload() -> dict[str, Any]:
     }
 
 
-def run_preflight(runner: CommandRunner) -> tuple[dict[str, Any], int]:
+def run_preflight(
+    runner: CommandRunner,
+    *,
+    overlay_validator: Callable[[], None] | None = None,
+) -> tuple[dict[str, Any], int]:
     """Execute the read-only checks and return only a sanitized result."""
 
     try:
         _validate_runtime(runner)
+        validator = _validate_live_runtime_overlay if overlay_validator is None else overlay_validator
+        validator()
         _validate_configuration(runner)
         _validate_extension_isolation(runner)
         _validate_mcp(runner)
