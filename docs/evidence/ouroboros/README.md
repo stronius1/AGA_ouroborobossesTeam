@@ -174,6 +174,8 @@ selection uses these frozen-candidate values:
 
 | Item | Value |
 |---|---|
+| Code-freeze commit | `873202fc9e726ebad8b031f0031b01f3b66b7fae` |
+| Freeze timestamp (UTC) | `2026-07-17T03:45:05Z` |
 | Prompt | `aga-skill/prompts/ouroboros-orchestration-v1.0.5.txt` |
 | Prompt SHA-256 | `8366780b6d99a8eec94eebeaabcc00d7df6a80207a3883527eecfb9a1a5bdd16` |
 | Secret-free config SHA-256 | `3267143de7e841c64b64f37195e671709e8437674e5d446394d09149bf542fc5` |
