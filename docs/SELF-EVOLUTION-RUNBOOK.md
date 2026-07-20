@@ -3,13 +3,31 @@
 ## Prerequisites
 
 - clean pinned Ouroboros `6.64.1` source commit
-  `554b3eeeca345298d6dcc5711195ea9acec450bd`;
+  `554b3eeeca345298d6dcc5711195ea9acec450bd` — если Ouroboros ещё не собран
+  из исходников, сначала выполни (полное объяснение и security-инварианты:
+  `docs/OUROBOROS-MVP-INTEGRATION-GUIDE.md`, §6):
+
+  ```bash
+  git clone --depth 1 --branch v6.64.1 \
+    https://github.com/razzant/ouroboros.git ouroboros-v6.64.1
+  cd ouroboros-v6.64.1
+  test "$(git rev-parse HEAD)" = "554b3eeeca345298d6dcc5711195ea9acec450bd"
+  python3.11 -m venv .venv
+  . .venv/bin/activate
+  python -m pip install --upgrade pip setuptools wheel
+  python -m pip install -r requirements.txt
+  python -m pip install -e . --no-deps
+  ```
+
 - initialized clean gitlinks `seaf-archtool-core` и
   `architecture/vendor/seaf-core` на pins из `README.md`;
 - owner-only (`0600`) OpenRouter key в изолированном профиле, hard cap не выше
   `50 USD`, модель `deepseek/deepseek-v4-pro` на всех routes;
 - запущенный loopback runtime: `make ouroboros-start`;
 - минимум `0.50 USD` remaining перед каждой paid stage.
+
+Free/local demo (`make demo-verify`, `make self-evolution-ui`) этого шага
+не требует — Ouroboros из исходников нужен только для Live/paid-режима.
 
 ## Запуск
 
