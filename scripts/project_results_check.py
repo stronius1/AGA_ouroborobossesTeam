@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -18,9 +19,29 @@ REQUIRED = (
     "README.md",
     "THIRD_PARTY.md",
     "compose.yaml",
+    ".github/workflows/ci.yml",
     "architecture/dochub.yaml",
     "architecture/metamodel/aga-extension.yaml",
+    "aga-skill/Dockerfile.mcp",
+    "aga-skill/debian-snapshot.sources",
+    "aga-skill/requirements-ci.txt",
+    "aga-skill/requirements-container.txt",
+    "aga-skill/prompts/ouroboros-orchestration-v1.0.5.txt",
+    "aga-skill/prompts/ouroboros-orchestration-v1.1.0.txt",
+    "ouroboros-skill/aga-review/SKILL.md",
+    "ouroboros-skill/aga-review-v1.1/SKILL.md",
     "docs/CURRENT-STATUS-AND-NEXT-STEPS.md",
+    "docs/PROJECT-RESULTS.md",
+    "docs/AGA-Ouroboros-Project-Results.pdf",
+    "docs/project-results.css",
+    "docs/PROPOSAL-TRACEABILITY.md",
+    "docs/BUSINESS-EFFECT.md",
+    "docs/PRESENTATION-OUTLINE.md",
+    "docs/PRESENTATION.md",
+    "docs/AGA-Ouroboros-Project-Results.pptx",
+    "docs/DEMO-VIDEO-SCRIPT.md",
+    "docs/SUBMISSION-CHECKLIST.md",
+    "docs/SUBMISSION-FACTS.json",
     "docs/OUROBOROS-MVP-INTEGRATION-GUIDE.md",
     "docs/SEAF-CANONICAL-MAPPING.md",
     "docs/MCP-CONTRACT.md",
@@ -30,6 +51,15 @@ REQUIRED = (
     "evaluation/gigaagent/results.json",
     "evaluation/gigaagent/fixture-results.json",
     "evaluation/gigaagent/fixtures/sanitized-response-bundle.json",
+    "evaluation/development-v2/README.md",
+    "evaluation/development-v2/corpus.yaml",
+    "evaluation/development-v2/corpus.lock.json",
+    "evaluation/development-v2/gate.yaml",
+    "evaluation/development-v2/measurement-config.yaml",
+    "evaluation/development-v2/workspace/aga-extension.yaml",
+    "evaluation/development-v2/corpus_tool.py",
+    "evaluation/development-v2/runner.py",
+    "evaluation/development-v2/run_paid_evaluation.py",
     "docs/evidence/evaluation/RESULTS.md",
     "docs/evidence/ouroboros/README.md",
     "docs/evidence/ouroboros/run-sanitized.json",
@@ -47,9 +77,17 @@ ACTIVE_MARKDOWN = (
     "aga-skill/evolver/EVOLVER.md",
     "aga-skill/docs/AGA-external-enforcement-checklist.md",
     "docs/CURRENT-STATUS-AND-NEXT-STEPS.md",
+    "docs/PROJECT-RESULTS.md",
+    "docs/PROPOSAL-TRACEABILITY.md",
+    "docs/BUSINESS-EFFECT.md",
+    "docs/PRESENTATION-OUTLINE.md",
+    "docs/PRESENTATION.md",
+    "docs/DEMO-VIDEO-SCRIPT.md",
+    "docs/SUBMISSION-CHECKLIST.md",
     "docs/SEAF-CANONICAL-MAPPING.md",
     "docs/MCP-CONTRACT.md",
     "docs/evidence/evaluation/RESULTS.md",
+    "evaluation/development-v2/README.md",
     "docs/evidence/ouroboros/README.md",
     "docs/evidence/snapshots/deterministic-2026-07-15-v2/README.md",
 )
@@ -59,6 +97,18 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 CAPTURED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 DIGEST_RE = re.compile(r"^(?:rvw|tsk)_[0-9a-f]{64}$")
+ACTION_SHA_RE = re.compile(
+    r"^\s*-\s+uses:\s+[^\s@]+@[0-9a-f]{40}(?:\s+#\s+.+)?$",
+    re.MULTILINE,
+)
+ACTION_USES_RE = re.compile(r"^\s*-\s+uses:\s+[^\s@]+@[^\s#]+", re.MULTILINE)
+DOCKER_DIGEST_RE = re.compile(
+    r"^FROM\s+[^\s@]+@sha256:[0-9a-f]{64}(?:\s+AS\s+\S+)?$",
+    re.MULTILINE | re.IGNORECASE,
+)
+DOCKER_FROM_RE = re.compile(r"^FROM\s+", re.MULTILINE | re.IGNORECASE)
+REQUIREMENT_PIN_RE = re.compile(r"^[A-Za-z0-9_.-]+==[^\s]+$")
+REQUIREMENT_HASH_RE = re.compile(r"--hash=sha256:[0-9a-f]{64}(?:\s|$)")
 
 OUROBOROS_TRACE = ROOT / "docs/evidence/ouroboros/run-sanitized.json"
 OUROBOROS_TRACE_SCHEMA = "aga.ouroboros-run-sanitized/v1"
@@ -143,6 +193,130 @@ def _is_finite_number(value: Any, *, minimum: float = 0.0) -> bool:
         and math.isfinite(float(value))
         and float(value) >= minimum
     )
+
+
+def supply_chain_warnings(root: Path = ROOT) -> list[str]:
+    """Return only unresolved reproducibility limitations.
+
+    Action comments may retain the human-readable release tag, but execution
+    must resolve through a full commit SHA.  Docker stages likewise require a
+    full sha256 manifest digest.  Python and OS package closure remain explicit
+    warnings until dedicated lock artifacts exist.
+    """
+
+    warnings: list[str] = []
+    workflow = root / ".github/workflows/ci.yml"
+    dockerfile = root / "aga-skill/Dockerfile.mcp"
+    try:
+        workflow_text = workflow.read_text(encoding="utf-8")
+        action_uses = ACTION_USES_RE.findall(workflow_text)
+        action_pins = ACTION_SHA_RE.findall(workflow_text)
+        docker_text = dockerfile.read_text(encoding="utf-8")
+        docker_from = DOCKER_FROM_RE.findall(docker_text)
+        docker_pins = DOCKER_DIGEST_RE.findall(docker_text)
+    except (OSError, UnicodeError):
+        warnings.append(
+            "GitHub Actions or Docker base-image pinning could not be verified"
+        )
+    else:
+        if not action_uses or len(action_pins) != len(action_uses):
+            warnings.append("GitHub Actions are not pinned to full commit SHAs")
+        if not docker_from or len(docker_pins) != len(docker_from):
+            warnings.append("Docker base images are not pinned to sha256 digests")
+    try:
+        dev_pins = _requirement_pins(root / "aga-skill/requirements-dev.txt")
+        ci_pins = _hashed_requirement_pins(root / "aga-skill/requirements-ci.txt")
+        runtime_pins = _requirement_pins(root / "aga-skill/requirements.txt")
+        container_pins = _hashed_requirement_pins(
+            root / "aga-skill/requirements-container.txt"
+        )
+        workflow_text = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        docker_text = (root / "aga-skill/Dockerfile.mcp").read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        warnings.append("Python dependency artifact hashes could not be verified")
+    else:
+        if (
+            ci_pins != dev_pins
+            or container_pins != runtime_pins
+            or "pip install --require-hashes -r aga-skill/requirements-ci.txt"
+            not in workflow_text
+            or "--require-hashes --requirement requirements-container.txt"
+            not in docker_text
+        ):
+            warnings.append(
+                "Python dependency artifacts are version-pinned but not fully hash-locked"
+            )
+    try:
+        os_snapshot = (root / "aga-skill/debian-snapshot.sources").read_text(
+            encoding="utf-8"
+        )
+        docker_text = (root / "aga-skill/Dockerfile.mcp").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        warnings.append("container OS package snapshot could not be verified")
+    else:
+        snapshot_urls = re.findall(
+            r"^URIs:\s+https://snapshot\.debian\.org/archive/"
+            r"(?:debian|debian-security)/(\d{8}T\d{6}Z)$",
+            os_snapshot,
+            re.MULTILINE,
+        )
+        if (
+            len(snapshot_urls) != 2
+            or len(set(snapshot_urls)) != 1
+            or os_snapshot.count("Check-Valid-Until: no") != 2
+            or "COPY debian-snapshot.sources /etc/apt/sources.list.d/debian.sources"
+            not in docker_text
+            or "rm -f /etc/apt/sources.list" not in docker_text
+        ):
+            warnings.append(
+                "container OS packages are not locked to a reproducible snapshot"
+            )
+    return warnings
+
+
+def _requirement_pins(path: Path, *, _seen: set[Path] | None = None) -> set[str]:
+    """Read a small pinned requirements closure without invoking pip."""
+
+    resolved = path.resolve(strict=True)
+    seen = set() if _seen is None else _seen
+    if resolved in seen:
+        raise ValueError("recursive requirements include")
+    seen.add(resolved)
+    pins: set[str] = set()
+    for raw_line in resolved.read_text(encoding="utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("-r ") or line.startswith("--requirement "):
+            include = line.split(maxsplit=1)[1]
+            pins.update(_requirement_pins(resolved.parent / include, _seen=seen))
+            continue
+        requirement = line.split()[0]
+        if REQUIREMENT_PIN_RE.fullmatch(requirement) is None:
+            raise ValueError("dependency is not exactly version-pinned")
+        pins.add(requirement.lower())
+    seen.remove(resolved)
+    if not pins:
+        raise ValueError("requirements file is empty")
+    return pins
+
+
+def _hashed_requirement_pins(path: Path) -> set[str]:
+    pins = _requirement_pins(path)
+    hashed: set[str] = set()
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith(("-r ", "--requirement ")):
+            raise ValueError("hash lock must be fully expanded")
+        requirement = line.split()[0].lower()
+        if REQUIREMENT_HASH_RE.search(line) is None:
+            raise ValueError("hash-locked requirement is missing sha256")
+        hashed.add(requirement)
+    if hashed != pins:
+        raise ValueError("hash lock does not cover every requirement")
+    return pins
 
 
 def _valid_normalized_output(value: Any) -> bool:
@@ -957,19 +1131,32 @@ def main() -> int:
         ):
             errors.append("frozen corpus lock has invalid evidence hashes")
 
-    prompt_path = (
+    historical_prompt_path = (
         ROOT
         / "aga-skill"
         / "prompts"
         / "ouroboros-orchestration-v1.0.5.txt"
     )
+    active_prompt_path = (
+        ROOT
+        / "aga-skill"
+        / "prompts"
+        / "ouroboros-orchestration-v1.1.0.txt"
+    )
     expected_prompt_hash = ""
     try:
         expected_prompt_hash = hashlib.sha256(
-            prompt_path.read_text(encoding="utf-8").encode("utf-8")
+            historical_prompt_path.read_text(encoding="utf-8").encode("utf-8")
         ).hexdigest()
     except (OSError, UnicodeError):
-        errors.append("trusted Ouroboros orchestration prompt is unreadable")
+        errors.append("historical Ouroboros orchestration prompt is unreadable")
+    try:
+        active_prompt = active_prompt_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        errors.append("active Ouroboros orchestration prompt is unreadable")
+    else:
+        if "AGA orchestration prompt v1.1.0" not in active_prompt:
+            errors.append("active Ouroboros orchestration prompt version is invalid")
 
     results_path = ROOT / "evaluation/gigaagent/results.json"
     release_complete = False
@@ -1043,20 +1230,24 @@ def main() -> int:
             "architecture/dochub.yaml",
         ],
         [sys.executable, "evaluation/gigaagent/runner.py", "--verify-only"],
+        [sys.executable, "evaluation/development-v2/corpus_tool.py", "validate"],
+        [sys.executable, "scripts/submission_consistency_check.py"],
     )
+    command_environment = dict(os.environ)
+    command_environment["PYTHONDONTWRITEBYTECODE"] = "1"
     for command in commands:
-        completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+        completed = subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env=command_environment,
+        )
         if completed.returncode:
             detail = (completed.stderr or completed.stdout).strip().splitlines()
             errors.append(f"{' '.join(command[1:])} failed: {detail[0] if detail else 'unknown error'}")
 
-    warnings.extend(
-        [
-            "GitHub Action tags and Docker base-image tags are not content-addressed",
-            "Python dependency artifacts are version-pinned but do not have hashes",
-            "container OS packages are not locked to a reproducible snapshot",
-        ]
-    )
+    warnings.extend(supply_chain_warnings())
     for warning in warnings:
         print(f"EXTERNAL/WARNING: {warning}")
     if errors:

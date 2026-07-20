@@ -33,10 +33,10 @@ seaf-archtool-core/public/workspace/
 aga-skill/build/
 aga-skill/logs/reviews.jsonl
 aga-skill/logs/evolution.jsonl
+.aga-runs/
 
 # Local staging and backups
 .tmp/
 tmp/
 *.bak
 *.orig
-

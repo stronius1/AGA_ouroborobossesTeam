@@ -1,0 +1,24 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-002-reuse-control
+split: development
+language: en
+summary: The same need is met by extending the registered reusable loyalty engine.
+features: [synthetic-public, reuse-near-miss, metamorphic-control, clean]
+coverage: {PRIN-004: negative, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule004-predicate, counterpart: dv2-001-reuse-duplicate, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/catalog.yaml: |
+        systems:
+          syn.loyalty.core:
+            capability: loyalty rewards calculation
+            reuse_status: available
+  head:
+    files:
+      proposals/loyalty.yaml: |
+        proposal:
+          id: syn.loyalty.core.extension
+          action: extend_existing
+          capability: loyalty rewards calculation
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

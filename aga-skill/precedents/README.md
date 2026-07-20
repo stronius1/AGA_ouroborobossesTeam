@@ -36,5 +36,8 @@ Continuum в миниатюре).
 
 4. Эволвер проверяет pre-cycle corpus/fixture lock, затем mutation → fitness →
    candidate и dry-run publisher artifacts.
-5. Candidate artifact хранит `status: distilled` и отдельный `distilled_in`;
-   перенос в source выполняется только human workflow после merge.
+5. Candidate artifact хранит `status: distilled` и отдельный `distilled_in`.
+   После независимого replay fitness/gate local-only VCS connector переносит
+   его вместе с rules/VERSION/CHANGELOG только в отдельный candidate commit.
+   В исходной ветке precedent остаётся `pending`, пока человек не проверит и
+   не решит слить candidate; сам connector merge не выполняет.

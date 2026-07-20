@@ -1,0 +1,31 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-041-missing-target
+split: development
+language: en
+summary: A critical integration references a target absent from the supplied architecture context.
+features: [synthetic-public, missing-target, trusted-reference-integration]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: unresolved, PRIN-007: not_targeted}
+metamorphic: {pair_id: missing-target-completion, counterpart: dv2-042-resolved-target, relation: context_completion, role: source}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.billing.core: {criticality: mission_critical, target_status: strategic}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          tariff_lookup: {from: syn.billing.core, to: syn.catalog.unresolved, mode: synchronous}
+expected:
+  status: incomplete
+  verdict: incomplete
+  findings: []
+  auxiliary_findings:
+    - rule_id: SEAF-001
+      severity: blocker
+      artifact: architecture/integrations.yaml
+      location: /seaf.app.integrations/syn.tariff_lookup/to
+      evidence_contains: syn.catalog.unresolved
+  unresolved_context:
+    - {kind: target, reference: syn.catalog.unresolved, reason: Referenced dependency target is absent from the supplied documents.}

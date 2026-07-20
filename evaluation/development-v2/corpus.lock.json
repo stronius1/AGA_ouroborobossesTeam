@@ -1,0 +1,63 @@
+{
+  "case_count": 48,
+  "corpus_sha256": "1d2e3622d4d8f722f4e950d5682a8ae4fbea7693b27ec43a2eb0bb3d7294624d",
+  "coverage": {
+    "PRIN-004": {"negative": 4, "positive": 6, "unresolved": 0},
+    "PRIN-005": {"negative": 4, "positive": 6, "unresolved": 0},
+    "PRIN-006": {"negative": 8, "positive": 6, "unresolved": 3},
+    "PRIN-007": {"negative": 4, "positive": 14, "unresolved": 1}
+  },
+  "development_only": true,
+  "expected_mutation_after_measurement_forbidden": true,
+  "ground_truth_locked": true,
+  "ground_truth_sha256": "7b877a798649dcc997dc53ef01407b6444d563f728d739fe5e175ac457dba8b2",
+  "independent_human_review": {
+    "required": true,
+    "reviewed_at": null,
+    "reviewer": null,
+    "status": "pending"
+  },
+  "locked_at": "2026-07-19T00:00:00Z",
+  "paid_runner_sha256": "33a34a2af76e33295b2d0c9ce0b0c17bcd0672c0e3545540d8cba57efe0a11eb",
+  "schema": "aga.synthetic-development-lock/v2",
+  "scorer_sha256": "02fe97055b5fa355dfb6f488e1dd973ba6f837ce63390256d0b04388bad0d2d8",
+  "series_freeze": {
+    "capture_attestation": {
+      "key_id": null,
+      "key_sha256": null,
+      "scheme": "hmac-sha256"
+    },
+    "frozen_at": null,
+    "measurement_identity": {
+      "config_sha256": null,
+      "execution_bundle_sha256": null,
+      "live_runner_sha256": null,
+      "model_id": null,
+      "prompt_sha256": null,
+      "provider_id": null,
+      "reviewer_skill_sha256": null,
+      "runtime_id": null,
+      "runtime_source_commit": null,
+      "runtime_version": null,
+      "selection_id": null,
+      "selection_sha256": null
+    },
+    "mutation_policy": {
+      "config": "forbidden_after_start",
+      "corpus": "forbidden_after_start",
+      "ground_truth": "forbidden_after_start",
+      "model": "forbidden_after_start",
+      "paid_runner": "forbidden_after_start",
+      "prompt": "forbidden_after_start",
+      "scorer": "forbidden_after_start",
+      "selection": "forbidden_after_start",
+      "validator": "forbidden_after_start"
+    },
+    "required_repeated_runs": 5,
+    "series_id": null,
+    "state": "pre_measurement"
+  },
+  "split_counts": {"development": 48},
+  "synthetic_public": true,
+  "validator_sha256": "48e0be0fae34c5f28dc054c35408173d4d14b70f8bfb33308b567bfaf2022e84"
+}

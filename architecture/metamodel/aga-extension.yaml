@@ -56,6 +56,11 @@ entities:
                 - tactical
                 - tolerate
                 - eliminate
+            replaced_by:
+              title: Explicit governed successor component
+              description: Optional component ID approved as the lifecycle successor.
+              type: string
+              pattern: "^[a-zA-Z][a-zA-Z0-9_-]*(\\.[a-zA-Z0-9][a-zA-Z0-9_-]*)*$"
             domain:
               title: Synthetic governance domain
               type: string

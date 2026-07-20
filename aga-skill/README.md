@@ -148,8 +148,22 @@ scripts/run_review.py       CLI + validated optional LLM aggregation + logging
 scripts/run_evolution.py    candidate-only cycle
 scripts/record_action.py    append human action / pending precedent
 scripts/apply_candidate.py  independent validation-only replay; never writes sources
+scripts/publish_candidate.py local-only atomic candidate branch/commit
 rules/ · fixtures/ · golden/ · precedents/ · tests/
 ```
+
+Loop A запускается из `aga-skill/` двумя разделёнными ролями:
+
+```bash
+python3 scripts/run_evolution.py --demo
+python3 scripts/publish_candidate.py \
+  --build build --repository .. --actor "Имя архитектора"
+```
+
+Вторая команда ещё раз независимо воспроизводит candidate и fitness gate,
+затем создаёт только локальную ветку/commit в disposable worktree. Remote,
+push, настоящий PR, approve и merge не поддерживаются; успешный результат —
+`local_candidate_ready` с реальным SHA и `draft_pr_url: null`.
 
 ## Текущий статус интеграции
 
@@ -162,7 +176,10 @@ untouched holdout. Подробности и команды находятся �
 ## Зависимости и лицензии
 
 Runtime: только PyYAML 6.0.3 (MIT), version-pinned в `pyproject.toml` и
-`requirements.txt`. Wheel/sdist hashes ещё не закреплены. Pytest 9.0.3 —
+`requirements.txt`. CI/container wheel artifacts закреплены SHA-256 в
+`requirements-ci.txt` и `requirements-container.txt` и устанавливаются с
+`--require-hashes`; локальный developer bootstrap остаётся удобным
+version-pinned, но не является artifact-locked environment. Pytest 9.0.3 —
 dev-only. См. `THIRD_PARTY_NOTICES.md`.
 
 ## Troubleshooting

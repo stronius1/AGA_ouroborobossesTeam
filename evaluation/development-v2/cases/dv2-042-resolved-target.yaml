@@ -1,0 +1,30 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-042-resolved-target
+split: development
+language: en
+summary: The target metadata and a valid dependency ADR complete the same safe change.
+features: [synthetic-public, valid-adr, yaml-adr, metamorphic-control, clean, trusted-reference-integration]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: negative}
+metamorphic: {pair_id: missing-target-completion, counterpart: dv2-041-missing-target, relation: context_completion, role: control}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.billing.core: {criticality: mission_critical, target_status: strategic}
+          syn.catalog.unresolved: {criticality: high, target_status: strategic}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          tariff_lookup: {from: syn.billing.core, to: syn.catalog.unresolved, mode: synchronous}
+      decisions/adr-tariff.yaml: |
+        adr:
+          id: ADR-SYN-301
+          status: accepted
+          decision: use the supported catalog service synchronously
+          rationale: tariff validation must finish before invoice creation
+          constraints: response budget is 100 milliseconds
+          alternatives: [local replica, asynchronous validation]
+          consequences: [runtime dependency, circuit breaker required]
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

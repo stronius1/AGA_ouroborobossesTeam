@@ -1,0 +1,25 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-032-valid-adr-control
+split: development
+language: en
+summary: The same event-driven choice has an accepted ADR with all required decision fields.
+features: [synthetic-public, valid-adr, yaml-adr, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: negative}
+metamorphic: {pair_id: rule007-predicate, counterpart: dv2-031-significant-no-adr, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/integrations.yaml: |
+        integrations: {}
+  head:
+    files:
+      decisions/adr-events.yaml: |
+        adr:
+          id: ADR-SYN-101
+          status: accepted
+          decision: replace synchronous calls with event streaming
+          rationale: isolate producers from consumer outages
+          constraints: delivery may be at least once and data must remain synthetic
+          alternatives: [synchronous request response, scheduled batch]
+          consequences: [eventual consistency, idempotent consumers]
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

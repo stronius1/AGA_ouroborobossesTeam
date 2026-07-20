@@ -1,0 +1,21 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-022-noncritical-eliminate
+split: development
+language: en
+summary: A medium-criticality sandbox calls the same eliminate target.
+features: [synthetic-public, noncritical-near-miss, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule006-predicate, counterpart: dv2-021-critical-eliminate, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.payments.sandbox: {criticality: medium, target_status: tactical}
+          syn.legacy.fx: {criticality: medium, target_status: eliminate}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          test_fx_call: {from: syn.payments.sandbox, to: syn.legacy.fx, purpose: test data conversion}
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

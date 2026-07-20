@@ -38,6 +38,15 @@ components:
     owner: Synthetic Risk Team
     criticality: mission_critical
     target_status: eliminate
+    replaced_by: demo.scoring_v2
+
+  demo.scoring_v2:
+    title: Scoring v2
+    entity: component
+    description: Strategic synthetic replacement for the retiring legacy scoring system.
+    owner: Synthetic Risk Team
+    criticality: mission_critical
+    target_status: strategic
 
   demo.analytics:
     title: Analytics Workspace

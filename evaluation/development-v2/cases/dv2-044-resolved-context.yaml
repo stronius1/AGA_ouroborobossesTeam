@@ -1,0 +1,35 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-044-resolved-context
+split: development
+language: ru
+summary: Полный ADR раскрывает обоснование, ограничения, альтернативы и последствия саги.
+features: [synthetic-public, valid-adr, markdown-adr, multilingual, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: negative}
+metamorphic: {pair_id: missing-context-completion, counterpart: dv2-043-missing-context, relation: context_completion, role: control}
+change:
+  base:
+    files:
+      architecture/components.yaml: |
+        components:
+          syn.checkout: {pattern: synchronous}
+  head:
+    files:
+      decisions/ADR-SYN-403.md: |
+        # ADR-SYN-403: Асинхронный checkout
+
+        Переходим на сагу с компенсирующими действиями. Решение описано в `ADR-SYN-404`.
+      decisions/ADR-SYN-404.md: |
+        # ADR-SYN-404: Сага checkout
+
+        Status: accepted
+
+        Rationale: изолировать оформление заказа от кратких отказов оплаты.
+
+        Constraints: идемпотентность, трассировка и завершение за 15 минут.
+
+        Alternatives: синхронная оркестрация; пакетная сверка.
+
+        Decision: событийная сага с компенсирующими действиями.
+
+        Consequences: eventual consistency, журнал шагов и ручное восстановление.
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

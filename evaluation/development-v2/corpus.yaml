@@ -1,0 +1,71 @@
+schema: aga.synthetic-development-corpus/v2
+name: synthetic-public-semantic-development-v2
+version: 2.0.0
+split: development
+data_policy: synthetic-public
+purpose: development-only
+expected_policy:
+  expected_visible: true
+  lock_before_measurement: true
+  mutation_after_measurement: forbidden
+network_policy:
+  model_calls: forbidden
+  api_calls: forbidden
+workspace:
+  project_extension: workspace/aga-extension.yaml
+gate: gate.yaml
+measurement: measurement-config.yaml
+rules:
+  - PRIN-004
+  - PRIN-005
+  - PRIN-006
+  - PRIN-007
+cases:
+  - {id: dv2-001-reuse-duplicate, split: development, file: cases/dv2-001-reuse-duplicate.yaml}
+  - {id: dv2-002-reuse-control, split: development, file: cases/dv2-002-reuse-control.yaml}
+  - {id: dv2-003-duplicate-phrase-a, split: development, file: cases/dv2-003-duplicate-phrase-a.yaml}
+  - {id: dv2-004-duplicate-phrase-b, split: development, file: cases/dv2-004-duplicate-phrase-b.yaml}
+  - {id: dv2-005-reuse-existing-en, split: development, file: cases/dv2-005-reuse-existing-en.yaml}
+  - {id: dv2-006-reuse-existing-ru, split: development, file: cases/dv2-006-reuse-existing-ru.yaml}
+  - {id: dv2-007-duplicate-compound, split: development, file: cases/dv2-007-duplicate-compound.yaml}
+  - {id: dv2-008-duplicate-injection, split: development, file: cases/dv2-008-duplicate-injection.yaml}
+  - {id: dv2-009-overlap-duplicate, split: development, file: cases/dv2-009-overlap-duplicate.yaml}
+  - {id: dv2-010-overlap-near-miss, split: development, file: cases/dv2-010-overlap-near-miss.yaml}
+  - {id: dv2-011-second-master, split: development, file: cases/dv2-011-second-master.yaml}
+  - {id: dv2-012-read-replica, split: development, file: cases/dv2-012-read-replica.yaml}
+  - {id: dv2-013-master-write-en, split: development, file: cases/dv2-013-master-write-en.yaml}
+  - {id: dv2-014-master-write-ru, split: development, file: cases/dv2-014-master-write-ru.yaml}
+  - {id: dv2-015-replica-phrase-a, split: development, file: cases/dv2-015-replica-phrase-a.yaml}
+  - {id: dv2-016-replica-phrase-b, split: development, file: cases/dv2-016-replica-phrase-b.yaml}
+  - {id: dv2-017-cache-compound, split: development, file: cases/dv2-017-cache-compound.yaml}
+  - {id: dv2-018-cache-injection, split: development, file: cases/dv2-018-cache-injection.yaml}
+  - {id: dv2-019-domain-master, split: development, file: cases/dv2-019-domain-master.yaml}
+  - {id: dv2-020-domain-near-miss, split: development, file: cases/dv2-020-domain-near-miss.yaml}
+  - {id: dv2-021-critical-eliminate, split: development, file: cases/dv2-021-critical-eliminate.yaml}
+  - {id: dv2-022-noncritical-eliminate, split: development, file: cases/dv2-022-noncritical-eliminate.yaml}
+  - {id: dv2-023-critical-dependency-en, split: development, file: cases/dv2-023-critical-dependency-en.yaml}
+  - {id: dv2-024-critical-dependency-ru, split: development, file: cases/dv2-024-critical-dependency-ru.yaml}
+  - {id: dv2-025-strategic-target-a, split: development, file: cases/dv2-025-strategic-target-a.yaml}
+  - {id: dv2-026-strategic-target-b, split: development, file: cases/dv2-026-strategic-target-b.yaml}
+  - {id: dv2-027-retired-compound, split: development, file: cases/dv2-027-retired-compound.yaml}
+  - {id: dv2-028-retired-injection, split: development, file: cases/dv2-028-retired-injection.yaml}
+  - {id: dv2-029-dependency-direction, split: development, file: cases/dv2-029-dependency-direction.yaml}
+  - {id: dv2-030-direction-control, split: development, file: cases/dv2-030-direction-control.yaml}
+  - {id: dv2-031-significant-no-adr, split: development, file: cases/dv2-031-significant-no-adr.yaml}
+  - {id: dv2-032-valid-adr-control, split: development, file: cases/dv2-032-valid-adr-control.yaml}
+  - {id: dv2-033-no-adr-en, split: development, file: cases/dv2-033-no-adr-en.yaml}
+  - {id: dv2-034-no-adr-ru, split: development, file: cases/dv2-034-no-adr-ru.yaml}
+  - {id: dv2-035-weak-adr-yaml, split: development, file: cases/dv2-035-weak-adr-yaml.yaml}
+  - {id: dv2-036-weak-adr-markdown, split: development, file: cases/dv2-036-weak-adr-markdown.yaml}
+  - {id: dv2-037-weak-adr-baseline, split: development, file: cases/dv2-037-weak-adr-baseline.yaml}
+  - {id: dv2-038-weak-adr-injection, split: development, file: cases/dv2-038-weak-adr-injection.yaml}
+  - {id: dv2-039-significant-change, split: development, file: cases/dv2-039-significant-change.yaml}
+  - {id: dv2-040-cosmetic-control, split: development, file: cases/dv2-040-cosmetic-control.yaml}
+  - {id: dv2-041-missing-target, split: development, file: cases/dv2-041-missing-target.yaml}
+  - {id: dv2-042-resolved-target, split: development, file: cases/dv2-042-resolved-target.yaml}
+  - {id: dv2-043-missing-context, split: development, file: cases/dv2-043-missing-context.yaml}
+  - {id: dv2-044-resolved-context, split: development, file: cases/dv2-044-resolved-context.yaml}
+  - {id: dv2-045-missing-criticality, split: development, file: cases/dv2-045-missing-criticality.yaml}
+  - {id: dv2-046-resolved-criticality, split: development, file: cases/dv2-046-resolved-criticality.yaml}
+  - {id: dv2-047-missing-status, split: development, file: cases/dv2-047-missing-status.yaml}
+  - {id: dv2-048-resolved-status, split: development, file: cases/dv2-048-resolved-status.yaml}

@@ -1,0 +1,29 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-020-domain-near-miss
+split: development
+language: en
+summary: A noncritical marketing system owns a distinct preferences domain and only reads the eliminate profile host.
+features: [synthetic-public, noncritical-near-miss, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: negative, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule005-nearmiss, counterpart: dv2-019-domain-master, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        systems:
+          syn.customer.core: {criticality: high, target_status: strategic, domain: customer_legal_identity}
+          syn.marketing: {criticality: low, target_status: tactical}
+          syn.legacy.profile: {criticality: medium, target_status: eliminate}
+        domains:
+          customer_legal_identity:
+            master_system: syn.customer.core
+  head:
+    files:
+      proposals/customer.yaml: |
+        proposal:
+          system: syn.marketing
+          domain: communication_preferences
+          writes: subscription_topics
+          excludes: customer_legal_identity
+          prose_dependency: syn.marketing reads a nightly export from syn.legacy.profile
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

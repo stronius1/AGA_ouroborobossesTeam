@@ -77,6 +77,10 @@ rules:
     severity: major
     scope: [system_passport, adr]
     check_type: llm
+    predicates:
+      - changed_target_builds_duplicate_capability
+      - existing_reusable_candidate_identified
+      - same_capability_established
     source_ref: "aga-skill/rules/principles.yaml#/rules/3"
     exceptions: []
     provenance: {origin: seed, added_in: 1.0.0}
@@ -92,6 +96,11 @@ rules:
     severity: major
     scope: [system_passport, integration_flow, adr]
     check_type: llm
+    predicates:
+      - changed_target_writes_or_masters_domain_data
+      - existing_master_identified
+      - same_domain_established
+      - read_only_replication_excluded
     source_ref: "aga-skill/rules/principles.yaml#/rules/4"
     exceptions: []
     provenance: {origin: seed, added_in: 1.0.0}
@@ -108,6 +117,10 @@ rules:
     severity: blocker
     scope: [system_passport, adr]
     check_type: llm
+    predicates:
+      - source_is_mission_critical
+      - new_dependency_exists
+      - dependency_target_status_is_eliminate
     source_ref: "aga-skill/rules/principles.yaml#/rules/5"
     exceptions: []
     provenance: {origin: seed, added_in: 1.0.0}
@@ -118,12 +131,18 @@ rules:
     statement: >
       Если PR вносит архитектурное изменение с осознанным трейд-оффом
       (выбор технологии, паттерна, отказ от альтернативы), в PR должен
-      присутствовать ADR или ссылка на существующий. Косметика и синхронизация
-      описаний ADR не требуют.
+      присутствовать ADR или ссылка на существующий. Для значимого решения
+      недостаточно самого факта наличия ADR: он должен фиксировать rationale,
+      constraints, рассмотренные alternatives и consequences. Косметика и
+      синхронизация описаний ADR не требуют нового решения.
     rationale: "Незафиксированные решения невозможно пересматривать и наследовать."
     severity: major
-    scope: [system_passport, integration_flow, diagram]
+    scope: [system_passport, integration_flow, adr, diagram]
     check_type: llm
+    predicates:
+      - significant_architectural_choice_exists
+      - technology_pattern_or_tradeoff_identified
+      - adr_absent_or_quality_insufficient
     source_ref: "aga-skill/rules/principles.yaml#/rules/6"
     exceptions: []
     provenance: {origin: seed, added_in: 1.0.0}

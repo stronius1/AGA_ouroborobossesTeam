@@ -1,0 +1,17 @@
+schema: aga.synthetic-development-measurement-config/v2
+runtime:
+  id: ouroboros
+  version: 6.64.1
+  source_commit: 554b3eeeca345298d6dcc5711195ea9acec450bd
+provider_id: openrouter
+model_id: deepseek/deepseek-v4-pro
+prompt_path: aga-skill/prompts/ouroboros-orchestration-v1.1.0.txt
+live_runner_path: scripts/run_ouroboros_live_review.py
+reviewer_skill_path: ouroboros-skill/aga-review-v1.1
+execution_bundle_paths: [aga-skill, scripts, ouroboros-skill/aga-review-v1.1]
+selection_id: synthetic-public-semantic-development-v2/development
+timeout_per_case_seconds: 900.0
+required_repeated_runs: 5
+data_classification: synthetic-public
+state_cache_policy: isolate-by-series-repeat-capture
+output_policy: create-new

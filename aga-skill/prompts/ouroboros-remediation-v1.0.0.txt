@@ -1,0 +1,35 @@
+You are executing one bounded AGA architecture-remediation transaction. This
+is a governance operation, not a general coding task. Do not inspect or mutate
+the filesystem, run commands, use web/network tools, delegate, or invent a
+replacement component. The host will materialize any trusted candidate later
+in an isolated Git worktree.
+
+Immutable request:
+- repository_id: {{REPOSITORY_ID}}
+- base: {{BASE_REVISION}}
+- head: {{HEAD_REVISION}}
+- review_id: {{REVIEW_ID}}
+- review_digest: {{REVIEW_DIGEST}}
+- task_digest: {{TASK_DIGEST}}
+- remediation_id: {{REMEDIATION_ID}}
+- finding_sha256: {{FINDING_SHA256}}
+- data_classification: {{DATA_CLASSIFICATION}}
+
+Execute this exact structured-tool protocol:
+
+1. Call `aga_prepare_remediation` exactly once with all eight correlation
+   values above (omit data_classification).
+2. If its status is `ready`, call `aga_finalize_remediation` exactly once with
+   the returned remediation_id, remediation_digest, and candidate copied
+   byte-for-byte as structured JSON.
+3. If its status is `remediation_not_available`, call
+   `aga_finalize_remediation` exactly once with remediation_id and
+   remediation_digest and omit candidate.
+4. Return the exact structured JSON object produced by
+   `aga_finalize_remediation`. Emit no explanation, Markdown fence, wrapper,
+   or additional field.
+
+Never write a textual imitation of a tool call. Never choose a filesystem
+path. Never modify the candidate, replacement target, hashes, or correlation
+values. The only acceptable final states require human review and
+`auto_merge=false`; otherwise fail closed.

@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AGA Self-Evolution Control Room</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div id="ouroboros-mark" class="ouroboros-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="17"></circle>
+            <path d="M36 15l5-2-1 6"></path>
+            <circle class="ouro-eye" cx="38" cy="14" r="1.4"></circle>
+          </svg>
+        </div>
+        <div>
+          <div class="eyebrow">AGA · SELF-EVOLUTION CONTROL ROOM</div>
+          <h1>Живая самоэволюция архитектуры</h1>
+        </div>
+      </div>
+      <div class="runtime-area">
+        <div id="runtime-chip" class="runtime-chip">
+          <span class="runtime-dot"></span>
+          <span><strong id="runtime-name">AGA deterministic</strong><small id="runtime-model">LOCAL · без model calls · $0</small></span>
+        </div>
+        <div class="run-identity">
+          <span id="header-run-state" class="state-badge is-idle">IDLE</span>
+          <code id="header-run-id">run —</code>
+          <span id="header-elapsed">00:00</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="page-nav" aria-label="Разделы E2E-прогона">
+      <button class="page-tab is-active" type="button" data-page="process" aria-selected="true">Демо</button>
+      <button class="page-tab" type="button" data-page="agents" aria-selected="false">Агенты <span id="agents-tab-count" class="tab-count">0</span></button>
+      <button class="page-tab" type="button" data-page="tests" aria-selected="false"><span id="tests-tab-label">Тесты</span> <span id="tests-tab-count" class="tab-count">0</span></button>
+      <button class="page-tab" type="button" data-page="changes" aria-selected="false">Эволюция</button>
+      <button class="page-tab" type="button" data-page="artifacts" aria-selected="false">Результат</button>
+    </nav>
+
+    <aside id="mini-status" class="mini-status is-hidden" aria-live="polite" aria-label="Краткий статус прогона">
+      <span id="mini-mode" class="mode-badge">LOCAL</span>
+      <div><span>Фаза</span><strong id="mini-phase">ожидание</strong></div>
+      <div><span>Время</span><strong id="mini-elapsed">00:00</strong></div>
+      <div><span>Architecture</span><strong id="mini-architecture">WAITING</strong></div>
+      <div><span>Rules</span><strong id="mini-rules">WAITING</strong></div>
+      <div><span>Gate</span><strong id="mini-gate">WAITING</strong></div>
+      <span id="mini-latest-event" class="mini-latest-event">Событий пока нет</span>
+    </aside>
+
+    <main>
+      <section id="process-page" class="page is-active" data-page-panel="process" aria-label="Процесс E2E">
+        <section class="control-panel">
+          <div class="control-heading">
+            <div>
+              <span class="section-kicker">ОДНА КНОПКА · ДВА КОНТУРА</span>
+              <h2>Запустить самоэволюцию</h2>
+              <p>Ouroboros найдёт нарушение, подготовит candidate patch и повторно проверит архитектуру.</p>
+            </div>
+            <div id="scenario-state" class="scenario-state">Сценарий ещё не создан</div>
+          </div>
+
+          <fieldset class="demo-profile-picker">
+            <legend>Темп демо</legend>
+            <div class="demo-profile-options">
+              <label class="demo-profile-option is-selected" data-demo-profile-option="quick">
+                <input id="demo-profile-quick" type="radio" name="demo-profile" value="quick" checked>
+                <span><strong>Короткое демо</strong><small>6 ключевых тестов · DeepSeek V4 Pro · три Live task</small></span>
+              </label>
+              <label class="demo-profile-option" data-demo-profile-option="full">
+                <input id="demo-profile-full" type="radio" name="demo-profile" value="full">
+                <span><strong>Полная проверка</strong><small>26 тестов · DeepSeek V4 Pro · полный evidence</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <details class="advanced-settings">
+            <summary>Настроить синтетический сценарий</summary>
+            <div class="scenario-controls">
+              <label class="field-group field-wide">
+                <span>Сложный сценарий</span>
+                <select id="preset-select" aria-label="Сложный сценарий"></select>
+              </label>
+              <label class="field-group">
+                <span>Seed</span>
+                <input id="seed-input" type="text" value="antifraud-e2e" maxlength="64" autocomplete="off">
+              </label>
+              <label class="field-group">
+                <span>Параллельные workers</span>
+                <select id="workers-select">
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4" selected>4</option>
+                </select>
+              </label>
+              <button id="generate-button" class="button button-secondary" type="button">Пересоздать данные</button>
+            </div>
+          </details>
+
+          <fieldset class="execution-picker">
+            <legend>Режим запуска</legend>
+            <div class="execution-options">
+              <label class="execution-option" data-execution-option="local">
+                <input id="execution-local" type="radio" name="execution-mode" value="local">
+                <span class="execution-option-copy">
+                  <span class="execution-option-title"><strong>Локальный deterministic E2E</strong></span>
+                  <small>AGA review, remediation, Loop A и 26 тестов, без model calls · $0</small>
+                </span>
+              </label>
+              <label class="execution-option is-selected" data-execution-option="live">
+                <input id="execution-live" type="radio" name="execution-mode" value="live" checked>
+                <span class="execution-option-copy">
+                  <span class="execution-option-title"><strong>Live Ouroboros</strong><span class="mode-badge is-paid">Платно · OpenRouter</span></span>
+                  <small>Review, remediation и re-review — три реальные Ouroboros/OpenRouter задачи; Loop A и fitness workers остаются детерминированными.</small>
+                </span>
+              </label>
+            </div>
+            <label class="sr-only" for="execution-select">Режим исполнения</label>
+            <select id="execution-select" class="sr-only">
+              <option value="local">Локальный deterministic E2E · $0</option>
+              <option value="live" selected>Live Ouroboros через OpenRouter</option>
+            </select>
+          </fieldset>
+
+          <label id="model-picker" class="model-picker is-local">
+            <span><strong>Модель Ouroboros</strong><small id="model-hint">Используется в платном Live E2E</small></span>
+            <select id="model-select" aria-label="Модель Ouroboros"></select>
+          </label>
+
+          <label id="paid-confirmation-wrap" class="paid-confirmation is-hidden">
+            <input id="paid-confirmation" type="checkbox">
+            <span>Подтверждаю платную цепочку Ouroboros; test workers выполняются локально и параллельно</span>
+          </label>
+
+          <section id="live-readiness" class="live-readiness is-hidden" aria-labelledby="live-readiness-title">
+            <div class="live-readiness-heading">
+              <div><span class="section-kicker">LIVE PREFLIGHT · БЕЗ СЕКРЕТОВ</span><strong id="live-readiness-title">Проверка готовности</strong></div>
+              <span id="live-readiness-status" class="state-badge is-idle">NOT CHECKED</span>
+            </div>
+            <div id="live-readiness-grid" class="live-readiness-grid"></div>
+            <div class="live-readiness-footer">
+              <span id="live-readiness-reason">Live-кнопка включится только после успешного preflight.</span>
+              <button id="refresh-readiness-button" class="button button-secondary" type="button">Повторить preflight</button>
+            </div>
+          </section>
+
+          <div class="launch-row">
+            <div class="launch-copy"><strong id="launch-title">Архитектура и правила за один запуск</strong><span id="launch-detail">Три Live-задачи Ouroboros и 6 ключевых тестов.</span></div>
+            <button id="run-button" class="button button-primary" type="button">
+              <span class="button-icon" aria-hidden="true">▶</span>
+              <span id="run-button-label">Проверить весь E2E · $0</span>
+            </button>
+          </div>
+
+          <div class="run-status" aria-live="polite">
+            <span id="status-indicator" class="status-indicator is-idle"></span>
+            <strong id="status-text">Готово к запуску</strong>
+            <span id="status-detail">Главная кнопка сама создаст данные и запустит весь E2E</span>
+          </div>
+
+          <div id="failure-recovery" class="failure-recovery is-hidden" role="alert">
+            <div>
+              <strong id="failure-recovery-title">Live-запуск остановлен</strong>
+              <p id="failure-recovery-copy">Синтетические данные сохранены. Тот же сценарий можно сразу проверить локально.</p>
+              <code id="failure-error-code">run_failed</code>
+            </div>
+            <button id="recovery-local-button" class="button button-primary" type="button">▶ Повторить тот же сценарий бесплатно</button>
+          </div>
+        </section>
+
+        <section id="scenario-preview" class="panel scenario-preview is-empty" aria-labelledby="scenario-preview-title">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">СГЕНЕРИРОВАННЫЕ ВХОДНЫЕ ДАННЫЕ</span>
+              <h2 id="scenario-preview-title">Модель появится здесь</h2>
+            </div>
+            <code id="scenario-id">scenario —</code>
+          </div>
+          <p id="scenario-summary" class="empty-copy">Нажми главную кнопку — входная модель создастся автоматически. Для просмотра до запуска открой настройки и нажми «Пересоздать данные».</p>
+          <div id="scenario-stats" class="stats-row is-hidden"></div>
+          <div id="scenario-checks" class="scenario-checks"></div>
+        </section>
+
+        <section id="live-process" class="panel live-process" aria-labelledby="live-process-title">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">LIVE PROCESS</span>
+              <h2 id="live-process-title">Архитектура и правила — отдельно</h2>
+              <p id="phase-description" class="heading-copy">Статусы review, remediation, re-review и общего gate.</p>
+            </div>
+            <div class="progress-readout"><strong id="progress-value">0%</strong><span id="phase-value">ожидание</span></div>
+          </div>
+          <div class="architecture-proof-heading">
+            <div><strong>Две независимые эволюции → один gate</strong><span>Архитектура и правила сходятся после независимых проверок.</span></div>
+            <div class="watch-links" aria-label="Перейти к подробностям">
+              <button type="button" data-watch-page="agents">Агенты</button>
+              <button type="button" data-watch-page="tests">Тесты</button>
+              <button type="button" data-watch-page="changes">До / после</button>
+            </div>
+          </div>
+          <ol id="architecture-checkpoints" class="architecture-checkpoints" aria-label="Этапы самоэволюции архитектуры"></ol>
+          <section id="live-evidence" class="live-evidence is-hidden" aria-labelledby="live-evidence-title">
+            <div class="live-evidence-heading">
+              <div><span class="section-kicker">OUROBOROS TASK EVIDENCE</span><strong id="live-evidence-title">review → remediation → re-review</strong></div>
+              <div id="live-evidence-meta" class="live-evidence-meta"></div>
+            </div>
+            <ol id="live-task-list" class="live-task-list"></ol>
+          </section>
+          <details class="technical-disclosure">
+            <summary>Технический ход: 7 фаз и agent swimlanes</summary>
+            <div class="progress-track" aria-label="Прогресс E2E"><span id="progress-bar"></span></div>
+            <ol id="phase-track" class="phase-track" aria-label="Этапы E2E"></ol>
+            <div class="subsection-heading">
+              <h3>Agent swimlanes</h3>
+              <span id="lane-scale">единая временная шкала</span>
+            </div>
+            <div id="swimlanes" class="swimlanes">
+              <div class="empty-state">После запуска здесь появятся реальные task и tool events.</div>
+            </div>
+          </details>
+        </section>
+
+        <details class="technical-disclosure process-technical">
+          <summary>Открыть граф, инспектор и полный протокол событий</summary>
+          <div class="technical-disclosure-body">
+        <div class="process-workspace">
+          <section class="panel graph-panel" aria-labelledby="live-graph-title">
+            <div class="section-heading">
+              <div>
+                <span class="section-kicker">АРХИТЕКТУРА В МОМЕНТЕ</span>
+                <h2 id="live-graph-title">Граф без подсказанных ответов</h2>
+              </div>
+              <div class="graph-legend">
+                <span><i class="legend-line neutral"></i>не проверено</span>
+                <span><i class="legend-line blocked"></i>finding</span>
+                <span><i class="legend-line candidate"></i>кандидат</span>
+                <span><i class="legend-line healthy"></i>проверено</span>
+              </div>
+            </div>
+            <div id="live-graph" class="architecture-graph" role="img" aria-label="Текущее состояние архитектуры">
+              <div class="empty-state">Нет сгенерированного графа</div>
+            </div>
+            <p id="graph-caption" class="graph-caption">Красные findings появятся только после события проверки.</p>
+          </section>
+
+          <aside class="panel event-inspector" aria-labelledby="inspector-title">
+            <div>
+              <span class="section-kicker">ЧТО ПРОИСХОДИТ ВНУТРИ</span>
+              <h2 id="inspector-title">Детали выбранного события</h2>
+            </div>
+            <div id="event-inspector-body" class="inspector-body">
+              <div class="empty-state">Запусти E2E и выбери событие на временной шкале.</div>
+            </div>
+          </aside>
+        </div>
+
+        <section class="panel event-section" aria-labelledby="event-log-title">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">ПРОТОКОЛ БЕЗ ЗАГЛУШЕК</span>
+              <h2 id="event-log-title">Фактические события</h2>
+            </div>
+            <span id="event-count" class="event-count">0 событий</span>
+          </div>
+          <ol id="event-log" class="event-log">
+            <li class="empty-state">Событий пока нет</li>
+          </ol>
+        </section>
+          </div>
+        </details>
+      </section>
+
+      <section id="agents-page" class="page" data-page-panel="agents" aria-label="Агенты">
+        <section class="panel page-hero">
+          <span class="section-kicker">МАСШТАБ ПРОЦЕССА</span>
+          <h2>Кто работает и что делает</h2>
+          <p>LLM-задачи Ouroboros и локальные детерминированные workers помечены разными типами. Статусы берутся из текущего прогона.</p>
+        </section>
+        <section class="panel" aria-labelledby="dag-title">
+          <div class="section-heading">
+            <div><span class="section-kicker">FAN-OUT / FAN-IN</span><h2 id="dag-title">Оркестрация</h2></div>
+            <span id="parallelism-value" class="soft-badge">0 параллельно</span>
+          </div>
+          <div id="orchestration-dag" class="orchestration-dag"><div class="empty-state">План агентов появится после генерации сценария.</div></div>
+        </section>
+        <section class="panel" aria-labelledby="agents-title">
+          <div class="section-heading">
+            <div><span class="section-kicker">ИСПОЛНИТЕЛИ</span><h2 id="agents-title">Задачи агентов</h2></div>
+            <span id="agents-summary" class="soft-badge">0 active</span>
+          </div>
+          <div id="agent-grid" class="agent-grid"><div class="empty-state">Исполнителей пока нет.</div></div>
+        </section>
+      </section>
+
+      <section id="tests-page" class="page" data-page-panel="tests" aria-label="Тесты">
+        <section class="panel page-hero tests-hero">
+          <div>
+            <span class="section-kicker">TEST EXPLORER</span>
+            <h2 id="tests-title">Какие проверки выполняются</h2>
+            <p>До запуска видны входы и ожидаемое поведение. Фактические baseline и candidate появляются только после выполнения.</p>
+          </div>
+          <div id="tests-progress" class="tests-progress"><strong>0 / 0</strong><span>выполнено</span></div>
+        </section>
+
+        <section class="panel test-explorer">
+          <div class="test-toolbar">
+            <div class="filter-group" aria-label="Фильтр тестов">
+              <button class="filter-button is-active" type="button" data-test-filter="all" aria-pressed="true">Все</button>
+              <button class="filter-button" type="button" data-test-filter="failed" aria-pressed="false">Упавшие</button>
+              <button class="filter-button" type="button" data-test-filter="changed" aria-pressed="false">Изменившиеся</button>
+              <button class="filter-button" type="button" data-test-filter="passed" aria-pressed="false">Прошедшие</button>
+            </div>
+            <label class="search-field"><span class="sr-only">Поиск тестов</span><input id="test-search" type="search" placeholder="Найти тест, правило или файл…"></label>
+          </div>
+          <div id="test-status-bar" class="test-status-bar"></div>
+          <div class="test-table-wrap">
+            <table class="test-table">
+              <thead><tr><th>Тест</th><th>Ожидается</th><th>Baseline</th><th>Candidate</th><th>Worker</th><th>Статус</th></tr></thead>
+              <tbody id="test-table-body"><tr><td colspan="6" class="empty-cell">Сгенерируй сценарий, чтобы увидеть тест-план.</td></tr></tbody>
+            </table>
+          </div>
+          <aside id="test-detail" class="test-detail is-hidden" aria-live="polite"></aside>
+        </section>
+      </section>
+
+      <section id="changes-page" class="page" data-page-panel="changes" aria-label="Изменения">
+        <section class="panel page-hero">
+          <span class="section-kicker">ЭВОЛЮЦИЯ</span>
+          <h2>Что изменилось и почему</h2>
+          <p>Во время прогона отображается накопленный результат. После gate состояния «до» и «после» показываются одновременно.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="architecture-changes-title">
+          <div class="section-heading">
+            <div><span class="section-kicker">АРХИТЕКТУРА</span><h2 id="architecture-changes-title">До и после</h2></div>
+            <span id="architecture-change-status" class="soft-badge">ещё не проверено</span>
+          </div>
+          <div id="architecture-comparison" class="architecture-comparison">
+            <div class="empty-state">Сравнение появится после фактической проверки и изменения.</div>
+          </div>
+          <div id="architecture-diff-wrap" class="diff-wrap is-hidden">
+            <h3>Patch архитектуры</h3>
+            <pre id="architecture-diff" class="code-diff"></pre>
+          </div>
+        </section>
+
+        <div class="changes-grid">
+          <section class="panel" aria-labelledby="causal-title">
+            <div><span class="section-kicker">ПРИЧИННАЯ ЦЕПОЧКА</span><h2 id="causal-title">От evidence до gate</h2></div>
+            <ol id="causal-chain" class="causal-chain"><li class="empty-state">Нет фактических изменений.</li></ol>
+          </section>
+          <section class="panel" aria-labelledby="rule-change-title">
+            <div class="section-heading">
+              <div><span class="section-kicker">ПРАВИЛА</span><h2 id="rule-change-title">Самоэволюция правил</h2></div>
+              <span id="rule-change-status" class="soft-badge">ожидание</span>
+            </div>
+            <div id="rule-change-body" class="rule-change-body"><div class="empty-state">Rule diff и метрики появятся после мутации и тестов.</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="artifacts-page" class="page" data-page-panel="artifacts" aria-label="Артефакты">
+        <section class="panel page-hero">
+          <div class="result-hero-heading">
+            <div><span class="section-kicker">РЕЗУЛЬТ E2E</span><h2>Проверяемый пакет для human review</h2></div>
+            <div class="result-actions"><span id="result-mode" class="mode-badge">LOCAL</span><button id="export-report-button" class="button button-secondary" type="button" disabled>Экспорт sanitized report</button></div>
+          </div>
+          <p id="result-engine">Итоговый architecture engine появится после gate.</p>
+        </section>
+        <div id="gate-summary" class="gate-summary"><div class="panel empty-state">Gate ещё не запускался.</div></div>
+        <section class="panel" aria-labelledby="artifact-title">
+          <div class="section-heading">
+            <div><span class="section-kicker">ВОСПРОИЗВОДИМОСТЬ</span><h2 id="artifact-title">Артефакты прогона</h2></div>
+            <span id="artifact-count" class="soft-badge">0 файлов</span>
+          </div>
+          <div id="artifact-list" class="artifact-list"><div class="empty-state">После E2E здесь будут scenario, events, findings, patch, test report, gate report и candidate manifest.</div></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

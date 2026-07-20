@@ -89,6 +89,10 @@ def test_initialize_writes_private_public_config_and_syncs_skill(tmp_path: Path)
     assert settings["OUROBOROS_GENERATIVE_PROBE"] == 0
     assert settings["OUROBOROS_WEBSEARCH_BACKEND"] == "ddgs"
     assert settings["OUROBOROS_POST_TASK_EVOLUTION"] is False
+    assert settings["MCP_TOOL_TIMEOUT_SEC"] == 20
+    assert settings["MCP_SERVERS"][0]["allowed_tools"] == list(
+        profile.MCP_TOOL_NAMES
+    )
     assert settings["MCP_SERVERS"] == profile._mcp_server_settings()
     assert (paths.skill_dir / "SKILL.md").read_bytes() == (
         profile.SKILL_SOURCE / "SKILL.md"
@@ -187,6 +191,11 @@ def test_runtime_environment_is_allowlisted_and_contains_no_provider_secret(
     assert environment["LANG"] == "en_US.UTF-8"
     assert "OPENROUTER_API_KEY" not in environment
     assert "HTTPS_PROXY" not in environment
+    assert environment[profile.WORKER_PYTHON_ENV] == str(paths.python_executable)
+    assert environment[profile.OVERLAY_SOURCE_ENV] == str(paths.source_dir)
+    assert environment["AGA_OUROBOROS_PROFILE_HOME"] == str(paths.profile_home)
+    assert environment["AGA_OUROBOROS_VENV_DIR"] == str(paths.venv_dir)
+    assert environment["AGA_OUROBOROS_SOURCE_DIR"] == str(paths.source_dir)
     assert credential not in json.dumps(environment)
 
 
@@ -200,7 +209,32 @@ def test_sync_atomically_removes_stale_payload_files(tmp_path: Path) -> None:
 
     assert len(digest) == 64
     assert not stale.exists()
-    assert (paths.skill_dir / "prompts/orchestration-v1.0.0.txt").is_file()
+    assert (paths.skill_dir / "prompts/orchestration-v1.1.0.txt").is_file()
+
+
+def test_synchronize_refreshes_managed_settings_and_preserves_key(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+    profile.initialize_profile(paths)
+    credential = _synthetic_key("f")
+    settings = json.loads(paths.settings_path.read_text(encoding="utf-8"))
+    settings["OPENROUTER_API_KEY"] = credential
+    settings["MCP_TOOL_TIMEOUT_SEC"] = 60
+    settings["MCP_SERVERS"][0]["allowed_tools"] = list(profile.MCP_TOOL_NAMES[:4])
+    profile._atomic_write_private_json(paths.settings_path, settings)
+
+    result = profile.synchronize_profile(paths)
+    refreshed = json.loads(paths.settings_path.read_text(encoding="utf-8"))
+
+    assert result["status"] == "synced"
+    assert result["credential_present"] is True
+    assert credential not in json.dumps(result)
+    assert refreshed["OPENROUTER_API_KEY"] == credential
+    assert refreshed["MCP_TOOL_TIMEOUT_SEC"] == profile.MCP_REFRESH_TIMEOUT_SECONDS
+    assert refreshed["MCP_SERVERS"][0]["allowed_tools"] == list(
+        profile.MCP_TOOL_NAMES
+    )
 
 
 def test_verify_runtime_requires_exact_installed_version_and_source_commit(
@@ -329,6 +363,10 @@ def test_profile_validates_exact_live_overlay_attestation(
             "bootstrap_mode": "deferred_runtime_import_hooks",
             "bootstrap_sha256": bootstrap_hash,
             "finalize_transport_retry": "exception_group_once",
+            "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+            "managed_task_schema": profile.MANAGED_TASK_SCHEMA,
+            "mcp_refresh_timeout_seconds": 20,
+            "gateway_mcp_tool_count": 6,
             "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
         },
     )

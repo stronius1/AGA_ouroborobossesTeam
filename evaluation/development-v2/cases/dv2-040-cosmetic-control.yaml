@@ -1,0 +1,31 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-040-cosmetic-control
+split: development
+language: en
+summary: The same orchestration-to-choreography decision is backed by a complete accepted ADR.
+features: [synthetic-public, valid-adr, yaml-adr, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: negative}
+metamorphic: {pair_id: rule007-cosmetic, counterpart: dv2-039-significant-change, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/process.yaml: |
+        process:
+          fulfillment: centrally orchestrated
+  head:
+    files:
+      architecture/process.yaml: |
+        process:
+          fulfillment: event choreography
+          tradeoff: no central coordinator and harder incident tracing
+          adr: ADR-SYN-405
+      decisions/adr-choreography.yaml: |
+        adr:
+          id: ADR-SYN-405
+          status: accepted
+          decision: use event choreography for fulfillment
+          rationale: isolate order steps from coordinator outages
+          constraints: every participant must be idempotent and traceable
+          alternatives: [central orchestration, scheduled batch]
+          consequences: [eventual consistency, distributed incident tracing]
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

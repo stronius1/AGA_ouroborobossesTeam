@@ -385,12 +385,51 @@ def test_precedents_and_permissions_in_repository_validate():
         assert body.startswith("#")
     permissions = load_permissions(PKG_ROOT / "evolver" / "permissions.yaml")
     assert "merge" in permissions["deny"]["actions"]
+    connector = permissions["local_vcs_connector"]
+    assert connector["network"] is False
+    assert connector["outcome"] == "local_candidate_ready"
+    assert connector["human_review_required"] is True
+    assert connector["auto_merge"] is False
 
 
 def test_permissions_require_protected_denies():
     permissions = load_permissions(PKG_ROOT / "evolver" / "permissions.yaml")
     unsafe = copy.deepcopy(permissions)
     unsafe["deny"]["actions"].remove("merge")
+    with _error("policy_invariant"):
+        validate_permissions(unsafe)
+
+
+def test_permissions_require_networkless_candidate_only_connector():
+    permissions = load_permissions(PKG_ROOT / "evolver" / "permissions.yaml")
+
+    networked = copy.deepcopy(permissions)
+    networked["local_vcs_connector"]["network"] = True
+    with _error("policy_invariant"):
+        validate_permissions(networked)
+
+    push_capable = copy.deepcopy(permissions)
+    push_capable["local_vcs_connector"]["deny"]["actions"].remove("push")
+    with _error("policy_invariant"):
+        validate_permissions(push_capable)
+
+    expanded = copy.deepcopy(permissions)
+    expanded["local_vcs_connector"]["allow"]["actions"].append(
+        "modify_architecture_repo"
+    )
+    with _error("policy_invariant"):
+        validate_permissions(expanded)
+
+    auto_merging = copy.deepcopy(permissions)
+    auto_merging["local_vcs_connector"]["auto_merge"] = True
+    with _error("policy_invariant"):
+        validate_permissions(auto_merging)
+
+
+def test_permissions_require_exact_local_candidate_transaction():
+    permissions = load_permissions(PKG_ROOT / "evolver" / "permissions.yaml")
+    unsafe = copy.deepcopy(permissions)
+    unsafe["local_vcs_connector"]["exact_transaction"].append("arbitrary_file")
     with _error("policy_invariant"):
         validate_permissions(unsafe)
 

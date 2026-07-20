@@ -1,0 +1,437 @@
+{
+  "base": "9b1da8afef0840fe709a4b38a95416717ec8e7a9",
+  "budget": {
+    "aggregate_usage_delta_usd": 0.10015279,
+    "before_remediation": {
+      "credential_retained": false,
+      "implementation_delta_usd": 0.02194395,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.90154238,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.09845762
+    },
+    "before_rereview": {
+      "credential_retained": false,
+      "implementation_delta_usd": 0.06033747,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.86314886,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.13685114
+    },
+    "before_review": {
+      "credential_retained": false,
+      "implementation_delta_usd": 0.0,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.92348633,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.07651367
+    },
+    "final": {
+      "credential_retained": false,
+      "implementation_delta_usd": 0.10015279,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.82333354,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.17666646
+    },
+    "initial": {
+      "credential_retained": false,
+      "implementation_delta_usd": 0.0,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.92348633,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.07651367
+    },
+    "stop_threshold_usd": 40.0,
+    "task_reported_cost_usd": 0.113183
+  },
+  "candidate": {
+    "after_sha256": "1a2777e76d0c5aa7dbe2c19a705be6b322ac3bb3ba9ff8bcc2b9042563298f37",
+    "artifact": "model/integrations.yaml",
+    "auto_merge": false,
+    "branch_name": "aga/architecture-d98dc62f3c0512e2",
+    "diff_sha256": "728c68397626d651a3e012b5aacd1dddb95f847f6c6b1fdff8b55b28e84d1905",
+    "draft_pr_url": null,
+    "external_side_effects": false,
+    "human_review_required": true,
+    "idempotent": false,
+    "local_candidate_ready": true,
+    "patched_head": "8434d56f5722e812bdf5db2e22c11dd48fab587c",
+    "worktree_retained": true
+  },
+  "correlation_sha256": "d98dc62f3c0512e2d7e7e756d35fbceefd3909a4c0a832c32ec2626e91b62a4c",
+  "data_classification": "synthetic-public",
+  "gate": {
+    "auto_merge": false,
+    "auto_merge_forbidden": true,
+    "blocking_findings": [],
+    "candidate_only": true,
+    "human_review_required": true,
+    "no_blocker_or_major": true,
+    "passed": true,
+    "publication_human_review_required": true,
+    "review_completed": true,
+    "target_finding_closed": true
+  },
+  "head": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+  "initial_finding": {
+    "artifact": "model/integrations.yaml",
+    "base_revision": "9b1da8afef0840fe709a4b38a95416717ec8e7a9",
+    "canonical_defect": "SEAF-004:/seaf.app.integrations/demo.checkout_to_legacy_scoring/to",
+    "confidence": 1.0,
+    "entity_id": "demo.checkout_to_legacy_scoring",
+    "evidence": "new integration endpoint 'demo.legacy_scoring' has target_status=eliminate",
+    "evidence_refs": [
+      "ev_a20c0dc5ec345ceed00568ee07f5b849832801af96f23293fac9d7030de9335f"
+    ],
+    "head_revision": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+    "location": "/seaf.app.integrations/demo.checkout_to_legacy_scoring/to",
+    "origin": "deterministic",
+    "rule_id": "SEAF-004",
+    "severity": "blocker",
+    "source_provenance": {
+      "commit": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+      "file": "model/integrations.yaml",
+      "line": null,
+      "pointer": "/seaf.app.integrations/demo.checkout_to_legacy_scoring",
+      "sha256": "8d0fbad16c5d9d646ead9edcc41c96e934caeda1adf02555a2806777d2ce9510"
+    },
+    "source_ref": "metamodel/aga-extension.yaml#/entities/components/schema",
+    "suggested_fix": "Use a strategic replacement or record an approved migration decision before adding the dependency."
+  },
+  "initial_finding_sha256": "6845e3596b9cc97bf4f9fd5df1c81b566044bb6ce87b7a365a742a26053978dd",
+  "model": "deepseek/deepseek-v4-pro",
+  "patched_head": "8434d56f5722e812bdf5db2e22c11dd48fab587c",
+  "provider": "openrouter",
+  "publication": {
+    "auto_merge": false,
+    "branch_name": "aga/architecture-d98dc62f3c0512e2",
+    "commit": "8434d56f5722e812bdf5db2e22c11dd48fab587c",
+    "draft_pr_url": null,
+    "external_side_effects": false,
+    "human_review_required": true,
+    "status": "local_candidate_ready"
+  },
+  "redaction": {
+    "absolute_paths_retained": false,
+    "credentials_retained": false,
+    "raw_prompts_retained": false,
+    "raw_provider_payloads_retained": false
+  },
+  "remediation": {
+    "final": {
+      "analysis_errors": [],
+      "auto_merge": false,
+      "base": "9b1da8afef0840fe709a4b38a95416717ec8e7a9",
+      "candidate_sha256": "368f1fc19666c12d00a850407e42d0fe5724351a25f714288da4d4e5cd9b74d8",
+      "finding_sha256": "6845e3596b9cc97bf4f9fd5df1c81b566044bb6ce87b7a365a742a26053978dd",
+      "head": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+      "human_review_required": true,
+      "incomplete": false,
+      "outcome": "candidate_ready",
+      "patch": {
+        "after_sha256": "1a2777e76d0c5aa7dbe2c19a705be6b322ac3bb3ba9ff8bcc2b9042563298f37",
+        "artifact": "model/integrations.yaml",
+        "before_sha256": "8d0fbad16c5d9d646ead9edcc41c96e934caeda1adf02555a2806777d2ce9510",
+        "diff": "--- a/model/integrations.yaml\n+++ b/model/integrations.yaml\n@@ -3,4 +3,4 @@\n     title: Checkout to retiring scorer\n     description: Checkout scoring invocation.\n     from: demo.checkout\n-    to: demo.legacy_scoring\n+    to: demo.scoring_v2\n",
+        "diff_sha256": "728c68397626d651a3e012b5aacd1dddb95f847f6c6b1fdff8b55b28e84d1905",
+        "eliminated_component": "demo.legacy_scoring",
+        "endpoint": "to",
+        "entity_id": "demo.checkout_to_legacy_scoring",
+        "mutation_kind": "reroute_target",
+        "replacement_component": "demo.scoring_v2",
+        "rule_id": "SEAF-004",
+        "summary": "Reroute demo.checkout_to_legacy_scoring (to) away from eliminate-status 'demo.legacy_scoring' to its declared successor 'demo.scoring_v2', resolving SEAF-004."
+      },
+      "remediation_digest": "rmd_d55b25bde303059ff5f21206821128993d2979172bfaf72098c750e3f252abdb",
+      "remediation_id": "aga-remediation-d98dc62f3c0512e2d7e7e756",
+      "repository_id": "aga-architecture-d98dc62f3c0512e2",
+      "review_digest": "rvw_c01ae88eeabb6c82c636f870827c74e5459c9b391a5255dc10296374c01a6694",
+      "review_id": "aga-review-69c9018bf6adb6ef22256a8d00056949",
+      "review_output_sha256": "6eea7b0201a21ddb22896ae23caef040641e9d2ac764bfdcded39692e75ace0c",
+      "schema": "aga.final-remediation/v1",
+      "status": "completed",
+      "task_digest": "tsk_c99d4f28c81ab33e5362af0b41188dd1d82876f5eed6f2576ebd570884bf5aba"
+    },
+    "latency_ms": 71714.239,
+    "model": "deepseek/deepseek-v4-pro",
+    "model_usage": {
+      "accounting_authority": "root_task_cost_finalized_event",
+      "all_model_routes_pinned": true,
+      "call_count": 5,
+      "completion_tokens": 2000,
+      "cost_accounting_status": "available",
+      "cost_complete": true,
+      "cost_final": true,
+      "known_cost_usd": 0.0284,
+      "ledger_integrity_degraded": false,
+      "model": "deepseek/deepseek-v4-pro",
+      "observed_call_count": 5,
+      "prompt_tokens": 88609,
+      "provider": "openrouter",
+      "unknown_unmetered": 0,
+      "unobserved_call_count": 0,
+      "unresolved_upper_bound_usd": 0.0,
+      "usage_event_count": 5
+    },
+    "provider": "openrouter",
+    "receipts": [
+      {
+        "args_sha256": "21ecda5ce161d5492f2ed154a55826cf320230a42f0443a3fabed78982039e86",
+        "candidate_sha256": "368f1fc19666c12d00a850407e42d0fe5724351a25f714288da4d4e5cd9b74d8",
+        "output_incomplete": false,
+        "output_sha256": "777b3ad9fbb6502cd1319748cb1cf6c4c3d158c5bad1eb1fd5d2eda63c0412cf",
+        "output_status": "ready",
+        "remediation_digest": "rmd_d55b25bde303059ff5f21206821128993d2979172bfaf72098c750e3f252abdb",
+        "status": "ok",
+        "tool": "aga_prepare_remediation"
+      },
+      {
+        "args_sha256": "3ec22e086851aa3c6689af3e8f27d2995962615f16c4ce7d022f25553f710887",
+        "candidate_sha256": "368f1fc19666c12d00a850407e42d0fe5724351a25f714288da4d4e5cd9b74d8",
+        "diff_sha256": "728c68397626d651a3e012b5aacd1dddb95f847f6c6b1fdff8b55b28e84d1905",
+        "output_incomplete": false,
+        "output_sha256": "424fedba3f9a7d7ffd70f0bab231e2698808977d7fa9b5200c578deaf0110f1b",
+        "output_status": "completed",
+        "remediation_digest": "rmd_d55b25bde303059ff5f21206821128993d2979172bfaf72098c750e3f252abdb",
+        "status": "ok",
+        "tool": "aga_finalize_remediation"
+      }
+    ],
+    "redaction": {
+      "absolute_paths_retained": false,
+      "credentials_retained": false,
+      "raw_prompts_retained": false,
+      "raw_provider_payloads_retained": false
+    },
+    "runtime": {
+      "name": "ouroboros",
+      "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd",
+      "version": "6.64.1"
+    },
+    "status": "completed",
+    "task_id": "bfd18932"
+  },
+  "repository_id": "aga-architecture-d98dc62f3c0512e2",
+  "reused": false,
+  "review_after": {
+    "base": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+    "budget_before_task": {
+      "credential_retained": false,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.8589643,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.1410357
+    },
+    "data_classification": "synthetic-public",
+    "final": {
+      "analysis_errors": [],
+      "auto_merge": false,
+      "completed_rule_ids": [
+        "PRIN-004",
+        "PRIN-005",
+        "PRIN-006",
+        "PRIN-007"
+      ],
+      "escalate": false,
+      "findings": [],
+      "human_review_required": false,
+      "incomplete": false,
+      "missing_rule_ids": [],
+      "observations": [],
+      "review_digest": "rvw_aea2237906df4b170f0e8b3c8a3242a5e8827442ca7356237f2284f0beb1b720",
+      "review_id": "aga-review-3d4d4eb08fa23659f3446731315a0ccc",
+      "review_provenance_json": "{\"aga_version\":\"2.0.0\",\"archtool_commit\":\"83c82ab1673f1245b499c26b82d507fa602a11d6\",\"base_commit\":\"2b87fc971a20ec3f35e35ff712bd249a447f4410\",\"dependency_verification\":\"verified-gitlinks\",\"head_commit\":\"8434d56f5722e812bdf5db2e22c11dd48fab587c\",\"ignored_out_of_scope_paths\":[],\"manifest_sha256\":\"b9c0c2d52a53663e25924abbcf1796961bb05fc58ee2aced36d5b0b8d3334092\",\"review_scope\":\".\",\"rules_sha256\":\"77b81e883389f2177d1b7369b734b91ef2278b45e948f2c3a52c993bf15afe11\",\"seaf_core_commit\":\"60ce335832d2734814c020306a85d1e8b12cf67b\",\"trusted_dependencies\":{\"architecture/vendor/seaf-core\":{\"closure_sha256\":\"30686a024d81842156a7d20eac2950f5e7a962f9b6317630cf65e5994181cce7\",\"commit\":\"60ce335832d2734814c020306a85d1e8b12cf67b\"},\"seaf-archtool-core\":{\"closure_sha256\":\"a274301fb599e26c90f165a4c17025f9425458677696566bff82ee867957a59d\",\"commit\":\"83c82ab1673f1245b499c26b82d507fa602a11d6\"}}}",
+      "schema": "aga.final-review/v1",
+      "status": "completed",
+      "task_digest": "tsk_20d6de83c06872e7a67cbc8ce96ad780279b2ce48234360e4cd3f6713fdbda47",
+      "verdict": "approve"
+    },
+    "head": "8434d56f5722e812bdf5db2e22c11dd48fab587c",
+    "model": "deepseek/deepseek-v4-pro",
+    "model_usage": {
+      "call_count": 7,
+      "cost_complete": true,
+      "known_cost_usd": 0.044762,
+      "model": "deepseek/deepseek-v4-pro",
+      "provider": "openrouter"
+    },
+    "provider": "openrouter",
+    "receipts": {
+      "finalize": {
+        "args_sha256": "9575775efde1699fd0884270e0230e0a038d828ff5cc51216825785fe5c0396c",
+        "output_sha256": "3217a8a57fdf70ed3b2946aca08acbcf53c8a770a9ec8f7c5d8dce2fc8a0be5e",
+        "status": "completed"
+      },
+      "prepare": {
+        "args_sha256": "e931f1d2cce0da282a19d1e0e32b1b0c9cdfbc14e38f489f0746f6d1fd8bb000",
+        "output_sha256": "4eb7f2da817e17a85ddd832631630b4116f52be3a3af6337d986f26f1bd3c993",
+        "status": "ready"
+      },
+      "review_id_sha256": "0467ce6167311f8ffe9a3edd48c7b4b3b265b63e405549674c4e1e2744c243d2",
+      "tool_names": [
+        "aga_prepare_review",
+        "aga_seaf_lookup",
+        "aga_finalize_review"
+      ]
+    },
+    "redaction": {
+      "absolute_paths_retained": false,
+      "credentials_retained": false,
+      "raw_prompts_retained": false,
+      "raw_provider_payloads_retained": false
+    },
+    "repository_id": "aga-patched-d98dc62f3c0512e2",
+    "reused": false,
+    "review_digest": "rvw_aea2237906df4b170f0e8b3c8a3242a5e8827442ca7356237f2284f0beb1b720",
+    "review_id_sha256": "0467ce6167311f8ffe9a3edd48c7b4b3b265b63e405549674c4e1e2744c243d2",
+    "runtime": {
+      "name": "ouroboros",
+      "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd",
+      "version": "6.64.1"
+    },
+    "schema": "aga.ouroboros-live-review/v1",
+    "status": "completed",
+    "task_digest": "tsk_20d6de83c06872e7a67cbc8ce96ad780279b2ce48234360e4cd3f6713fdbda47",
+    "task_id": "49c3a905"
+  },
+  "review_before": {
+    "base": "9b1da8afef0840fe709a4b38a95416717ec8e7a9",
+    "budget_before_task": {
+      "credential_retained": false,
+      "limit_usd": 50.0,
+      "minimum_remaining_usd": 0.5,
+      "raw_provider_payload_retained": false,
+      "remaining_usd": 45.92348633,
+      "schema": "aga.openrouter-budget/v1",
+      "status": "ready",
+      "usage_usd": 4.07651367
+    },
+    "data_classification": "synthetic-public",
+    "final": {
+      "analysis_errors": [],
+      "auto_merge": false,
+      "completed_rule_ids": [
+        "PRIN-004",
+        "PRIN-005",
+        "PRIN-006",
+        "PRIN-007"
+      ],
+      "escalate": true,
+      "findings": [
+        {
+          "artifact": "model/integrations.yaml",
+          "base_revision": "9b1da8afef0840fe709a4b38a95416717ec8e7a9",
+          "canonical_defect": "SEAF-004:/seaf.app.integrations/demo.checkout_to_legacy_scoring/to",
+          "confidence": 1.0,
+          "entity_id": "demo.checkout_to_legacy_scoring",
+          "evidence": "new integration endpoint 'demo.legacy_scoring' has target_status=eliminate",
+          "evidence_refs": [
+            "ev_a20c0dc5ec345ceed00568ee07f5b849832801af96f23293fac9d7030de9335f"
+          ],
+          "head_revision": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+          "location": "/seaf.app.integrations/demo.checkout_to_legacy_scoring/to",
+          "origin": "deterministic",
+          "rule_id": "SEAF-004",
+          "severity": "blocker",
+          "source_provenance": {
+            "commit": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+            "file": "model/integrations.yaml",
+            "line": null,
+            "pointer": "/seaf.app.integrations/demo.checkout_to_legacy_scoring",
+            "sha256": "8d0fbad16c5d9d646ead9edcc41c96e934caeda1adf02555a2806777d2ce9510"
+          },
+          "source_ref": "metamodel/aga-extension.yaml#/entities/components/schema",
+          "suggested_fix": "Use a strategic replacement or record an approved migration decision before adding the dependency."
+        }
+      ],
+      "human_review_required": true,
+      "incomplete": false,
+      "missing_rule_ids": [],
+      "observations": [],
+      "review_digest": "rvw_c01ae88eeabb6c82c636f870827c74e5459c9b391a5255dc10296374c01a6694",
+      "review_id": "aga-review-69c9018bf6adb6ef22256a8d00056949",
+      "review_provenance_json": "{\"aga_version\":\"2.0.0\",\"archtool_commit\":\"83c82ab1673f1245b499c26b82d507fa602a11d6\",\"base_commit\":\"9b1da8afef0840fe709a4b38a95416717ec8e7a9\",\"dependency_verification\":\"verified-gitlinks\",\"head_commit\":\"2b87fc971a20ec3f35e35ff712bd249a447f4410\",\"ignored_out_of_scope_paths\":[],\"manifest_sha256\":\"b9c0c2d52a53663e25924abbcf1796961bb05fc58ee2aced36d5b0b8d3334092\",\"review_scope\":\".\",\"rules_sha256\":\"77b81e883389f2177d1b7369b734b91ef2278b45e948f2c3a52c993bf15afe11\",\"seaf_core_commit\":\"60ce335832d2734814c020306a85d1e8b12cf67b\",\"trusted_dependencies\":{\"architecture/vendor/seaf-core\":{\"closure_sha256\":\"30686a024d81842156a7d20eac2950f5e7a962f9b6317630cf65e5994181cce7\",\"commit\":\"60ce335832d2734814c020306a85d1e8b12cf67b\"},\"seaf-archtool-core\":{\"closure_sha256\":\"a274301fb599e26c90f165a4c17025f9425458677696566bff82ee867957a59d\",\"commit\":\"83c82ab1673f1245b499c26b82d507fa602a11d6\"}}}",
+      "schema": "aga.final-review/v1",
+      "status": "completed",
+      "task_digest": "tsk_c99d4f28c81ab33e5362af0b41188dd1d82876f5eed6f2576ebd570884bf5aba",
+      "verdict": "request_changes_escalate"
+    },
+    "head": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+    "model": "deepseek/deepseek-v4-pro",
+    "model_usage": {
+      "call_count": 5,
+      "cost_complete": true,
+      "known_cost_usd": 0.040021,
+      "model": "deepseek/deepseek-v4-pro",
+      "provider": "openrouter"
+    },
+    "provider": "openrouter",
+    "receipts": {
+      "finalize": {
+        "args_sha256": "f32da836ab9c35778855905f7c4f267511b3d6f5f33b95825f6caf20db231ab1",
+        "output_sha256": "6eea7b0201a21ddb22896ae23caef040641e9d2ac764bfdcded39692e75ace0c",
+        "status": "completed"
+      },
+      "prepare": {
+        "args_sha256": "cc2eb4cb9470b11904961f3f3a6e04324db72ebf4ea7c957ccbc596f9e671415",
+        "output_sha256": "11139ff8fa8fcd7ee396208d27641408bbee640cbc020ca4b680aa633eeaa9ab",
+        "status": "ready"
+      },
+      "review_id_sha256": "1370862d7aae31a45003c09d9e57cdc0c0e10548beb7bc239d891c29e22092fd",
+      "tool_names": [
+        "aga_prepare_review",
+        "aga_finalize_review"
+      ]
+    },
+    "redaction": {
+      "absolute_paths_retained": false,
+      "credentials_retained": false,
+      "raw_prompts_retained": false,
+      "raw_provider_payloads_retained": false
+    },
+    "repository_id": "aga-architecture-d98dc62f3c0512e2",
+    "reused": false,
+    "review_digest": "rvw_c01ae88eeabb6c82c636f870827c74e5459c9b391a5255dc10296374c01a6694",
+    "review_id_sha256": "1370862d7aae31a45003c09d9e57cdc0c0e10548beb7bc239d891c29e22092fd",
+    "runtime": {
+      "name": "ouroboros",
+      "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd",
+      "version": "6.64.1"
+    },
+    "schema": "aga.ouroboros-live-review/v1",
+    "status": "completed",
+    "task_digest": "tsk_c99d4f28c81ab33e5362af0b41188dd1d82876f5eed6f2576ebd570884bf5aba",
+    "task_id": "2c3b23ff"
+  },
+  "runtime": {
+    "name": "ouroboros",
+    "source_commit": "554b3eeeca345298d6dcc5711195ea9acec450bd",
+    "version": "6.64.1"
+  },
+  "schema": "aga.architecture-self-evolution/v1",
+  "source_unchanged": {
+    "branch": "main",
+    "head": "2b87fc971a20ec3f35e35ff712bd249a447f4410",
+    "status_unchanged": true
+  },
+  "status": "local_candidate_ready"
+}

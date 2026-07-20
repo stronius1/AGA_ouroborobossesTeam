@@ -22,8 +22,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, Mapping
 
-import yaml
-
 PKG_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PKG_ROOT))
 
@@ -37,6 +35,7 @@ from evolver.policy import CandidateChange, guard_candidate_changes  # noqa: E40
 from scripts.run_evolution import (  # noqa: E402
     SEMVER_BUMP,
     _all_rules,
+    _distilled_precedent_text,
     _evaluate_with_locked_inputs,
     _verify_locked_corpus,
     apply_mutation,
@@ -314,15 +313,24 @@ def _write_captured_rules(directory: Path, captured: Mapping[str, bytes]) -> Non
 
 
 def _distilled_precedent(source_text: str, source: Path, version: str) -> str:
-    metadata, body = parse_frontmatter(source_text, source=str(source))
-    metadata["status"] = "distilled"
-    metadata["distilled_in"] = version
-    return (
-        "---\n"
-        + yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False).rstrip()
-        + "\n---\n"
-        + body.lstrip("\n")
+    return _distilled_precedent_text(
+        source_text,
+        source=source,
+        version=version,
     )
+
+
+def _candidate_changelog(
+    source_payload: bytes, entry_text: str, *, version: str
+) -> bytes:
+    source_text = _decode(source_payload, "CHANGELOG.md")
+    prefix = "# Changelog\n\n"
+    if not source_text.startswith(prefix):
+        raise ValueError("CHANGELOG.md has an unsupported heading layout")
+    if re.search(rf"(?m)^## v{re.escape(version)}(?:\s|$)", source_text):
+        raise ValueError("candidate version already exists in CHANGELOG.md")
+    entry = entry_text.rstrip("\n")
+    return (prefix + entry + "\n\n" + source_text[len(prefix) :]).encode("utf-8")
 
 
 def _candidate_target(mutation: Mapping[str, Any]) -> str:
@@ -389,18 +397,20 @@ def validate_candidate(build: Path) -> dict[str, Any]:
             raise ValueError(f"base rule drift detected: {name}")
         source_payloads[name] = payload
 
-    current_version = _decode(
-        _safe_read(PKG_ROOT / "VERSION", root=PKG_ROOT, limit=128), "VERSION"
-    ).strip()
+    version_payload = _safe_read(PKG_ROOT / "VERSION", root=PKG_ROOT, limit=128)
+    current_version = _decode(version_payload, "VERSION").strip()
     if current_version != manifest["version_from"]:
         raise ValueError("base VERSION drift detected")
+    changelog_payload = _safe_read(
+        PKG_ROOT / "CHANGELOG.md", root=PKG_ROOT, limit=DEFAULT_MAX_ARTIFACT_BYTES
+    )
 
     precedent_name = manifest["precedent_artifact"]
     precedent_path = PKG_ROOT / "precedents" / "cases" / precedent_name
-    source_precedent = _decode(
-        _safe_read(precedent_path, root=PKG_ROOT / "precedents" / "cases"),
-        precedent_name,
+    source_precedent_payload = _safe_read(
+        precedent_path, root=PKG_ROOT / "precedents" / "cases"
     )
+    source_precedent = _decode(source_precedent_payload, precedent_name)
     precedent, _ = parse_frontmatter(source_precedent, source=str(precedent_path))
     if (
         precedent.get("status") != "pending"
@@ -555,8 +565,16 @@ def validate_candidate(build: Path) -> dict[str, Any]:
             raise ValueError(
                 "CHANGELOG entry cannot be reproduced from validated evidence"
             )
+        candidate_changelog_payload = _candidate_changelog(
+            changelog_payload,
+            expected_changelog,
+            version=manifest["version_to"],
+        )
 
-        branch = f"skill/evolution-{candidate_date.isoformat()}-{target_rule}"
+        cycle_suffix = manifest["cycle_id"].rsplit("-", 1)[-1]
+        branch = (
+            f"skill/evolution-{candidate_date.isoformat()}-{target_rule}-{cycle_suffix}"
+        )
         expected_pr = render_pr_body(
             {
                 "version_from": current_version,
@@ -578,6 +596,46 @@ def validate_candidate(build: Path) -> dict[str, Any]:
                 "evolution PR body cannot be reproduced from validated evidence"
             )
 
+        changed_rule_files = {
+            name
+            for name in RULE_NAMES
+            if candidate_payloads[name] != source_payloads[name]
+        }
+        if changed_rule_files != {changed_file}:
+            raise ValueError("candidate must alter exactly one declared rule file")
+        rule_path = f"aga-skill/rules/{changed_file}"
+        precedent_relative = f"aga-skill/precedents/cases/{precedent_name}"
+        transaction_payloads = {
+            rule_path: candidate_payloads[changed_file],
+            "aga-skill/VERSION": (manifest["version_to"] + "\n").encode("utf-8"),
+            "aga-skill/CHANGELOG.md": candidate_changelog_payload,
+            precedent_relative: expected_distilled,
+        }
+        transaction_base_payloads = {
+            rule_path: source_payloads[changed_file],
+            "aga-skill/VERSION": version_payload,
+            "aga-skill/CHANGELOG.md": changelog_payload,
+            precedent_relative: source_precedent_payload,
+        }
+        base_binding_payloads = {
+            f"aga-skill/rules/{name}": payload
+            for name, payload in source_payloads.items()
+        }
+        base_binding_payloads.update(transaction_base_payloads)
+        base_binding_payloads.update(
+            {
+                "aga-skill/golden/corpus.yaml": locked_inputs.corpus_payload,
+                "aga-skill/golden/corpus.lock.json": locked_inputs.corpus_lock_payload,
+                "aga-skill/fixtures/seaf.yaml": locked_inputs.seaf_payload,
+            }
+        )
+        base_binding_payloads.update(
+            {
+                f"aga-skill/golden/prs/{relative}": payload
+                for relative, payload in locked_inputs.fixture_files
+            }
+        )
+
         return {
             "manifest": manifest,
             "mutation": mutation,
@@ -586,6 +644,19 @@ def validate_candidate(build: Path) -> dict[str, Any]:
             "fixtures_revision": locked_inputs.fixtures_revision,
             "baseline_revision": recomputed_base["rules_revision"],
             "candidate_revision": recomputed_candidate["rules_revision"],
+            "precedent": provenance,
+            # Already independently reproduced and verified against the
+            # bundle above; exposed so a separately authorised publisher can
+            # reuse the exact validated branch name and PR body instead of
+            # recomputing (and risking drifting from) this validation.
+            "branch": branch,
+            "pr_body": expected_pr.decode("utf-8"),
+            "candidate_rule_payloads": candidate_payloads,
+            "changed_rule_files": sorted(changed_rule_files),
+            "transaction_payloads": transaction_payloads,
+            "transaction_base_payloads": transaction_base_payloads,
+            "base_binding_payloads": base_binding_payloads,
+            "target_rule": target_rule,
         }
     finally:
         temporary.cleanup()

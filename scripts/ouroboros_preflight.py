@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed, offline-safe readiness check for the pinned Ouroboros runtime.
 
-The check talks only to the already-running local Ouroboros gateway through the
-official CLI.  It never starts a task, invokes a model, persists CLI responses,
-or includes raw command output in its result.
+The check uses the official CLI for gateway state and one bounded pinned-Python
+child for worker MCP discovery. It never starts a task, invokes a model,
+persists command responses, or includes raw command output in its result.
 """
 
 from __future__ import annotations
@@ -25,28 +25,44 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Protocol, Sequence
 from urllib.parse import urlsplit
 
+try:
+    from scripts.ouroboros_models import MODEL_ENV, selected_model_id
+except ModuleNotFoundError:  # direct ``python scripts/...`` entrypoint
+    from ouroboros_models import MODEL_ENV, selected_model_id
+
 
 SCHEMA = "aga.ouroboros-preflight/v1"
 PINNED_VERSION = "6.64.1"
 PINNED_SOURCE_COMMIT = "554b3eeeca345298d6dcc5711195ea9acec450bd"
 EXPECTED_PROVIDER = "openrouter"
-EXPECTED_MODEL = "deepseek/deepseek-v4-pro"
+EXPECTED_MODEL = selected_model_id()
 EXPECTED_REVIEW_MODE = "advisory"
 MAX_BUDGET_USD = 50.0
 MCP_SERVER_ID = "aga"
 MCP_URL = "http://127.0.0.1:8788/mcp"
 SKILL_NAME = "aga_review"
-SKILL_VERSION = "1.0.0"
-MCP_TOOL_NAMES = (
+SKILL_VERSION = "1.1.0"
+REVIEW_MCP_TOOL_NAMES = (
     "aga_prepare_review",
     "aga_seaf_lookup",
     "aga_parse_diagram",
     "aga_finalize_review",
 )
+REMEDIATION_MCP_TOOL_NAMES = (
+    "aga_prepare_remediation",
+    "aga_finalize_remediation",
+)
+MCP_TOOL_NAMES = REVIEW_MCP_TOOL_NAMES + REMEDIATION_MCP_TOOL_NAMES
 MCP_PREFIXED_TOOL_NAMES = tuple(
     f"mcp_{MCP_SERVER_ID}__{name}" for name in MCP_TOOL_NAMES
 )
-OVERLAY_ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v3"
+OVERLAY_ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v4"
+MANAGED_TASK_SCHEMA = "aga.ouroboros-managed-task/v1"
+WORKER_PROBE_SCHEMA = "aga.ouroboros-worker-mcp-probe/v1"
+MCP_REFRESH_TIMEOUT_SECONDS = 20
+AGA_TOOL_RESULT_LIMIT_CHARS = 80_000
+WORKER_PYTHON_ENV = "AGA_OUROBOROS_WORKER_PYTHON"
+OVERLAY_SOURCE_ENV = "AGA_OUROBOROS_PINNED_SOURCE_DIR"
 PROFILE_PID_SCHEMA = "aga.ouroboros-profile-pid/v1"
 OVERLAY_ATTESTATION_FILENAME = "aga-runtime-overlay.json"
 PROFILE_PID_FILENAME = "aga-profile-runtime.json"
@@ -57,6 +73,9 @@ RUNTIME_OVERLAY_BOOTSTRAP = (
     Path(__file__).resolve().parent
     / "ouroboros_overlay_bootstrap"
     / "sitecustomize.py"
+)
+WORKER_MCP_PROBE = Path(__file__).resolve().with_name(
+    "ouroboros_worker_mcp_probe.py"
 )
 
 EXIT_READY = 0
@@ -125,6 +144,7 @@ class BoundedCommandRunner:
         timeout_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS,
         stdout_limit_bytes: int = DEFAULT_STDOUT_LIMIT_BYTES,
         stderr_limit_bytes: int = DEFAULT_STDERR_LIMIT_BYTES,
+        environment_override: Mapping[str, str] | None = None,
     ) -> None:
         command_prefix = (
             (executable,) if isinstance(executable, str) else tuple(executable)
@@ -142,6 +162,16 @@ class BoundedCommandRunner:
         self._timeout_seconds = float(timeout_seconds)
         self._stdout_limit_bytes = int(stdout_limit_bytes)
         self._stderr_limit_bytes = int(stderr_limit_bytes)
+        if environment_override is not None and any(
+            not isinstance(key, str)
+            or not key
+            or not isinstance(value, str)
+            for key, value in environment_override.items()
+        ):
+            raise ValueError("environment override must contain string pairs")
+        self._environment_override = (
+            dict(environment_override) if environment_override is not None else None
+        )
 
     @staticmethod
     def _environment() -> dict[str, str]:
@@ -192,7 +222,11 @@ class BoundedCommandRunner:
         popen_kwargs: dict[str, Any] = {
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
-            "env": self._environment(),
+            "env": (
+                self._environment()
+                if self._environment_override is None
+                else dict(self._environment_override)
+            ),
             "shell": False,
         }
         if os.name == "posix":
@@ -456,6 +490,10 @@ def _validate_live_runtime_overlay(
         "bootstrap_mode": "deferred_runtime_import_hooks",
         "bootstrap_sha256": bootstrap_sha256,
         "finalize_transport_retry": "exception_group_once",
+        "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+        "managed_task_schema": MANAGED_TASK_SCHEMA,
+        "mcp_refresh_timeout_seconds": MCP_REFRESH_TIMEOUT_SECONDS,
+        "gateway_mcp_tool_count": len(MCP_TOOL_NAMES),
         "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
     }
     if (
@@ -647,6 +685,13 @@ def _validate_configuration(runner: CommandRunner) -> Mapping[str, Any]:
     mcp_enabled = _settings_value(runner, "MCP_ENABLED")
     if mcp_enabled is not True:
         _fail_not_configured("mcp_not_configured")
+    mcp_timeout = _settings_value(runner, "MCP_TOOL_TIMEOUT_SEC")
+    if (
+        isinstance(mcp_timeout, bool)
+        or not isinstance(mcp_timeout, (int, float))
+        or float(mcp_timeout) != float(MCP_REFRESH_TIMEOUT_SECONDS)
+    ):
+        _fail_not_configured("mcp_timeout_not_bounded")
     servers = _settings_value(runner, "MCP_SERVERS")
     return _validate_mcp_settings(servers)
 
@@ -889,7 +934,124 @@ def _validate_extension_isolation(runner: CommandRunner) -> None:
         _fail_not_configured("extension_tools_not_isolated")
 
 
-def _ready_payload() -> dict[str, Any]:
+def _expected_worker_probe() -> dict[str, Any]:
+    def stage_payload(names: tuple[str, ...]) -> dict[str, Any]:
+        return {
+            "expected_tools": list(names),
+            "active_tools": list(names),
+            "prefixed_tools": [
+                f"mcp_{MCP_SERVER_ID}__{name}" for name in names
+            ],
+        }
+
+    return {
+        "schema": WORKER_PROBE_SCHEMA,
+        "status": "ready",
+        "runtime_version": PINNED_VERSION,
+        "source_commit": PINNED_SOURCE_COMMIT,
+        "overlay_schema": OVERLAY_ATTESTATION_SCHEMA,
+        "managed_task_schema": MANAGED_TASK_SCHEMA,
+        "refresh_timeout_seconds": MCP_REFRESH_TIMEOUT_SECONDS,
+        "aga_tool_result_limit_chars": AGA_TOOL_RESULT_LIMIT_CHARS,
+        "gateway_discovery": {
+            "server_id": MCP_SERVER_ID,
+            "tools": list(MCP_TOOL_NAMES),
+            "prefixed_tools": list(MCP_PREFIXED_TOOL_NAMES),
+        },
+        "worker_ready": {
+            "review": stage_payload(REVIEW_MCP_TOOL_NAMES),
+            "remediation": stage_payload(REMEDIATION_MCP_TOOL_NAMES),
+        },
+    }
+
+
+def _worker_probe_environment(source_dir: Path) -> dict[str, str]:
+    environment = BoundedCommandRunner._environment()
+    environment.update(
+        {
+            "PYTHONPATH": os.pathsep.join(
+                (
+                    str(RUNTIME_OVERLAY_BOOTSTRAP.parent),
+                    str(RUNTIME_OVERLAY_LAUNCHER.parent),
+                    str(source_dir),
+                )
+            ),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PIP_NO_INDEX": "1",
+            "AGA_OUROBOROS_RUNTIME_OVERLAY": OVERLAY_ATTESTATION_SCHEMA,
+            OVERLAY_SOURCE_ENV: str(source_dir),
+            MODEL_ENV: EXPECTED_MODEL,
+        }
+    )
+    raw_home = str(environment.get("HOME") or "").strip()
+    if raw_home:
+        environment["PYTHONPYCACHEPREFIX"] = str(
+            Path(raw_home) / "Ouroboros" / "data" / "state" / "pycache"
+        )
+    return environment
+
+
+def _default_worker_probe() -> Mapping[str, Any]:
+    raw_python = str(os.environ.get(WORKER_PYTHON_ENV) or "").strip()
+    raw_source = str(os.environ.get(OVERLAY_SOURCE_ENV) or "").strip()
+    if not raw_python or not raw_source:
+        _fail_not_configured("worker_probe_not_configured")
+    python_path = Path(raw_python)
+    try:
+        source_dir = Path(raw_source).resolve(strict=True)
+        probe_metadata = WORKER_MCP_PROBE.lstat()
+    except OSError:
+        _fail_not_configured("worker_probe_not_configured")
+    if (
+        not python_path.is_absolute()
+        or not python_path.is_file()
+        or not os.access(python_path, os.X_OK)
+        or not source_dir.is_dir()
+        or stat.S_ISLNK(probe_metadata.st_mode)
+        or not stat.S_ISREG(probe_metadata.st_mode)
+    ):
+        _fail_not_configured("worker_probe_not_configured")
+    runner = BoundedCommandRunner(
+        (
+            str(python_path),
+            str(WORKER_MCP_PROBE),
+            "--source-dir",
+            str(source_dir),
+        ),
+        timeout_seconds=30.0,
+        stdout_limit_bytes=32 * 1024,
+        stderr_limit_bytes=16 * 1024,
+        environment_override=_worker_probe_environment(source_dir),
+    )
+    try:
+        result = runner.run(())
+    except CommandTimeout:
+        _fail_contract("worker_probe_timeout")
+    except CommandOutputLimit:
+        _fail_contract("worker_probe_output_limit")
+    except OSError:
+        _fail_not_configured("worker_mcp_not_ready")
+    if result.returncode != 0:
+        _fail_not_configured("worker_mcp_not_ready")
+    try:
+        payload = json.loads(result.stdout.decode("utf-8", errors="strict"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _fail_contract("worker_probe_contract_mismatch")
+    if not isinstance(payload, Mapping):
+        _fail_contract("worker_probe_contract_mismatch")
+    return payload
+
+
+def _validate_worker_probe(payload: Any) -> Mapping[str, Any]:
+    probe = _require_mapping(payload, "worker_probe_contract_mismatch")
+    if dict(probe) != _expected_worker_probe():
+        if probe.get("status") != "ready":
+            _fail_not_configured("worker_mcp_not_ready")
+        _fail_contract("worker_probe_contract_mismatch")
+    return probe
+
+
+def _ready_payload(worker_probe: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "status": "ready",
@@ -904,6 +1066,10 @@ def _ready_payload() -> dict[str, Any]:
                 "spawn_workers_pinned": True,
                 "bootstrap_mode": "deferred_runtime_import_hooks",
                 "finalize_transport_retry": "exception_group_once",
+                "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+                "managed_task_schema": MANAGED_TASK_SCHEMA,
+                "mcp_refresh_timeout_seconds": MCP_REFRESH_TIMEOUT_SECONDS,
+                "aga_tool_result_limit_chars": AGA_TOOL_RESULT_LIMIT_CHARS,
                 "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
             },
         },
@@ -918,12 +1084,24 @@ def _ready_payload() -> dict[str, Any]:
             "review_mode": EXPECTED_REVIEW_MODE,
         },
         "mcp": {
-            "server_id": MCP_SERVER_ID,
-            "transport": "streamable_http",
-            "loopback": True,
-            "tool_count": len(MCP_TOOL_NAMES),
-            "tools": list(MCP_TOOL_NAMES),
-            "prefixed_tools": list(MCP_PREFIXED_TOOL_NAMES),
+            "gateway_discovery": {
+                "server_id": MCP_SERVER_ID,
+                "transport": "streamable_http",
+                "loopback": True,
+                "tool_count": len(MCP_TOOL_NAMES),
+                "tools": list(MCP_TOOL_NAMES),
+                "prefixed_tools": list(MCP_PREFIXED_TOOL_NAMES),
+            },
+            "worker_ready_discovery": {
+                "schema": worker_probe["schema"],
+                "refresh_timeout_seconds": worker_probe[
+                    "refresh_timeout_seconds"
+                ],
+                "aga_tool_result_limit_chars": worker_probe[
+                    "aga_tool_result_limit_chars"
+                ],
+                "stages": worker_probe["worker_ready"],
+            },
         },
         "skill": {
             "name": SKILL_NAME,
@@ -939,6 +1117,7 @@ def run_preflight(
     runner: CommandRunner,
     *,
     overlay_validator: Callable[[], None] | None = None,
+    worker_probe: Callable[[], Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Execute the read-only checks and return only a sanitized result."""
 
@@ -949,6 +1128,9 @@ def run_preflight(
         _validate_configuration(runner)
         _validate_extension_isolation(runner)
         _validate_mcp(runner)
+        probe = _validate_worker_probe(
+            _default_worker_probe() if worker_probe is None else worker_probe()
+        )
     except PreflightFailure as failure:
         exit_code = (
             EXIT_NOT_CONFIGURED
@@ -960,7 +1142,7 @@ def run_preflight(
         # Never let an implementation or OS detail escape into evidence/stdout.
         failure = PreflightFailure("failed", "internal_preflight_error")
         return _failure_payload(failure), EXIT_FAILED
-    return _ready_payload(), EXIT_READY
+    return _ready_payload(probe), EXIT_READY
 
 
 def _find_executable(explicit: str = "") -> str | None:

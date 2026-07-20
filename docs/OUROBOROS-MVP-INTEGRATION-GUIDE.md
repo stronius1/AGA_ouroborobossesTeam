@@ -485,19 +485,25 @@ host/container networking и не заменяй loopback случайным `0.
     "aga_prepare_review",
     "aga_seaf_lookup",
     "aga_parse_diagram",
-    "aga_finalize_review"
+    "aga_finalize_review",
+    "aga_prepare_remediation",
+    "aga_finalize_remediation"
   ]
 }
 ```
 
 Включи global MCP client. Нажми `Test`, затем `Refresh tools`. Должно быть найдено
-ровно четыре AGA tools. В agent tool registry они будут иметь prefixed names:
+ровно шесть gateway AGA tools. Управляемый worker до model call получает
+строго stage subset: четыре review tools либо два remediation tools. В agent
+tool registry gateway names имеют prefixed форму:
 
 ```text
 mcp_aga__aga_prepare_review
 mcp_aga__aga_seaf_lookup
 mcp_aga__aga_parse_diagram
 mcp_aga__aga_finalize_review
+mcp_aga__aga_prepare_remediation
+mcp_aga__aga_finalize_remediation
 ```
 
 CLI-проверки актуального Ouroboros:
@@ -596,7 +602,7 @@ Runner должен:
 1. проверить Ouroboros version/provider/model/budget без чтения ключа;
 2. materialize выбранный case в persistent ignored directory;
 3. запустить или проверить AGA MCP registry;
-4. проверить discovery четырёх tools;
+4. проверить gateway discovery шести tools и worker subset review=4;
 5. создать уникальный `review_id`;
 6. вызвать Ouroboros headless task с `--memory-mode empty` и bounded timeout;
 7. потребовать полный AGA tool flow;
@@ -656,7 +662,8 @@ A2A обязательным для каждого дешёвого evaluation c
 После реализации выполни только:
 
 1. offline/unit/contract tests без расходов OpenRouter;
-2. `ouroboros-preflight` и discovery четырёх AGA MCP tools;
+2. `ouroboros-preflight`, gateway discovery шести AGA MCP tools и worker
+   subsets review=4/remediation=2;
 3. один небольшой real smoke case через OpenRouter;
 4. по возможности негативный тест без model call либо с заведомо отключённым
    transport, подтверждающий fail-closed behavior.
@@ -671,7 +678,7 @@ blocker → `request_changes_escalate` → HITL → no auto-merge.
 
 - какие файлы и компоненты изменены;
 - как Ouroboros подключается к AGA MCP;
-- какие четыре tools обнаружены;
+- какие шесть gateway tools обнаружены и какой stage subset получил worker;
 - какой OpenRouter model ID использован;
 - task ID, latency и sanitized результат smoke-test;
 - был ли реальный `prepare → semantic review → finalize`;
@@ -762,7 +769,7 @@ findings, но не API key, auth headers, absolute local paths, full system pro
 | Ouroboros timeout | cancel, `TIMED_OUT/incomplete`; поздний ответ не меняет verdict |
 | Unknown Ouroboros status | fail closed |
 | MCP недоступен | task не выдаёт локальный optimistic approve |
-| Обнаружено не 4 AGA tools | preflight FAIL |
+| Gateway обнаружил не 6 tools или worker subset не равен review=4/remediation=2 | preflight FAIL до model call |
 | Duplicate retry | тот же logical review либо безопасный idempotent result |
 | Different second finalize | `finalization_conflict` |
 | Malformed/extra JSON fields | response rejected |
@@ -849,7 +856,7 @@ offline-required и manual/secret-enabled real E2E.
 
 - [ ] Ouroboros stable version и asset hash зафиксированы.
 - [ ] OpenRouter provider/model настроены владельцем, ключ нигде не раскрыт.
-- [ ] Ouroboros видит ровно четыре AGA MCP tools.
+- [ ] Gateway видит ровно 6 AGA MCP tools, worker envelopes равны review=4/remediation=2.
 - [ ] Совместимый `aga_review` instruction skill reviewed и enabled.
 - [ ] `OuroborosTaskBackend` имеет contract tests и fail-closed mapping.
 - [ ] `make demo-e2e` реально проходит blocker и clean cases.

@@ -2461,7 +2461,16 @@ def validate_permissions(
             field="allow.actions",
             code="permission_conflict",
         )
-    required_denied_actions = {"merge", "approve_pr", "push_to_main", "modify_architecture_repo"}
+    required_denied_actions = {
+        "create_candidate_branch",
+        "create_candidate_commit",
+        "merge",
+        "approve_pr",
+        "push",
+        "push_to_main",
+        "open_pull_request",
+        "modify_architecture_repo",
+    }
     missing_actions = required_denied_actions - deny_actions
     if missing_actions:
         raise ValidationError(
@@ -2492,6 +2501,136 @@ def validate_permissions(
             path=source,
             field="allow.write",
             code="permission_conflict",
+        )
+    connector = _expect_mapping(
+        _required(permissions, "local_vcs_connector", path=source),
+        path=source,
+        field="local_vcs_connector",
+    )
+    if connector.get("role") != "aga-local-candidate-publisher":
+        raise ValidationError(
+            "local VCS connector must use its separate publisher role",
+            path=source,
+            field="local_vcs_connector.role",
+            code="policy_invariant",
+        )
+    if connector.get("network") is not False:
+        raise ValidationError(
+            "local VCS connector must be network-disabled",
+            path=source,
+            field="local_vcs_connector.network",
+            code="policy_invariant",
+        )
+    connector_allow = _expect_mapping(
+        _required(connector, "allow", path=source),
+        path=source,
+        field="local_vcs_connector.allow",
+    )
+    connector_deny = _expect_mapping(
+        _required(connector, "deny", path=source),
+        path=source,
+        field="local_vcs_connector.deny",
+    )
+    connector_allow_actions = set(
+        _string_list(
+            _required(connector_allow, "actions", path=source),
+            path=source,
+            field="local_vcs_connector.allow.actions",
+        )
+    )
+    connector_deny_actions = set(
+        _string_list(
+            _required(connector_deny, "actions", path=source),
+            path=source,
+            field="local_vcs_connector.deny.actions",
+        )
+    )
+    required_connector_allow = {
+        "validate_candidate",
+        "recompute_fitness",
+        "recompute_gate",
+        "create_candidate_branch",
+        "create_candidate_commit",
+    }
+    required_connector_deny = {
+        "merge",
+        "approve_pr",
+        "push",
+        "push_to_main",
+        "open_pull_request",
+        "modify_main",
+        "modify_caller_worktree",
+    }
+    if connector_allow_actions != required_connector_allow:
+        raise ValidationError(
+            "local VCS connector must expose only the exact candidate actions",
+            path=source,
+            field="local_vcs_connector.allow.actions",
+            code="policy_invariant",
+        )
+    if not required_connector_deny.issubset(connector_deny_actions):
+        raise ValidationError(
+            "local VCS connector is missing mandatory denied actions",
+            path=source,
+            field="local_vcs_connector.deny.actions",
+            code="policy_invariant",
+        )
+    if connector_allow_actions & connector_deny_actions:
+        raise ValidationError(
+            "local VCS connector actions are both allowed and denied",
+            path=source,
+            field="local_vcs_connector.allow.actions",
+            code="permission_conflict",
+        )
+    connector_allow_writes = set(
+        _string_list(
+            _required(connector_allow, "write", path=source),
+            path=source,
+            field="local_vcs_connector.allow.write",
+        )
+    )
+    if connector_allow_writes != {
+        "disposable_candidate_worktree",
+        "candidate_branch_ref",
+    }:
+        raise ValidationError(
+            "local VCS connector must expose only isolated candidate writes",
+            path=source,
+            field="local_vcs_connector.allow.write",
+            code="policy_invariant",
+        )
+    exact_transaction = set(
+        _string_list(
+            _required(connector, "exact_transaction", path=source),
+            path=source,
+            field="local_vcs_connector.exact_transaction",
+        )
+    )
+    required_transaction = {
+        "changed_rule_files_only",
+        "VERSION",
+        "CHANGELOG.md",
+        "distilled_precedent",
+        "pr_shaped_report",
+        "sanitized_manifest",
+    }
+    if exact_transaction != required_transaction:
+        raise ValidationError(
+            "local VCS connector has an invalid exact transaction",
+            path=source,
+            field="local_vcs_connector.exact_transaction",
+            code="policy_invariant",
+        )
+    if (
+        connector.get("outcome") != "local_candidate_ready"
+        or connector.get("human_review_required") is not True
+        or connector.get("auto_merge") is not False
+    ):
+        raise ValidationError(
+            "local VCS connector must remain candidate-only and human-reviewed",
+            path=source,
+            field="local_vcs_connector",
+            code="policy_invariant",
         )
     result = dict(permissions)
     result["allow"] = normalised["allow"]

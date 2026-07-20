@@ -2,10 +2,11 @@
 """Launch the pinned Ouroboros server with project-owned runtime overlays.
 
 Ouroboros v6.64.1 hard-codes its post-task consolidation/summary lane to a
-different model.  The AGA profile requires every paid lane to use the exact
-owner-selected model, so this launcher changes that one in-memory module
-constant before importing the official CLI.  It never edits the verified
-upstream checkout.
+different model, can skip initial MCP refresh in an already-configured worker
+with no tools, and caps otherwise unknown tool results at 15k characters. The
+AGA profile applies narrow in-memory patches for those exact pinned contracts,
+including an 80k cap only for the six isolated AGA MCP tools, before importing
+the official CLI. It never edits the verified upstream checkout.
 
 The launcher is intentionally server-only and fail-closed.  A successful
 process writes a small, owner-only attestation under the dedicated Ouroboros
@@ -28,22 +29,43 @@ import tempfile
 from types import ModuleType
 from typing import Any, Mapping, Sequence
 
+try:
+    from scripts.ouroboros_models import selected_model_id
+except ModuleNotFoundError:  # direct ``python scripts/...`` entrypoint
+    from ouroboros_models import selected_model_id
+
 
 PINNED_VERSION = "6.64.1"
 PINNED_SOURCE_COMMIT = "554b3eeeca345298d6dcc5711195ea9acec450bd"
-PINNED_MODEL = "deepseek/deepseek-v4-pro"
+PINNED_MODEL = selected_model_id()
 UPSTREAM_CONSOLIDATION_MODEL = "google/gemini-3.5-flash"
-ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v3"
+ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v4"
 ATTESTATION_FILENAME = "aga-runtime-overlay.json"
 OVERLAY_GUARD_ENV = "AGA_OUROBOROS_RUNTIME_OVERLAY"
 OVERLAY_SOURCE_ENV = "AGA_OUROBOROS_PINNED_SOURCE_DIR"
 OVERLAY_HOOK_ENV = "AGA_OUROBOROS_OVERLAY_HOOK_INSTALLED"
 OVERLAY_APPLIED_ENV = "AGA_OUROBOROS_OVERLAY_APPLIED"
-DEFERRED_HOOK_MARKER = "aga_deferred_runtime_overlay_v3"
+DEFERRED_HOOK_MARKER = "aga_deferred_runtime_overlay_v4"
 MCP_RETRY_APPLIED_ENV = "AGA_OUROBOROS_MCP_RETRY_APPLIED"
 MCP_RETRY_MARKER = "aga_finalize_retry_overlay"
+MCP_DISCOVERY_APPLIED_ENV = "AGA_OUROBOROS_MCP_DISCOVERY_APPLIED"
+MCP_DISCOVERY_MARKER = "aga_worker_discovery_overlay"
+TOOL_REGISTRY_APPLIED_ENV = "AGA_OUROBOROS_TOOL_REGISTRY_APPLIED"
+TOOL_REGISTRY_MARKER = "aga_worker_envelope_overlay"
+TOOL_RESULT_LIMIT_APPLIED_ENV = "AGA_OUROBOROS_TOOL_RESULT_LIMIT_APPLIED"
+TOOL_RESULT_LIMIT_MARKER = "aga_bounded_tool_result_overlay"
 POST_TASK_POLICY_APPLIED_ENV = "AGA_OUROBOROS_POST_TASK_POLICY_APPLIED"
 POST_TASK_POLICY_MARKER = "aga_post_task_policy_overlay"
+MANAGED_TASK_SCHEMA = "aga.ouroboros-managed-task/v1"
+MCP_REFRESH_TIMEOUT_SECONDS = 20
+GATEWAY_MCP_TOOLS = (
+    "aga_prepare_review",
+    "aga_seaf_lookup",
+    "aga_parse_diagram",
+    "aga_finalize_review",
+    "aga_prepare_remediation",
+    "aga_finalize_remediation",
+)
 BOOTSTRAP_PATH = Path(__file__).resolve().parent / (
     "ouroboros_overlay_bootstrap/sitecustomize.py"
 )
@@ -95,6 +117,8 @@ def _verified_source_dir(raw: str) -> Path:
         or not (source_dir / "server.py").is_file()
         or not (source_dir / "ouroboros" / "consolidator.py").is_file()
         or not (source_dir / "ouroboros" / "mcp_client.py").is_file()
+        or not (source_dir / "ouroboros" / "tool_capabilities.py").is_file()
+        or not (source_dir / "ouroboros" / "tools" / "registry.py").is_file()
         or not (source_dir / "ouroboros" / "agent_task_pipeline.py").is_file()
         or not (source_dir / "ouroboros" / "cli.py").is_file()
     ):
@@ -297,6 +321,16 @@ def run(argv: Sequence[str]) -> int:
         mcp_client,
         expected_path=source_dir / "ouroboros" / "mcp_client.py",
     )
+    tool_capabilities = importlib.import_module("ouroboros.tool_capabilities")
+    _require_module_from_source(
+        tool_capabilities,
+        expected_path=source_dir / "ouroboros" / "tool_capabilities.py",
+    )
+    tool_registry = importlib.import_module("ouroboros.tools.registry")
+    _require_module_from_source(
+        tool_registry,
+        expected_path=source_dir / "ouroboros" / "tools" / "registry.py",
+    )
     agent_task_pipeline = importlib.import_module("ouroboros.agent_task_pipeline")
     _require_module_from_source(
         agent_task_pipeline,
@@ -314,6 +348,33 @@ def run(argv: Sequence[str]) -> int:
         != ATTESTATION_SCHEMA
     ):
         raise OverlayError("mcp_retry_overlay_lost")
+    if (
+        os.environ.get(MCP_DISCOVERY_APPLIED_ENV) != ATTESTATION_SCHEMA
+        or getattr(
+            getattr(mcp_client, "ensure_configured_from_settings", None),
+            MCP_DISCOVERY_MARKER,
+            None,
+        )
+        != ATTESTATION_SCHEMA
+    ):
+        raise OverlayError("mcp_discovery_overlay_lost")
+    if (
+        os.environ.get(TOOL_RESULT_LIMIT_APPLIED_ENV) != ATTESTATION_SCHEMA
+        or getattr(tool_capabilities, TOOL_RESULT_LIMIT_MARKER, None)
+        != ATTESTATION_SCHEMA
+    ):
+        raise OverlayError("tool_result_limit_overlay_lost")
+    registry_class = getattr(tool_registry, "ToolRegistry", None)
+    if (
+        os.environ.get(TOOL_REGISTRY_APPLIED_ENV) != ATTESTATION_SCHEMA
+        or getattr(
+            getattr(registry_class, "schemas", None),
+            TOOL_REGISTRY_MARKER,
+            None,
+        )
+        != ATTESTATION_SCHEMA
+    ):
+        raise OverlayError("tool_registry_overlay_lost")
     if (
         os.environ.get(POST_TASK_POLICY_APPLIED_ENV) != ATTESTATION_SCHEMA
         or getattr(
@@ -341,6 +402,10 @@ def run(argv: Sequence[str]) -> int:
             "bootstrap_mode": "deferred_runtime_import_hooks",
             "bootstrap_sha256": _bootstrap_sha256(),
             "finalize_transport_retry": "exception_group_once",
+            "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+            "managed_task_schema": MANAGED_TASK_SCHEMA,
+            "mcp_refresh_timeout_seconds": MCP_REFRESH_TIMEOUT_SECONDS,
+            "gateway_mcp_tool_count": len(GATEWAY_MCP_TOOLS),
             "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
         },
     )

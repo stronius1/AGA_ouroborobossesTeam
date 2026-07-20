@@ -1,5 +1,5 @@
-# Runtime contract for the candidate-only aga-evolver role.
-# Repository/identity enforcement is a separate external administrator task.
+# Runtime contracts for the candidate-only evolver and the separately invoked
+# local VCS connector. Neither role has a network, push, approve, or merge path.
 schema: aga.permissions/v1
 role: aga-evolver
 
@@ -9,7 +9,15 @@ allow:
   actions: [run_fitness, dry_run_publish]
 
 deny:
-  actions: [merge, approve_pr, push_to_main, modify_architecture_repo, open_pull_request]
+  actions:
+    - create_candidate_branch
+    - create_candidate_commit
+    - merge
+    - approve_pr
+    - push
+    - push_to_main
+    - modify_architecture_repo
+    - open_pull_request
   write:
     - rules/
     - VERSION
@@ -33,21 +41,52 @@ validation_only:
   source_writes: false
   apply_supported: false
 
-human_only:
-  action: external_reviewed_vcs_transaction
-  effects: [atomic_rules_version_changelog_precedent_update]
-  required: [independent_review, atomic_commit, rollback, protected_branch]
-  forbidden: [merge, approve_pr, push, open_pull_request]
+local_vcs_connector:
+  role: aga-local-candidate-publisher
+  command: scripts/publish_candidate.py
+  network: false
+  allow:
+    actions:
+      - validate_candidate
+      - recompute_fitness
+      - recompute_gate
+      - create_candidate_branch
+      - create_candidate_commit
+    write:
+      - disposable_candidate_worktree
+      - candidate_branch_ref
+  deny:
+    actions:
+      - merge
+      - approve_pr
+      - push
+      - push_to_main
+      - open_pull_request
+      - modify_main
+      - modify_caller_worktree
+  exact_transaction:
+    - changed_rule_files_only
+    - VERSION
+    - CHANGELOG.md
+    - distilled_precedent
+    - pr_shaped_report
+    - sanitized_manifest
+  outcome: local_candidate_ready
+  human_review_required: true
+  auto_merge: false
 
-external_required:
-  - protected_branch
-  - CODEOWNERS
-  - required_checks
-  - separate_evolver_identity
-  - draft_pr_connector
-  - candidate_apply_transaction
+human_only:
+  actions: [review_candidate_commit, merge_candidate]
+  required: [independent_review, explicit_human_decision]
+
+local_required:
+  - isolated_worktree
+  - exact_base_commit_binding
+  - atomic_candidate_ref_update
+  - rollback_on_error
+  - separate_evolver_and_publisher_roles
 
 notes: >
-  Runtime guards reduce accidental/invalid changes but cannot enforce SoD
-  against a process with unrestricted filesystem access. External controls in
-  docs/AGA-external-enforcement-checklist.md remain mandatory.
+  Runtime guards reduce accidental/invalid changes but cannot enforce OS-level
+  SoD against an unrestricted process. The local connector creates only a
+  review candidate; a human remains responsible for any later merge.

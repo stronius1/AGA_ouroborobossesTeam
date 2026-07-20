@@ -10,6 +10,7 @@ contexts:
       - demo.profile
       - demo.gateway
       - demo.legacy_scoring
+      - demo.scoring_v2
       - demo.analytics
 
   demo.review_story:
@@ -22,4 +23,5 @@ contexts:
       - demo.gateway
       - demo.profile
       - demo.legacy_scoring
+      - demo.scoring_v2
     uml: diagrams/review-story.puml

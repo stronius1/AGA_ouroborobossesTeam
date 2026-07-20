@@ -1,0 +1,35 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-019-domain-master
+split: development
+language: en
+summary: A mission-critical marketing application becomes a second master and adds a prose dependency on an eliminate profile host.
+features: [synthetic-public, writable-master, critical-dependency, compound]
+coverage: {PRIN-004: not_targeted, PRIN-005: positive, PRIN-006: positive, PRIN-007: not_targeted}
+dangerous_controls: {PRIN-005: dv2-020-domain-near-miss, PRIN-006: dv2-020-domain-near-miss}
+metamorphic: {pair_id: rule005-nearmiss, counterpart: dv2-020-domain-near-miss, relation: predicate_flip, role: source}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        systems:
+          syn.customer.core: {criticality: high, target_status: strategic, domain: customer_legal_identity}
+          syn.marketing: {criticality: mission_critical, target_status: strategic}
+          syn.legacy.profile: {criticality: medium, target_status: eliminate}
+        domains:
+          customer_legal_identity:
+            master_system: syn.customer.core
+  head:
+    files:
+      proposals/customer.yaml: |
+        proposal:
+          system: syn.marketing
+          domain: customer_legal_identity
+          writes: canonical_legal_name
+          prose_dependency: syn.marketing synchronously depends on syn.legacy.profile
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-005, severity: major, artifact: proposals/customer.yaml, location: /components/syn.dv2-019-domain-master.change/description, evidence_contains: 'writes: canonical_legal_name'}
+    - {rule_id: PRIN-006, severity: blocker, artifact: proposals/customer.yaml, location: /components/syn.dv2-019-domain-master.change/description, evidence_contains: 'depends on syn.legacy.profile'}
+  unresolved_context: []

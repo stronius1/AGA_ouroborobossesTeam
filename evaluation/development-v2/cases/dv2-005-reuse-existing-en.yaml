@@ -1,0 +1,23 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-005-reuse-existing-en
+split: development
+language: en
+summary: An English artifact explicitly reuses the shared document renderer.
+features: [synthetic-public, reuse-near-miss, multilingual, clean]
+coverage: {PRIN-004: negative, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule004-translation, counterpart: dv2-006-reuse-existing-ru, relation: translation, role: source}
+change:
+  base:
+    files:
+      architecture/catalog.yaml: |
+        systems:
+          syn.docs.renderer:
+            capability: render PDF documents
+            reuse_status: available
+  head:
+    files:
+      proposals/documents.yaml: |
+        proposal:
+          action: reuse syn.docs.renderer
+          change: add one invoice template
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

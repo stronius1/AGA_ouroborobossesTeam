@@ -1,0 +1,26 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-047-missing-status
+split: development
+language: en
+summary: A mission-critical source and target are present but target status is omitted.
+features: [synthetic-public, missing-status]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: unresolved, PRIN-007: not_targeted}
+metamorphic: {pair_id: missing-status-completion, counterpart: dv2-048-resolved-status, relation: context_completion, role: source}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.ledger.core: {criticality: mission_critical, target_status: strategic}
+          syn.reference.codes: {criticality: high}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          code_lookup: {from: syn.ledger.core, to: syn.reference.codes, mode: synchronous}
+expected:
+  status: incomplete
+  verdict: incomplete
+  findings: []
+  unresolved_context:
+    - {kind: status, reference: syn.reference.codes, reason: Dependency target status is required to decide whether it is being eliminated.}

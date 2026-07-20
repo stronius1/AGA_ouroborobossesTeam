@@ -1,0 +1,26 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-043-missing-context
+split: development
+language: ru
+summary: Значимое решение ссылается на ADR, которого нет в переданном контексте.
+features: [synthetic-public, missing-context, multilingual]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: unresolved}
+metamorphic: {pair_id: missing-context-completion, counterpart: dv2-044-resolved-context, relation: context_completion, role: source}
+change:
+  base:
+    files:
+      architecture/components.yaml: |
+        components:
+          syn.checkout: {pattern: synchronous}
+  head:
+    files:
+      decisions/ADR-SYN-403.md: |
+        # ADR-SYN-403: Асинхронный checkout
+
+        Переходим на сагу с компенсирующими действиями. Обоснование и альтернативы находятся в `ADR-SYN-404`.
+expected:
+  status: incomplete
+  verdict: incomplete
+  findings: []
+  unresolved_context:
+    - {kind: context, reference: ADR-SYN-404, reason: Referenced decision record was not supplied and its quality cannot be evaluated.}

@@ -1,0 +1,21 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-048-resolved-status
+split: development
+language: en
+summary: Target status is supplied and shows a supported strategic dependency.
+features: [synthetic-public, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: missing-status-completion, counterpart: dv2-047-missing-status, relation: context_completion, role: control}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.ledger.core: {criticality: mission_critical, target_status: strategic}
+          syn.reference.codes: {criticality: high, target_status: strategic}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          code_lookup: {from: syn.ledger.core, to: syn.reference.codes, mode: synchronous}
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

@@ -93,6 +93,17 @@ DEFAULT_GIT_TIMEOUT_SECONDS = 30
 _COMMIT_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _REVISION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/@+~^/-]{0,255}\Z")
 _REMOTE_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
+_ENTITY_REFERENCE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}\Z")
+# Narrative extraction deliberately requires a namespace-like separator.  It
+# therefore recognizes canonical IDs such as ``demo.scoring`` and ``AS-0014``
+# without turning ordinary prose into lookup requests.
+_NARRATIVE_ENTITY_REFERENCE_RE = re.compile(
+    r"(?<![A-Za-z0-9_.:@-])"
+    r"(?:ADR-[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+    r"|[A-Za-z][A-Za-z0-9_]{0,63}(?:[.:][A-Za-z0-9][A-Za-z0-9_-]{0,63}){1,3}"
+    r"|[A-Za-z][A-Za-z0-9_]{0,31}-[0-9]{2,})"
+    r"(?![A-Za-z0-9_:@-]|\.[A-Za-z0-9])"
+)
 _YAML_EXTENSIONS = frozenset({".yaml", ".yml"})
 _MATERIALIZED_EXTENSIONS = frozenset(
     {".yaml", ".yml", ".json", ".md", ".puml", ".plantuml", ".mmd", ".drawio", ".txt"}
@@ -109,6 +120,129 @@ _ENTITY_SECTIONS = (
     "seaf.change.adr",
     "contexts",
 )
+
+REFERENCE_MAX_IDS = 128
+REFERENCE_MAX_TEXT_CHARS = 16_000
+_STRUCTURED_REFERENCE_FIELDS = frozenset(
+    {
+        "from",
+        "to",
+        "source",
+        "target",
+        "source_id",
+        "target_id",
+        "source_system",
+        "target_system",
+        "depends_on",
+        "dependencies",
+        "dependency_ids",
+        "systems",
+        "system_ids",
+    }
+)
+
+
+def extract_trusted_entity_references(
+    kind: str,
+    data: Mapping[str, Any],
+    *,
+    max_references: int = REFERENCE_MAX_IDS,
+    max_text_chars: int = REFERENCE_MAX_TEXT_CHARS,
+) -> tuple[str, ...]:
+    """Extract a bounded allowlist of repository entity references.
+
+    This is intentionally a small trusted parser, not a general entity or URL
+    recognizer.  Structured endpoint/dependency fields are accepted directly;
+    narrative scanning is limited to the ADR ``decision`` field and the
+    standalone Markdown ADR ``body`` field, where prose-only dependencies are
+    recorded.  The function performs no I/O and cannot trigger a repository,
+    network, or MCP lookup.  Callers resolve the returned IDs only against
+    their already materialized immutable evidence store.
+    """
+
+    if kind not in {
+        "system",
+        "system_passport",
+        "integration",
+        "integration_flow",
+        "adr",
+        "decision",
+    }:
+        return ()
+    if not isinstance(data, Mapping):
+        raise ValidationError(
+            "reference parser input must be an object",
+            field="reference_data",
+            code="invalid_reference_data",
+        )
+    if (
+        isinstance(max_references, bool)
+        or not isinstance(max_references, int)
+        or max_references <= 0
+        or isinstance(max_text_chars, bool)
+        or not isinstance(max_text_chars, int)
+        or max_text_chars <= 0
+    ):
+        raise ValueError("reference parser limits must be positive integers")
+
+    references: set[str] = set()
+    examined_values = 0
+
+    def add(value: str, *, narrative: bool) -> None:
+        nonlocal examined_values
+        examined_values += 1
+        if examined_values > max_references * 8:
+            raise ValidationError(
+                "reference input exceeds bounded value count",
+                field="reference_data",
+                code="reference_limit",
+            )
+        if len(value) > max_text_chars:
+            raise ValidationError(
+                "reference text exceeds byte-independent character limit",
+                field="reference_data",
+                code="reference_limit",
+            )
+        candidates = (
+            (match.group(0) for match in _NARRATIVE_ENTITY_REFERENCE_RE.finditer(value))
+            if narrative
+            else (value,)
+        )
+        for candidate in candidates:
+            if _ENTITY_REFERENCE_ID_RE.fullmatch(candidate) is None:
+                continue
+            references.add(candidate)
+            if len(references) > max_references:
+                raise ValidationError(
+                    "artifact contains too many entity references",
+                    field="reference_data",
+                    code="reference_limit",
+                )
+
+    def add_structured(value: Any) -> None:
+        if isinstance(value, str):
+            add(value, narrative=False)
+            return
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            if len(value) > max_references:
+                raise ValidationError(
+                    "reference array exceeds bounded size",
+                    field="reference_data",
+                    code="reference_limit",
+                )
+            for item in value:
+                if isinstance(item, str):
+                    add(item, narrative=False)
+
+    for field_name in sorted(_STRUCTURED_REFERENCE_FIELDS):
+        if field_name in data:
+            add_structured(data[field_name])
+    if kind in {"adr", "decision"}:
+        for narrative_field in ("decision", "body"):
+            if isinstance(data.get(narrative_field), str):
+                add(data[narrative_field], narrative=True)
+
+    return tuple(sorted(references))
 
 
 def _sha256(raw: bytes) -> str:
@@ -1814,5 +1948,6 @@ __all__ = [
     "RepositorySnapshot",
     "RepositorySnapshotBuilder",
     "TrustedDependencyProvenance",
+    "extract_trusted_entity_references",
     "rules_directory_sha256",
 ]

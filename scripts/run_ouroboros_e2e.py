@@ -71,7 +71,7 @@ PROMPT_PATH = (
     REPOSITORY_ROOT
     / "aga-skill"
     / "prompts"
-    / "ouroboros-orchestration-v1.0.5.txt"
+    / "ouroboros-orchestration-v1.1.0.txt"
 )
 DEFAULT_EVIDENCE_OUT = (
     REPOSITORY_ROOT / "docs" / "evidence" / "ouroboros" / "run-sanitized.json"
@@ -106,6 +106,7 @@ PROJECT_RELATIVE_PATH_RE = re.compile(
 SOURCE_REF_RE = re.compile(
     r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*#(?:/(?:[^~/\s]|~[01])+)+$"
 )
+CANONICAL_DEFECT_RULE_RE = re.compile(r"^[A-Z][A-Z0-9-]{1,31}$")
 _JSON_POINTER_FIELDS = frozenset({"field", "location", "pointer"})
 _JSON_POINTER_ROOTS = frozenset(
     {
@@ -122,6 +123,18 @@ _JSON_POINTER_ROOTS = frozenset(
 )
 MAX_CAPTURE_BYTES = 2_000_000
 MAX_TASK_TIMEOUT_SECONDS = 3_000.0
+# Ouroboros v6.64.1 exposes temperature as optional per-call intent, does not
+# expose top_p/seed through the managed task contract, and its main loop omits
+# all three.  Record that limitation in the secret-free configuration identity
+# instead of claiming deterministic sampling.  Stability is therefore proven
+# only by distinct repeated captures plus conservative aggregation.
+INFERENCE_CONTROL = {
+    "temperature": {"requested": False, "value": None},
+    "top_p": {"requested": False, "value": None},
+    "seed": {"supported": False, "value": None},
+    "provider_sampling_determinism_claimed": False,
+    "mitigation": "five_distinct_repeats_conservative_gate",
+}
 
 
 class E2ERunnerError(RuntimeError):
@@ -465,11 +478,40 @@ def _trusted_receipts(
     if isinstance(trace, (str, bytes)) or not isinstance(trace, Sequence):
         raise E2ERunnerError("failed", "trusted_receipts_missing")
     review_hash = hashlib.sha256(review_id.encode("utf-8")).hexdigest()
-    matching = [
+    all_matching = [
         dict(item)
         for item in trace
         if isinstance(item, Mapping) and item.get("review_id_sha256") == review_hash
     ]
+    # Receipt journals are append-only and may contain an earlier failed model
+    # attempt for the same logical review id.  Select the attempt whose latest
+    # finalize is bound to the trusted final returned by this exact task, then
+    # validate only the contiguous group beginning at its closest prepare.
+    target_finalizes = [
+        index
+        for index, item in enumerate(all_matching)
+        if item.get("tool") == "aga_finalize_review"
+        and item.get("review_digest") == final.get("review_digest")
+        and item.get("task_digest") == final.get("task_digest")
+    ]
+    if not target_finalizes:
+        raise E2ERunnerError("failed", "trusted_receipts_missing")
+    target_finalize_index = target_finalizes[-1]
+    target_prepares = [
+        index
+        for index, item in enumerate(all_matching[:target_finalize_index])
+        if item.get("tool") == "aga_prepare_review"
+    ]
+    if not target_prepares:
+        raise E2ERunnerError("failed", "trusted_receipts_missing")
+    attempt_start = target_prepares[-1]
+    next_prepares = [
+        index
+        for index, item in enumerate(all_matching[attempt_start + 1 :], attempt_start + 1)
+        if item.get("tool") == "aga_prepare_review"
+    ]
+    attempt_end = next_prepares[0] if next_prepares else len(all_matching)
+    matching = all_matching[attempt_start:attempt_end]
     physical_names = [item.get("tool") for item in matching]
     allowed = set(preflight.MCP_TOOL_NAMES)
     prepares = [
@@ -497,6 +539,10 @@ def _trusted_receipts(
         for index, item in enumerate(matching)
     ):
         raise E2ERunnerError("failed", "trusted_receipts_missing")
+    digest_binding = metadata.get("final_digest_binding")
+    repaired_binding = digest_binding == "trusted_prepare_once"
+    if digest_binding not in {None, "none", "trusted_prepare_once"}:
+        raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
     finalize_fields = (
         "args_sha256",
         "status",
@@ -506,16 +552,32 @@ def _trusted_receipts(
         "review_digest",
         "task_digest",
     )
-    finalize_projection = {
-        key: finalize.get(key) for key in finalize_fields
-    }
     for _index, item in finalizes:
         _require_sha256(item.get("args_sha256"), "final_receipt_hash_missing")
-    if any(
-        {key: item.get(key) for key in finalize_fields} != finalize_projection
-        for _index, item in finalizes[1:]
-    ):
-        raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
+    if repaired_binding:
+        if (
+            len(finalizes) != 2
+            or finalize.get("status") != "error"
+            or finalize.get("error_type") != "review_service_error"
+            or finalize.get("error_code")
+            not in {"review_digest_mismatch", "task_digest_mismatch"}
+        ):
+            raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
+        finalize = finalizes[1][1]
+        if all(
+            finalizes[0][1].get(key) == final.get(key)
+            for key in ("review_digest", "task_digest")
+        ):
+            raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
+    else:
+        finalize_projection = {
+            key: finalize.get(key) for key in finalize_fields
+        }
+        if any(
+            {key: item.get(key) for key in finalize_fields} != finalize_projection
+            for _index, item in finalizes[1:]
+        ):
+            raise E2ERunnerError("failed", "tool_receipt_correlation_failed")
     logical = [
         item
         for index, item in enumerate(matching)
@@ -570,6 +632,7 @@ def _trusted_receipts(
     return {
         "review_id_sha256": review_hash,
         "tool_names": list(names),
+        "final_digest_binding": digest_binding or "none",
         "prepare": {
             "args_sha256": _require_sha256(
                 prepare.get("args_sha256"), "prepare_receipt_hash_missing"
@@ -671,6 +734,10 @@ def _task_response(
         raise E2ERunnerError("failed", "model_usage_missing")
     call_count = usage.get("call_count")
     known_cost = usage.get("known_cost_usd")
+    prompt_tokens = usage.get("prompt_tokens")
+    completion_tokens = usage.get("completion_tokens")
+    unresolved_cost = usage.get("unresolved_upper_bound_usd", 0.0)
+    unknown_unmetered = usage.get("unknown_unmetered", 0)
     if (
         usage.get("provider") != PROVIDER
         or usage.get("model") != MODEL_ID
@@ -682,13 +749,44 @@ def _task_response(
         or not math.isfinite(float(known_cost))
         or float(known_cost) < 0
         or usage.get("cost_complete") is not True
+        or (
+            prompt_tokens is not None
+            and (
+                isinstance(prompt_tokens, bool)
+                or not isinstance(prompt_tokens, int)
+                or prompt_tokens < 0
+            )
+        )
+        or (
+            completion_tokens is not None
+            and (
+                isinstance(completion_tokens, bool)
+                or not isinstance(completion_tokens, int)
+                or completion_tokens < 0
+            )
+        )
+        or isinstance(unresolved_cost, bool)
+        or not isinstance(unresolved_cost, (int, float))
+        or not math.isfinite(float(unresolved_cost))
+        or float(unresolved_cost) != 0.0
+        or isinstance(unknown_unmetered, bool)
+        or not isinstance(unknown_unmetered, int)
+        or unknown_unmetered != 0
     ):
         raise E2ERunnerError("failed", "model_usage_contract_mismatch")
     prompt_sha256 = _require_sha256(
         metadata.get("prompt_sha256"), "rendered_prompt_hash_missing"
     )
     final_answer_envelope = metadata.get("final_answer_envelope")
-    if final_answer_envelope not in {"strict_json", "single_json_fence"}:
+    digest_binding = metadata.get("final_digest_binding", "none")
+    expected_envelopes = {
+        "none": {"strict_json", "single_json_fence"},
+        "trusted_prepare_once": {"trusted_prepare_digest_binding"},
+    }
+    if (
+        digest_binding not in expected_envelopes
+        or final_answer_envelope not in expected_envelopes[digest_binding]
+    ):
         raise E2ERunnerError("failed", "final_answer_envelope_missing")
     receipt_summary = _trusted_receipts(
         trace,
@@ -704,13 +802,18 @@ def _task_response(
         "task_status": result.status.value,
         "rendered_prompt_sha256": prompt_sha256,
         "final_answer_envelope": final_answer_envelope,
+        "final_digest_binding": digest_binding,
         "receipts": receipt_summary,
         "model_usage": {
             "provider": PROVIDER,
             "model": MODEL_ID,
             "call_count": call_count,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
             "known_cost_usd": round(float(known_cost), 8),
             "cost_complete": usage["cost_complete"],
+            "unresolved_upper_bound_usd": float(unresolved_cost),
+            "unknown_unmetered": unknown_unmetered,
         },
     }
     response = {
@@ -801,6 +904,42 @@ def _assert_sanitized(value: Any, *, forbidden_path: Path | None = None) -> None
             and all(part not in {"", ".", ".."} for part in path.parts)
         )
 
+    def allowed_canonical_defect(item: str, field: str | None) -> bool:
+        if field != "canonical_defect" or ":" not in item:
+            return False
+        rule_id, pointer = item.split(":", 1)
+        if (
+            CANONICAL_DEFECT_RULE_RE.fullmatch(rule_id) is None
+            or JSON_POINTER_RE.fullmatch(pointer) is None
+        ):
+            return False
+        parts = pointer[1:].split("/")
+        if not parts or parts[0] not in _JSON_POINTER_ROOTS:
+            return False
+        for token in parts:
+            decoded = token.replace("~1", "/").replace("~0", "~")
+            if not token or decoded in {".", ".."} or contains_absolute_path(decoded):
+                return False
+        return True
+
+    trusted_pointers: set[str] = set()
+
+    def collect_trusted_pointers(item: Any) -> None:
+        if isinstance(item, Mapping):
+            for key, child in item.items():
+                if (
+                    isinstance(key, str)
+                    and isinstance(child, str)
+                    and allowed_slash_value(child, key)
+                ):
+                    trusted_pointers.add(child)
+                collect_trusted_pointers(child)
+        elif isinstance(item, list):
+            for child in item:
+                collect_trusted_pointers(child)
+
+    collect_trusted_pointers(value)
+
     def visit(item: Any, *, field: str | None = None) -> None:
         if isinstance(item, Mapping):
             for key, child in item.items():
@@ -812,13 +951,26 @@ def _assert_sanitized(value: Any, *, forbidden_path: Path | None = None) -> None
             for child in item:
                 visit(child, field=field)
         elif isinstance(item, str):
-            if allowed_source_ref(item, field) or allowed_artifact_path(item, field):
+            if (
+                allowed_source_ref(item, field)
+                or allowed_artifact_path(item, field)
+                or allowed_canonical_defect(item, field)
+            ):
                 return
             allowed_slash = allowed_slash_value(item, field)
+            scanned_item = item
+            if field in {"evidence", "suggested_fix"}:
+                # Semantic evidence may quote the exact canonical JSON Pointer
+                # already present in the structured location field.  Mask only
+                # those pre-validated sibling pointers before looking for real
+                # machine paths; arbitrary /tmp, /Users, file://, UNC, or
+                # traversal strings remain forbidden.
+                for pointer in sorted(trusted_pointers, key=len, reverse=True):
+                    scanned_item = scanned_item.replace(pointer, "[json-pointer]")
             if (
-                semantic_slash_value_contains_path(item, field)
+                semantic_slash_value_contains_path(scanned_item, field)
                 if allowed_slash
-                else contains_absolute_path(item)
+                else contains_absolute_path(scanned_item)
             ):
                 raise ValueError("capture contains an absolute local path")
             if forbidden_path is not None and str(forbidden_path) in item:
@@ -1022,6 +1174,7 @@ def run_trusted_case(
             "memory_mode": "empty",
             "task_timeout_seconds": float(timeout_seconds),
             "data_classification": "synthetic-public",
+            "inference_control": INFERENCE_CONTROL,
             "preflight_sha256": preflight_sha256,
         }
     )

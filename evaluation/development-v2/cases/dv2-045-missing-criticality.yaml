@@ -1,0 +1,26 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-045-missing-criticality
+split: development
+language: en
+summary: Dependency endpoints are present but source criticality is missing.
+features: [synthetic-public, missing-criticality]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: unresolved, PRIN-007: not_targeted}
+metamorphic: {pair_id: missing-criticality-completion, counterpart: dv2-046-resolved-criticality, relation: context_completion, role: source}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.reports.source: {target_status: tactical}
+          syn.legacy.archive: {criticality: low, target_status: eliminate}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          archive_read: {from: syn.reports.source, to: syn.legacy.archive, mode: batch}
+expected:
+  status: incomplete
+  verdict: incomplete
+  findings: []
+  unresolved_context:
+    - {kind: criticality, reference: syn.reports.source, reason: Source criticality is required to evaluate the dependency rule.}

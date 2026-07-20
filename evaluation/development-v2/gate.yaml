@@ -1,0 +1,12 @@
+schema: aga.synthetic-development-gate/v2
+release_eligible: false
+required_repeated_runs: 5
+thresholds:
+  blocker_recall: 1.0
+  unsafe_approve_count: 0
+  invalid_or_hallucinated_evidence_count_max: 0
+  schema_valid_rate: 1.0
+  precision_min: 0.80
+  recall_min: 0.80
+  outcome_accuracy_min: 0.85
+  exact_case_accuracy_min: 0.85

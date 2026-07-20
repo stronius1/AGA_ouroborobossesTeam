@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
+import copy
 from dataclasses import dataclass
 import hashlib
 import hmac
@@ -37,6 +38,11 @@ from tools.review_service import (
     ReviewServiceError,
     TOOL_DEFINITIONS,
 )
+from tools.remediation_service import (
+    RemediationService,
+    RemediationServiceError,
+    TOOL_DEFINITIONS_REMEDIATION,
+)
 
 
 JSONRPC_VERSION = "2.0"
@@ -48,6 +54,7 @@ SERVER_VERSION = "2.0.0"
 PROTOCOL_VERSION_RE = re.compile(r"^20\d{2}-\d{2}-\d{2}$")
 SUPPORTED_PROTOCOL_VERSIONS = frozenset({"2025-11-25"})
 LATEST_PROTOCOL_VERSION = "2025-11-25"
+ALL_TOOL_DEFINITIONS = TOOL_DEFINITIONS + TOOL_DEFINITIONS_REMEDIATION
 
 
 class JsonRpcError(RuntimeError):
@@ -198,7 +205,7 @@ def _json_type_matches(value: Any, expected: str) -> bool:
 
 
 def validate_json_schema(value: Any, schema: Mapping[str, Any], path: str = "$arguments") -> None:
-    """Validate the strict JSON-Schema subset used by the four MCP tools."""
+    """Validate the strict JSON-Schema subset used by the six gateway MCP tools."""
     expected = schema.get("type")
     if isinstance(expected, list):
         if not any(_json_type_matches(value, item) for item in expected):
@@ -261,15 +268,22 @@ class MCPApplication:
         service: ReviewService,
         config: MCPServerConfig,
         *,
+        remediation_service: RemediationService | None = None,
         trace_sink: Callable[[Mapping[str, Any]], None] | None = None,
     ) -> None:
         self.service = service
+        self.remediation_service = remediation_service
         self.config = config
-        self._tool_definitions = {item["name"]: item for item in TOOL_DEFINITIONS}
+        self._tool_definitions = {
+            item["name"]: item for item in ALL_TOOL_DEFINITIONS
+        }
         self._semaphore = threading.BoundedSemaphore(config.max_concurrency)
         self._trace: deque[dict[str, Any]] = deque(maxlen=config.max_trace_entries)
         self._trace_lock = threading.Lock()
         self._trace_sink = trace_sink
+        self._finalize_repair_lock = threading.Lock()
+        self._pending_finalize_repairs: dict[str, dict[str, Any]] = {}
+        self._finalize_transport_arguments: dict[str, dict[str, Any]] = {}
         self._closed = threading.Event()
         self._active_condition = threading.Condition()
         self._active_workers = 0
@@ -299,6 +313,8 @@ class MCPApplication:
     def close(self) -> None:
         self.begin_shutdown()
         self.service.close()
+        if self.remediation_service is not None:
+            self.remediation_service.close()
 
     def _record_trace(
         self,
@@ -336,6 +352,9 @@ class MCPApplication:
                 "schema",
                 "review_digest",
                 "task_digest",
+                "remediation_digest",
+                "candidate_sha256",
+                "diff_sha256",
             ):
                 value = output.get(key)
                 if isinstance(value, str):
@@ -345,6 +364,16 @@ class MCPApplication:
                 event["review_id_sha256"] = hashlib.sha256(
                     review_id.encode("utf-8")
                 ).hexdigest()
+            remediation_id = output.get("remediation_id")
+            if isinstance(remediation_id, str):
+                event["remediation_id_sha256"] = hashlib.sha256(
+                    remediation_id.encode("utf-8")
+                ).hexdigest()
+            patch = output.get("patch")
+            if isinstance(patch, Mapping):
+                diff_sha256 = patch.get("diff_sha256")
+                if isinstance(diff_sha256, str):
+                    event["diff_sha256"] = diff_sha256
             for key in (
                 "status",
                 "verdict",
@@ -355,6 +384,10 @@ class MCPApplication:
                 value = output.get(key)
                 if isinstance(value, (str, bool)):
                     event[f"output_{key}"] = value
+            for key in ("error_code", "error_type"):
+                value = output.get(key)
+                if isinstance(value, str):
+                    event[key] = value
         if "review_id_sha256" not in event and isinstance(arguments, Mapping):
             # Error tool results intentionally have no structuredContent, but
             # they must remain correlated to the immutable review so the
@@ -365,6 +398,15 @@ class MCPApplication:
                 event["review_id_sha256"] = hashlib.sha256(
                     review_id.encode("utf-8")
                 ).hexdigest()
+            remediation_id = arguments.get("remediation_id")
+            if isinstance(remediation_id, str):
+                event["remediation_id_sha256"] = hashlib.sha256(
+                    remediation_id.encode("utf-8")
+                ).hexdigest()
+            for key in ("review_digest", "task_digest"):
+                value = arguments.get(key)
+                if key not in event and isinstance(value, str):
+                    event[key] = value
         with self._trace_lock:
             self._trace.append(event)
         if self._trace_sink is not None:
@@ -373,6 +415,121 @@ class MCPApplication:
             except Exception:
                 # Observability must never influence the governance verdict.
                 pass
+
+    def repair_finalize_digest_mismatch(
+        self,
+        *,
+        review_id: str,
+        review_digest: str,
+        task_digest: str,
+    ) -> dict[str, Any]:
+        """Finalize once with trusted prepare digests after a copy-only error.
+
+        This is intentionally not an MCP tool.  The local orchestrator may use
+        it only after the public finalize was rejected with an exact digest
+        mismatch.  The model's semantic result is preserved byte-for-byte at
+        the JSON value level; only the two host-owned digests are replaced.
+        """
+
+        with self._finalize_repair_lock:
+            pending = self._pending_finalize_repairs.pop(review_id, None)
+        if pending is None:
+            raise ReviewServiceError(
+                "finalize_repair_not_available",
+                "no rejected digest-only finalize is available",
+            )
+        error_code = pending.get("error_code")
+        arguments = pending.get("arguments")
+        if (
+            error_code not in {"review_digest_mismatch", "task_digest_mismatch"}
+            or not isinstance(arguments, Mapping)
+            or arguments.get("review_id") != review_id
+            or (arguments.get("review_digest") == review_digest
+                and arguments.get("task_digest") == task_digest)
+        ):
+            raise ReviewServiceError(
+                "finalize_repair_not_permitted",
+                "rejected finalize is not an eligible digest-only mismatch",
+            )
+        corrected = {
+            "review_id": review_id,
+            "review_digest": review_digest,
+            "task_digest": task_digest,
+            "semantic_result": arguments.get("semantic_result"),
+        }
+        definition = self._tool_definitions["aga_finalize_review"]
+        validate_json_schema(corrected, definition["inputSchema"])
+        started = time.monotonic()
+        status = "error"
+        trace_output: Mapping[str, Any] | None = None
+        try:
+            output = self.service.finalize_review(**corrected)
+            validate_json_schema(output, definition["outputSchema"], "$result")
+            status = "incomplete" if output.get("incomplete") is True else "ok"
+            trace_output = output
+            return output
+        except ReviewServiceError as exc:
+            trace_output = {
+                "error_code": exc.code,
+                "error_type": "review_service_error",
+            }
+            raise
+        finally:
+            self._record_trace(
+                "aga_finalize_review", corrected, status, started, trace_output
+            )
+
+    def repair_finalize_transport_error(
+        self,
+        *,
+        review_id: str,
+        review_digest: str,
+        task_digest: str,
+        args_sha256: str,
+    ) -> dict[str, Any]:
+        """Replay the exact in-process finalize after an ambiguous transport error.
+
+        The semantic payload is retained only in this trusted process after it
+        has passed the public input schema.  The host must prove the receipt's
+        complete-argument hash and opaque digests; callers cannot supply or
+        alter model output through this recovery path.
+        """
+
+        with self._finalize_repair_lock:
+            arguments = self._finalize_transport_arguments.get(review_id)
+            frozen = None if arguments is None else copy.deepcopy(arguments)
+        if (
+            not isinstance(frozen, dict)
+            or frozen.get("review_id") != review_id
+            or frozen.get("review_digest") != review_digest
+            or frozen.get("task_digest") != task_digest
+            or hashlib.sha256(_canonical_bytes(frozen)).hexdigest() != args_sha256
+        ):
+            raise ReviewServiceError(
+                "finalize_transport_repair_not_available",
+                "no hash-identical validated finalize is available",
+            )
+        definition = self._tool_definitions["aga_finalize_review"]
+        validate_json_schema(frozen, definition["inputSchema"])
+        started = time.monotonic()
+        status = "error"
+        trace_output: Mapping[str, Any] | None = None
+        try:
+            output = self.service.finalize_review(**frozen)
+            validate_json_schema(output, definition["outputSchema"], "$result")
+            status = "incomplete" if output.get("incomplete") is True else "ok"
+            trace_output = output
+            return output
+        except ReviewServiceError as exc:
+            trace_output = {
+                "error_code": exc.code,
+                "error_type": "review_service_error",
+            }
+            raise
+        finally:
+            self._record_trace(
+                "aga_finalize_review", frozen, status, started, trace_output
+            )
 
     @staticmethod
     def _rpc_result(request_id: Any, result: Any) -> dict[str, Any]:
@@ -441,6 +598,31 @@ class MCPApplication:
                 "Invalid tool arguments",
                 data={"code": "invalid_arguments", "field": exc.path, "message": exc.message},
             ) from exc
+        if name == "aga_finalize_review":
+            # Keep one exact, schema-valid payload in trusted memory so the
+            # host can recover from MCP 1.28.1 cancelling the HTTP response
+            # after the model has already issued its irreversible finalize.
+            frozen_arguments = json.loads(
+                json.dumps(
+                    dict(arguments),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+            )
+            review_id = frozen_arguments["review_id"]
+            with self._finalize_repair_lock:
+                existing = self._finalize_transport_arguments.get(review_id)
+                if existing is not None and existing != frozen_arguments:
+                    raise JsonRpcError(
+                        -32602,
+                        "Conflicting finalize retry",
+                        data={"code": "finalize_retry_conflict"},
+                    )
+                self._finalize_transport_arguments.setdefault(
+                    review_id, frozen_arguments
+                )
 
         acquired = self._semaphore.acquire(timeout=self.config.request_timeout_seconds)
         if not acquired:
@@ -461,6 +643,20 @@ class MCPApplication:
                 return self.service.parse_diagram(**dict(arguments))
             if name == "aga_finalize_review":
                 return self.service.finalize_review(**dict(arguments))
+            if name == "aga_prepare_remediation":
+                if self.remediation_service is None:
+                    raise RemediationServiceError(
+                        "remediation_not_configured",
+                        "remediation service is not registered",
+                    )
+                return self.remediation_service.prepare_remediation(**dict(arguments))
+            if name == "aga_finalize_remediation":
+                if self.remediation_service is None:
+                    raise RemediationServiceError(
+                        "remediation_not_configured",
+                        "remediation service is not registered",
+                    )
+                return self.remediation_service.finalize_remediation(**dict(arguments))
             raise ReviewServiceError("unknown_tool", "tool is not registered")
 
         def worker_finished() -> None:
@@ -472,7 +668,12 @@ class MCPApplication:
         with self._active_condition:
             self._active_workers += 1
 
-        if name in {"aga_prepare_review", "aga_finalize_review"}:
+        if name in {
+            "aga_prepare_review",
+            "aga_finalize_review",
+            "aga_prepare_remediation",
+            "aga_finalize_remediation",
+        }:
             # These operations mutate immutable-review state.  Running them in
             # the request thread means the transport can never report a
             # timeout and then commit a late prepare/final result.  Prepare has
@@ -519,6 +720,32 @@ class MCPApplication:
             if isinstance(value, ReviewInputError):
                 raise JsonRpcError(-32602, "Invalid tool arguments", data=value.as_dict())
             if isinstance(value, ReviewServiceError):
+                if (
+                    name == "aga_finalize_review"
+                    and value.code
+                    in {"review_digest_mismatch", "task_digest_mismatch"}
+                    and isinstance(arguments.get("review_id"), str)
+                ):
+                    # Preserve the rejected semantic payload inside the trusted
+                    # process.  It is never written to the receipt journal and
+                    # can be consumed only once by the host-side repair method.
+                    frozen_arguments = json.loads(
+                        json.dumps(
+                            dict(arguments),
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            allow_nan=False,
+                        )
+                    )
+                    with self._finalize_repair_lock:
+                        self._pending_finalize_repairs.setdefault(
+                            arguments["review_id"],
+                            {
+                                "error_code": value.code,
+                                "arguments": frozen_arguments,
+                            },
+                        )
                 return "error", self._error_tool_result(value)
             error = {
                 "type": "mcp_tool_error",
@@ -573,6 +800,24 @@ class MCPApplication:
                 if isinstance(result, Mapping)
                 else None
             )
+            if structured is None and status == "error" and isinstance(result, Mapping):
+                content = result.get("content")
+                if isinstance(content, list) and len(content) == 1:
+                    item = content[0]
+                    text = item.get("text") if isinstance(item, Mapping) else None
+                    if isinstance(text, str):
+                        try:
+                            error_payload = _strict_json_loads(text)
+                        except (json.JSONDecodeError, ValueError):
+                            error_payload = None
+                        if isinstance(error_payload, Mapping):
+                            code = error_payload.get("code")
+                            error_type = error_payload.get("type")
+                            if isinstance(code, str) and isinstance(error_type, str):
+                                structured = {
+                                    "error_code": code,
+                                    "error_type": error_type,
+                                }
             self._record_trace(name, arguments, status, started, structured)
 
     def dispatch(self, request: Any) -> dict[str, Any] | None:
@@ -608,7 +853,7 @@ class MCPApplication:
                     cursor = params.get("cursor")
                     if cursor is not None and cursor != "":
                         raise JsonRpcError(-32602, "Pagination cursor is not supported")
-                result = {"tools": [dict(item) for item in TOOL_DEFINITIONS]}
+                result = {"tools": [dict(item) for item in ALL_TOOL_DEFINITIONS]}
             elif method == "tools/call":
                 result = self._call_tool(params)
             else:
@@ -991,6 +1236,7 @@ class MCPServer:
         self,
         service: ReviewService | None = None,
         *,
+        remediation_service: RemediationService | None = None,
         config: MCPServerConfig | None = None,
         host: str = "127.0.0.1",
         port: int = 0,
@@ -1008,7 +1254,12 @@ class MCPServer:
                 **config_overrides,
             )
         self.config = config
-        self.application = MCPApplication(service or ReviewService(), config, trace_sink=trace_sink)
+        self.application = MCPApplication(
+            service or ReviewService(),
+            config,
+            remediation_service=remediation_service,
+            trace_sink=trace_sink,
+        )
         self._httpd = _MCPHTTPServer((config.host, config.port), self.application, config)
         self._thread: threading.Thread | None = None
         self._running = threading.Event()
@@ -1028,6 +1279,34 @@ class MCPServer:
     @property
     def trace(self) -> tuple[dict[str, Any], ...]:
         return self.application.trace
+
+    def repair_finalize_digest_mismatch(
+        self,
+        *,
+        review_id: str,
+        review_digest: str,
+        task_digest: str,
+    ) -> dict[str, Any]:
+        return self.application.repair_finalize_digest_mismatch(
+            review_id=review_id,
+            review_digest=review_digest,
+            task_digest=task_digest,
+        )
+
+    def repair_finalize_transport_error(
+        self,
+        *,
+        review_id: str,
+        review_digest: str,
+        task_digest: str,
+        args_sha256: str,
+    ) -> dict[str, Any]:
+        return self.application.repair_finalize_transport_error(
+            review_id=review_id,
+            review_digest=review_digest,
+            task_digest=task_digest,
+            args_sha256=args_sha256,
+        )
 
     def serve_forever(self) -> None:
         self._running.set()
@@ -1073,15 +1352,22 @@ class MCPServer:
 def create_server(
     service: ReviewService | None = None,
     *,
+    remediation_service: RemediationService | None = None,
     config: MCPServerConfig | None = None,
     **kwargs: Any,
 ) -> MCPServer:
     """Compatibility factory for embedding and contract tests."""
-    return MCPServer(service, config=config, **kwargs)
+    return MCPServer(
+        service,
+        remediation_service=remediation_service,
+        config=config,
+        **kwargs,
+    )
 
 
 __all__ = [
     "JSONRPC_VERSION",
+    "ALL_TOOL_DEFINITIONS",
     "MCPApplication",
     "MCPServer",
     "MCPServerConfig",

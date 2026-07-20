@@ -1,0 +1,29 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-013-master-write-en
+split: development
+language: en
+summary: English wording assigns product master-data writes to a second application.
+features: [synthetic-public, writable-master, multilingual]
+coverage: {PRIN-004: not_targeted, PRIN-005: positive, PRIN-006: not_targeted, PRIN-007: not_targeted}
+dangerous_controls: {PRIN-005: dv2-012-read-replica}
+metamorphic: {pair_id: rule005-translation, counterpart: dv2-014-master-write-ru, relation: translation, role: source}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        domains:
+          product_catalog:
+            master_system: syn.product.mdm
+  head:
+    files:
+      proposals/catalog.yaml: |
+        proposal:
+          system: syn.shop.admin
+          domain: product_catalog
+          responsibility: authoritative creation and correction
+expected:
+  status: complete
+  verdict: request_changes_escalate
+  findings:
+    - {rule_id: PRIN-005, severity: major, artifact: proposals/catalog.yaml, location: /components/syn.dv2-013-master-write-en.change/description, evidence_contains: 'authoritative creation and correction'}
+  unresolved_context: []

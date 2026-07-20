@@ -1,6 +1,7 @@
 # Third-party dependencies and provenance
 
-Audit baseline: 2026-07-15; GitVerse pin/license recheck: 2026-07-16.
+Audit baseline: 2026-07-15; GitVerse pin/license recheck: 2026-07-16;
+submission supply-chain recheck: 2026-07-19.
 
 | Dependency | Purpose | Upstream | Tag | Pinned commit | License |
 |---|---|---|---|---|---|
@@ -30,10 +31,16 @@ submodule remains unmodified and all duplicate YAML keys remain hard failures.
 The wrapper flattens four import-only aggregator documents but preserves their
 ordered transitive leaf closure; an integration test checks that equivalence.
 
-"Exact" in this table means an exact declared version, not a verified package
-artifact. Python wheel/sdist hashes, GitHub Action SHAs, Docker base-image
-digests and reproducible OS-package sources remain a release-owner verification
-step and are not claimed by the current local evidence.
+"Exact" in the dependency table means an exact declared version. Submission
+CI additionally installs its Python dependency closure from
+`aga-skill/requirements-ci.txt` with `--require-hashes`; the container installs
+PyYAML from the architecture-specific hashes in
+`aga-skill/requirements-container.txt`. GitHub Actions use full commit SHAs,
+the Docker base uses a manifest-list digest, and apt uses the dated sources in
+`aga-skill/debian-snapshot.sources`. `make project-results-check` validates
+those local declarations. This evidence establishes content-addressed inputs,
+not bit-for-bit reproducibility of every host toolchain or a successful image
+build on a machine without a Docker daemon.
 
 ## Update procedure
 

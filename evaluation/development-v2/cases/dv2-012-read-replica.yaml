@@ -1,0 +1,24 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-012-read-replica
+split: development
+language: en
+summary: The delivery portal receives a read-only customer-address replica.
+features: [synthetic-public, read-only-replica, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: negative, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule005-predicate, counterpart: dv2-011-second-master, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        domains:
+          customer_address:
+            master_system: syn.customer.core
+  head:
+    files:
+      proposals/address.yaml: |
+        proposal:
+          system: syn.delivery.portal
+          domain: customer_address
+          access: read_only_replica
+          writes_back: false
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

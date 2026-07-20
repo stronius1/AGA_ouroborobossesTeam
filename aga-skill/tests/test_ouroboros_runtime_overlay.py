@@ -47,6 +47,18 @@ def _synthetic_mcp_module(
     module = ModuleType("synthetic_mcp_client")
     module.__file__ = str(module_path)
     module._call_tool_async = original  # type: ignore[attr-defined]
+    module.ensure_configured_from_settings = (  # type: ignore[attr-defined]
+        lambda *, refresh=False: None
+    )
+    module.get_manager = lambda: SimpleNamespace(  # type: ignore[attr-defined]
+        is_configured=lambda: False,
+        is_enabled=lambda: False,
+        server_ids=lambda: [],
+        tool_timeout_sec=lambda: 20,
+        enabled_servers_without_tools=lambda: [],
+        list_tools_for_registry=lambda: [],
+        refresh_all=lambda: {},
+    )
     return module, source_dir
 
 
@@ -69,6 +81,14 @@ def _managed_aga_task() -> dict[str, object]:
             "aga_review_id": review_id,
             "aga_idempotency_key": review_id,
             "aga_prompt_sha256": "b" * 64,
+            "aga_runtime_contract": "aga.ouroboros-managed-task/v1",
+            "aga_mcp_stage": "review",
+            "aga_expected_mcp_tools": [
+                "aga_prepare_review",
+                "aga_seaf_lookup",
+                "aga_parse_diagram",
+                "aga_finalize_review",
+            ],
             "data_classification": "synthetic-public",
             "expected_model_id": overlay.PINNED_MODEL,
             "allowed_resources": {"network": True, "web": False},
@@ -76,6 +96,10 @@ def _managed_aga_task() -> dict[str, object]:
                 "write_file",
                 "run_command",
                 "web_search",
+                "list_available_tools",
+                "enable_tools",
+                "mcp_aga__aga_prepare_remediation",
+                "mcp_aga__aga_finalize_remediation",
                 "mcp_aga__aga_parse_diagram",
             ],
         },
@@ -104,6 +128,45 @@ def test_unknown_upstream_consolidation_contract_is_rejected() -> None:
         overlay._pin_consolidation_model(module)
 
     assert str(caught.value) == "consolidation_contract_mismatch"
+
+
+def test_aga_mcp_results_receive_a_bounded_80k_limit(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap_for_unit_test()
+    source_dir = tmp_path / "source"
+    module_path = source_dir / "ouroboros" / "tool_capabilities.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("# synthetic-public\n", encoding="utf-8")
+    module = ModuleType("synthetic_tool_capabilities")
+    module.__file__ = str(module_path)
+    module.DEFAULT_TOOL_RESULT_LIMIT = 15_000  # type: ignore[attr-defined]
+    module.TOOL_RESULT_LIMITS = {"read_file": 80_000}  # type: ignore[attr-defined]
+    bootstrap._verified_source_dir = lambda: source_dir
+
+    bootstrap._verify_and_patch_tool_capabilities(module)
+
+    expected = [
+        *overlay.GATEWAY_MCP_TOOLS,
+        *(f"mcp_aga__{name}" for name in overlay.GATEWAY_MCP_TOOLS),
+    ]
+    assert all(module.TOOL_RESULT_LIMITS[name] == 80_000 for name in expected)  # type: ignore[attr-defined]
+    assert module.TOOL_RESULT_LIMITS["read_file"] == 80_000  # type: ignore[attr-defined]
+    assert module.aga_bounded_tool_result_overlay == overlay.ATTESTATION_SCHEMA  # type: ignore[attr-defined]
+
+
+def test_aga_result_limit_overlay_rejects_upstream_drift(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap_for_unit_test()
+    source_dir = tmp_path / "source"
+    module_path = source_dir / "ouroboros" / "tool_capabilities.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("# synthetic-public\n", encoding="utf-8")
+    module = ModuleType("synthetic_tool_capabilities")
+    module.__file__ = str(module_path)
+    module.DEFAULT_TOOL_RESULT_LIMIT = 15_000  # type: ignore[attr-defined]
+    module.TOOL_RESULT_LIMITS = {"aga_prepare_review": 120_000}  # type: ignore[attr-defined]
+    bootstrap._verified_source_dir = lambda: source_dir
+
+    with pytest.raises(RuntimeError, match="tool_result_limit_contract_mismatch"):
+        bootstrap._verify_and_patch_tool_capabilities(module)
 
 
 def test_finalize_exception_group_is_retried_once_with_identical_arguments(
@@ -244,6 +307,132 @@ def test_second_finalize_exception_group_is_not_retried_again(
     assert calls == 2
 
 
+def test_configured_zero_tool_manager_is_refreshed_once_and_then_reused(
+    tmp_path: Path,
+) -> None:
+    ensure_calls: list[bool] = []
+
+    async def original_call(*_args: object, **_kwargs: object) -> str:
+        return "unused"
+
+    class Manager:
+        def __init__(self) -> None:
+            self.names: list[str] = []
+            self.refresh_calls = 0
+
+        def is_configured(self) -> bool:
+            return True
+
+        def is_enabled(self) -> bool:
+            return True
+
+        def server_ids(self) -> list[str]:
+            return ["aga"]
+
+        def tool_timeout_sec(self) -> int:
+            return 20
+
+        def enabled_servers_without_tools(self) -> list[dict[str, str]]:
+            return [] if self.names else [{"id": "aga", "last_error": ""}]
+
+        def list_tools_for_registry(self) -> list[dict[str, str]]:
+            return [{"name": name} for name in self.names]
+
+        def refresh_all(self) -> dict[str, object]:
+            self.refresh_calls += 1
+            self.names = [
+                f"mcp_aga__{name}" for name in overlay.GATEWAY_MCP_TOOLS
+            ]
+            return {"refreshed": {"aga": {"ok": True}}}
+
+    manager = Manager()
+    module, source_dir = _synthetic_mcp_module(tmp_path, original_call)
+    module.ensure_configured_from_settings = (  # type: ignore[attr-defined]
+        lambda *, refresh=False: ensure_calls.append(refresh)
+    )
+    module.get_manager = lambda: manager  # type: ignore[attr-defined]
+    bootstrap = _load_bootstrap_for_unit_test()
+    bootstrap._verified_source_dir = lambda: source_dir
+
+    bootstrap._verify_and_patch_mcp_client(module)
+    module.ensure_configured_from_settings(refresh=True)  # type: ignore[attr-defined]
+    module.ensure_configured_from_settings(refresh=True)  # type: ignore[attr-defined]
+
+    assert ensure_calls == [False, False]
+    assert manager.refresh_calls == 1
+    assert manager.names == [
+        f"mcp_aga__{name}" for name in overlay.GATEWAY_MCP_TOOLS
+    ]
+
+
+def test_worker_refresh_rejects_timeout_above_twenty_seconds(
+    tmp_path: Path,
+) -> None:
+    async def original_call(*_args: object, **_kwargs: object) -> str:
+        return "unused"
+
+    manager = SimpleNamespace(
+        is_configured=lambda: True,
+        is_enabled=lambda: True,
+        server_ids=lambda: ["aga"],
+        tool_timeout_sec=lambda: 21,
+        enabled_servers_without_tools=lambda: [{"id": "aga"}],
+        list_tools_for_registry=lambda: [],
+        refresh_all=lambda: pytest.fail("unbounded refresh must not run"),
+    )
+    module, source_dir = _synthetic_mcp_module(tmp_path, original_call)
+    module.get_manager = lambda: manager  # type: ignore[attr-defined]
+    bootstrap = _load_bootstrap_for_unit_test()
+    bootstrap._verified_source_dir = lambda: source_dir
+    bootstrap._verify_and_patch_mcp_client(module)
+
+    with pytest.raises(RuntimeError, match="mcp_refresh_timeout_contract_mismatch"):
+        module.ensure_configured_from_settings(refresh=True)  # type: ignore[attr-defined]
+
+
+def test_managed_initial_envelope_is_exact_and_fails_before_model_use(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    module_path = source_dir / "ouroboros" / "tools" / "registry.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("# synthetic-public\n", encoding="utf-8")
+
+    class ToolRegistry:
+        def __init__(self, names: list[str], metadata: dict[str, object]) -> None:
+            self.names = names
+            self._ctx = SimpleNamespace(task_metadata=metadata)
+
+        def schemas(self, core_only: bool = False) -> list[dict[str, object]]:
+            assert core_only is False
+            return [
+                {"type": "function", "function": {"name": name}}
+                for name in self.names
+            ]
+
+    module = ModuleType("synthetic_tool_registry")
+    module.__file__ = str(module_path)
+    module.ToolRegistry = ToolRegistry  # type: ignore[attr-defined]
+    bootstrap = _load_bootstrap_for_unit_test()
+    bootstrap._verified_source_dir = lambda: source_dir
+    bootstrap._verify_and_patch_tool_registry(module)
+    metadata = dict(_managed_aga_task()["metadata"])  # type: ignore[arg-type]
+    expected = [
+        "mcp_aga__aga_prepare_review",
+        "mcp_aga__aga_seaf_lookup",
+        "mcp_aga__aga_finalize_review",
+    ]
+
+    assert [
+        item["function"]["name"]  # type: ignore[index]
+        for item in ToolRegistry(expected, metadata).schemas()
+    ] == expected
+    with pytest.raises(RuntimeError, match="aga_mcp_worker_not_ready"):
+        ToolRegistry(expected[:-1], metadata).schemas()
+    with pytest.raises(RuntimeError, match="aga_mcp_worker_not_ready"):
+        ToolRegistry([*expected, "list_available_tools"], metadata).schemas()
+
+
 def test_managed_aga_post_task_policy_skips_only_memory_synthesis(
     tmp_path: Path,
 ) -> None:
@@ -290,8 +479,9 @@ def test_managed_aga_post_task_policy_skips_only_memory_synthesis(
 
     ordinary = _managed_aga_task()
     ordinary["metadata"] = {
-        **ordinary["metadata"],  # type: ignore[dict-item]
-        "data_classification": "private",
+        key: value
+        for key, value in ordinary["metadata"].items()  # type: ignore[union-attr]
+        if key != "aga_runtime_contract"
     }
     passthrough = module._run_post_task_processing_async(  # type: ignore[attr-defined]
         object(), ordinary, {}, {}, {}, tmp_path, blocking=True
@@ -318,6 +508,10 @@ def test_attestation_write_is_atomic_private_and_secret_free(tmp_path: Path) -> 
         "bootstrap_mode": "deferred_runtime_import_hooks",
         "bootstrap_sha256": "b" * 64,
         "finalize_transport_retry": "exception_group_once",
+        "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+        "managed_task_schema": "aga.ouroboros-managed-task/v1",
+        "mcp_refresh_timeout_seconds": 20,
+        "gateway_mcp_tool_count": 6,
         "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
     }
 
@@ -385,11 +579,11 @@ def test_sitecustomize_defers_all_ouroboros_imports(
     probe = (
         "import os,sys; "
         "assert os.environ.get('AGA_OUROBOROS_OVERLAY_HOOK_INSTALLED') == "
-        "'aga.ouroboros-runtime-overlay/v3'; "
+        "'aga.ouroboros-runtime-overlay/v4'; "
         "assert not any(n == 'ouroboros' or n.startswith('ouroboros.') "
         "for n in sys.modules); "
         "assert any(getattr(f, 'aga_overlay_marker', '') == "
-        "'aga_deferred_runtime_overlay_v3' for f in sys.meta_path); "
+        "'aga_deferred_runtime_overlay_v4' for f in sys.meta_path); "
         "print('deferred-hook-ok')"
     )
 
@@ -495,6 +689,7 @@ def test_live_style_base_python_spawn_restores_mcp_before_overlay_import(
                 import ouroboros.consolidator as consolidator
                 import ouroboros.mcp_client as mcp_client
                 import ouroboros.agent_task_pipeline as agent_task_pipeline
+                import ouroboros.tools.registry as tool_registry
                 queue.put({
                     "base_executable": sys._base_executable,
                     "early_modules": early_modules,
@@ -513,6 +708,22 @@ def test_live_style_base_python_spawn_restores_mcp_before_overlay_import(
                     "mcp_retry_marker": getattr(
                         mcp_client._call_tool_async,
                         "aga_finalize_retry_overlay",
+                        "",
+                    ),
+                    "mcp_discovery_applied": os.environ.get(
+                        "AGA_OUROBOROS_MCP_DISCOVERY_APPLIED", ""
+                    ),
+                    "mcp_discovery_marker": getattr(
+                        mcp_client.ensure_configured_from_settings,
+                        "aga_worker_discovery_overlay",
+                        "",
+                    ),
+                    "tool_registry_applied": os.environ.get(
+                        "AGA_OUROBOROS_TOOL_REGISTRY_APPLIED", ""
+                    ),
+                    "tool_registry_marker": getattr(
+                        tool_registry.ToolRegistry.schemas,
+                        "aga_worker_envelope_overlay",
                         "",
                     ),
                     "post_task_policy_applied": os.environ.get(
@@ -576,5 +787,86 @@ def test_live_style_base_python_spawn_restores_mcp_before_overlay_import(
     assert payload["applied"] == overlay.ATTESTATION_SCHEMA
     assert payload["mcp_retry_applied"] == overlay.ATTESTATION_SCHEMA
     assert payload["mcp_retry_marker"] == overlay.ATTESTATION_SCHEMA
+    assert payload["mcp_discovery_applied"] == overlay.ATTESTATION_SCHEMA
+    assert payload["mcp_discovery_marker"] == overlay.ATTESTATION_SCHEMA
+    assert payload["tool_registry_applied"] == overlay.ATTESTATION_SCHEMA
+    assert payload["tool_registry_marker"] == overlay.ATTESTATION_SCHEMA
     assert payload["post_task_policy_applied"] == overlay.ATTESTATION_SCHEMA
     assert payload["post_task_policy_marker"] == overlay.ATTESTATION_SCHEMA
+
+
+def test_live_worker_probe_discovers_exact_gateway_and_stage_envelopes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = Path.home() / ".local/share/aga-ouroboros-v6.64.1"
+    runtime_python = runtime_root / "venv/bin/python"
+    source_dir = runtime_root / "source"
+    if not runtime_python.is_file() or not source_dir.is_dir():
+        pytest.skip("isolated Ouroboros runtime is not installed")
+
+    package_root = REPOSITORY_ROOT / "aga-skill"
+    if str(package_root) not in sys.path:
+        sys.path.insert(0, str(package_root))
+    from tools.mcp_server import MCPServer, MCPServerConfig
+    from tools.review_service import ReviewService
+    from scripts import ouroboros_preflight as preflight
+
+    profile_home = tmp_path / "profile-home"
+    data_dir = profile_home / "Ouroboros" / "data"
+    state_dir = data_dir / "state"
+    runtime_tmp = tmp_path / "runtime-tmp"
+    state_dir.mkdir(parents=True, mode=0o700)
+    runtime_tmp.mkdir(mode=0o700)
+    settings = {
+        "MCP_ENABLED": True,
+        "MCP_TOOL_TIMEOUT_SEC": 20,
+        "MCP_SERVERS": [
+            {
+                "id": "aga",
+                "name": "AGA Governance",
+                "enabled": True,
+                "transport": "streamable_http",
+                "url": "http://127.0.0.1:8788/mcp",
+                "auth_header": "Authorization",
+                "auth_token": "",
+                "allowed_tools": list(overlay.GATEWAY_MCP_TOOLS),
+            }
+        ],
+    }
+    settings_path = data_dir / "settings.json"
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    settings_path.chmod(0o600)
+    try:
+        server = MCPServer(
+            ReviewService(),
+            config=MCPServerConfig(
+                host="127.0.0.1",
+                port=8788,
+                endpoint="/mcp",
+                mode="none",
+                request_timeout_seconds=20.0,
+                max_concurrency=4,
+            ),
+        )
+    except PermissionError:
+        pytest.skip("sandbox does not permit loopback sockets")
+
+    monkeypatch.setenv("HOME", str(profile_home))
+    monkeypatch.setenv("TMPDIR", str(runtime_tmp))
+    monkeypatch.setenv(preflight.WORKER_PYTHON_ENV, str(runtime_python))
+    monkeypatch.setenv(preflight.OVERLAY_SOURCE_ENV, str(source_dir))
+
+    with server:
+        payload = preflight._default_worker_probe()
+
+    assert payload["status"] == "ready"
+    assert payload["gateway_discovery"]["tools"] == list(
+        overlay.GATEWAY_MCP_TOOLS
+    )
+    assert payload["worker_ready"]["review"]["active_tools"] == list(
+        overlay.GATEWAY_MCP_TOOLS[:4]
+    )
+    assert payload["worker_ready"]["remediation"]["active_tools"] == list(
+        overlay.GATEWAY_MCP_TOOLS[4:]
+    )

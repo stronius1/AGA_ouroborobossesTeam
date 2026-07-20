@@ -50,6 +50,9 @@ permissions, corpus expected, security-инвариантов или error weigh
 Evolver пишет только `build/`. `scripts/apply_candidate.py` — несмотря на
 историческое имя — работает только как независимый валидатор: повторно строит
 кандидата из текущих rules и pending-прецедента, пересчитывает fitness/gate и
-никогда не пишет в source tree. Применение требует отдельной проверяемой
-VCS-транзакции с атомарным commit/review; эта внешняя операция здесь не
-реализована.
+никогда не пишет в source tree. После этой проверки отдельный local-only
+connector `scripts/publish_candidate.py` связывает bundle с exact Git HEAD и
+создаёт атомарный candidate commit в disposable worktree. В commit входят
+только изменённые rules, `VERSION`, полный `CHANGELOG.md`, distilled precedent
+и PR-shaped report/sanitized manifest. Connector не умеет push, PR, approve
+или merge; исходные HEAD/index/worktree остаются неизменны.

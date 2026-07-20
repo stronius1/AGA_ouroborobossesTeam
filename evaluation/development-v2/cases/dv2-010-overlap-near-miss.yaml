@@ -1,0 +1,24 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-010-overlap-near-miss
+split: development
+language: en
+summary: Fraud reporting consumes detections but does not duplicate fraud detection.
+features: [synthetic-public, reuse-near-miss, metamorphic-control, clean]
+coverage: {PRIN-004: negative, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule004-nearmiss, counterpart: dv2-009-overlap-duplicate, relation: predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/catalog.yaml: |
+        systems:
+          syn.fraud.detect:
+            capability: detect suspicious transactions
+            reuse_status: available
+  head:
+    files:
+      proposals/fraud.yaml: |
+        proposal:
+          action: create_reporting_view
+          capability: explain and report existing fraud detections
+          detection_source: syn.fraud.detect
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

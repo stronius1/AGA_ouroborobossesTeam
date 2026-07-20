@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import difflib
 import hashlib
 import json
 import shutil
@@ -111,6 +112,110 @@ class LocalPublisherBoundaryTests(unittest.TestCase):
         self.assertIs(result["external_side_effects"], False)
         self.assertIsNone(result["branch_name"])
         self.assertIsNone(result["draft_pr_url"])
+
+
+class FormattingPreservingMutationTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="aga-minimal-yaml-")
+        self.root = Path(self.temporary.name)
+        shutil.copytree(PKG_ROOT / "rules", self.root / "rules")
+        self.header = (
+            PKG_ROOT / "rules" / "principles.yaml"
+        ).read_text(encoding="utf-8").split("schema:", 1)[0]
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def _assert_minimal(self, mutation, index, *, source=None):
+        source = source or self.root / "rules"
+        candidate = self.root / f"candidate-{index}"
+        diff, filename = run_evolution.apply_mutation(
+            source, candidate, mutation, "2.1.0"
+        )
+        after = (candidate / filename).read_text(encoding="utf-8")
+        self.assertTrue(after.startswith(self.header))
+        self.assertNotIn("-# Корпоративные архитектурные принципы", diff)
+        self.assertLess(len(diff.splitlines()), 80)
+        return diff, after
+
+    def test_add_exception_changes_only_target_node(self):
+        mutation = {
+            "type": "add_exception",
+            "rule_id": "PRIN-002",
+            "exception": {
+                "when": {
+                    "all": [
+                        {"field": "zone", "equals": "dmz"},
+                        {"field": "transfer_mode", "equals": "batch"},
+                    ]
+                },
+                "rationale": "Approved narrow exception",
+                "provenance": "precedent:0001",
+            },
+        }
+        diff, _after = self._assert_minimal(mutation, 1)
+        self.assertIn("EXC-PRIN-002-001", diff)
+        self.assertNotIn("PRIN-001", diff)
+        self.assertNotIn("PRIN-003", diff)
+
+    def test_all_mutation_types_preserve_unrelated_formatting(self):
+        new_rule = _rule("PRIN-099", severity="minor", status="candidate")
+        new_rule["provenance"] = {
+            "origin": "precedent:0001",
+            "added_in": "2.1.0",
+        }
+        mutations = [
+            {
+                "type": "adjust_severity",
+                "rule_id": "PRIN-001",
+                "new_severity": "minor",
+            },
+            {
+                "type": "deprecate_rule",
+                "rule_id": "PRIN-001",
+                "reason": "Superseded",
+                "evidence": "policy:v2",
+            },
+            {"type": "add_rule", "rule": new_rule},
+        ]
+        for index, mutation in enumerate(mutations, 2):
+            with self.subTest(mutation=mutation["type"]):
+                self._assert_minimal(mutation, index)
+
+        activation_source = self.root / "activation-rules"
+        shutil.copytree(self.root / "rules", activation_source)
+        principles = activation_source / "principles.yaml"
+        principles.write_text(
+            principles.read_text(encoding="utf-8").replace(
+                "    status: active", "    status: candidate", 1
+            ),
+            encoding="utf-8",
+        )
+        self._assert_minimal(
+            {"type": "activate_rule", "rule_id": "PRIN-001"},
+            5,
+            source=activation_source,
+        )
+
+    def test_distilled_precedent_is_a_two_field_patch(self):
+        path = PKG_ROOT / "precedents" / "cases" / "0001-dmz-file-exchange.md"
+        before = path.read_text(encoding="utf-8")
+        after = run_evolution._distilled_precedent_text(
+            before, source=path, version="2.1.0"
+        )
+        changes = [
+            line
+            for line in difflib.ndiff(before.splitlines(), after.splitlines())
+            if line.startswith(("- ", "+ "))
+        ]
+        self.assertEqual(
+            changes,
+            [
+                "- status: pending",
+                "+ status: distilled",
+                "+ distilled_in: 2.1.0",
+            ],
+        )
 
 
 class MutationValidationTests(unittest.TestCase):

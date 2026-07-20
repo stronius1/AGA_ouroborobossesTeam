@@ -1,0 +1,23 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-006-reuse-existing-ru
+split: development
+language: ru
+summary: Русский артефакт явно переиспользует общий сервис формирования документов.
+features: [synthetic-public, reuse-near-miss, multilingual, clean]
+coverage: {PRIN-004: negative, PRIN-005: not_targeted, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule004-translation, counterpart: dv2-005-reuse-existing-en, relation: translation, role: variant}
+change:
+  base:
+    files:
+      architecture/catalog.yaml: |
+        systems:
+          syn.docs.renderer:
+            capability: формирование PDF-документов
+            reuse_status: available
+  head:
+    files:
+      proposals/documents.yaml: |
+        proposal:
+          action: переиспользовать syn.docs.renderer
+          change: добавить один шаблон счёта
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

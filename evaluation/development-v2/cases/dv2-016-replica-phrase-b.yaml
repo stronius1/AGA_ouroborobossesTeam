@@ -1,0 +1,24 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-016-replica-phrase-b
+split: development
+language: en
+summary: Paraphrase of the same immutable merchant read model.
+features: [synthetic-public, read-only-replica, paraphrase, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: negative, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule005-paraphrase, counterpart: dv2-015-replica-phrase-a, relation: same_meaning_paraphrase, role: variant}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        domains:
+          merchant_profile:
+            master_system: syn.merchant.core
+  head:
+    files:
+      proposals/merchant.yaml: |
+        proposal:
+          consumer: syn.analytics
+          domain: merchant_profile
+          mode: immutable projection fed only by syn.merchant.core
+          update_master: never
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

@@ -118,6 +118,7 @@ def _healthy_responses() -> dict[tuple[str, ...], preflight.CommandResult]:
         ),
         ("settings", "get", "OUROBOROS_TASK_REVIEW_MODE"): _result("off"),
         ("settings", "get", "MCP_ENABLED"): _result(True),
+        ("settings", "get", "MCP_TOOL_TIMEOUT_SEC"): _result(20),
         ("settings", "get", "MCP_SERVERS"): _result([server]),
         ("skills", "list"): _result(
             {
@@ -204,6 +205,7 @@ def _run(
     payload, exit_code = preflight.run_preflight(
         runner,
         overlay_validator=lambda: None,
+        worker_probe=preflight._expected_worker_probe,
     )
     return payload, exit_code, runner
 
@@ -223,6 +225,10 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
             "spawn_workers_pinned": True,
             "bootstrap_mode": "deferred_runtime_import_hooks",
             "finalize_transport_retry": "exception_group_once",
+            "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+            "managed_task_schema": preflight.MANAGED_TASK_SCHEMA,
+            "mcp_refresh_timeout_seconds": 20,
+            "aga_tool_result_limit_chars": 80_000,
             "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
         },
     }
@@ -236,8 +242,13 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
         "global_hard_cap_max_usd": 50.0,
         "review_mode": "advisory",
     }
-    assert payload["mcp"]["tool_count"] == 4
-    assert set(payload["mcp"]["tools"]) == set(preflight.MCP_TOOL_NAMES)
+    gateway = payload["mcp"]["gateway_discovery"]
+    worker = payload["mcp"]["worker_ready_discovery"]
+    assert gateway["tool_count"] == 6
+    assert set(gateway["tools"]) == set(preflight.MCP_TOOL_NAMES)
+    assert worker["refresh_timeout_seconds"] == 20
+    assert worker["aga_tool_result_limit_chars"] == 80_000
+    assert set(worker["stages"]) == {"review", "remediation"}
     assert runner.calls[-3:] == [
         ("mcp", "test", "--server-id", "aga"),
         ("mcp", "refresh", "--server-id", "aga"),
@@ -253,6 +264,43 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
     assert "/Users/" not in serialized
 
 
+def test_gateway_ready_and_worker_not_ready_are_reported_separately() -> None:
+    runner = FakeRunner(_healthy_responses())
+    payload, exit_code = preflight.run_preflight(
+        runner,
+        overlay_validator=lambda: None,
+        worker_probe=lambda: {
+            "schema": preflight.WORKER_PROBE_SCHEMA,
+            "status": "failed",
+            "code": "private detail must not escape",
+        },
+    )
+
+    assert exit_code == preflight.EXIT_NOT_CONFIGURED
+    assert payload["code"] == "worker_mcp_not_ready"
+    assert runner.calls[-3:] == [
+        ("mcp", "test", "--server-id", "aga"),
+        ("mcp", "refresh", "--server-id", "aga"),
+        ("mcp", "status"),
+    ]
+    assert "private detail" not in json.dumps(payload)
+
+
+def test_ready_worker_probe_with_wrong_stage_projection_fails_contract() -> None:
+    malformed = preflight._expected_worker_probe()
+    malformed["worker_ready"]["review"]["active_tools"] = []
+    runner = FakeRunner(_healthy_responses())
+
+    payload, exit_code = preflight.run_preflight(
+        runner,
+        overlay_validator=lambda: None,
+        worker_probe=lambda: malformed,
+    )
+
+    assert exit_code == preflight.EXIT_FAILED
+    assert payload["code"] == "worker_probe_contract_mismatch"
+
+
 @pytest.mark.parametrize(
     ("command", "value", "expected_code"),
     [
@@ -266,6 +314,7 @@ def test_preflight_ready_uses_only_readiness_commands_and_sanitizes_output() -> 
         (("settings", "get", "TOTAL_BUDGET"), 50.01, "budget_exceeds_owner_limit"),
         (("settings", "get", "OUROBOROS_REVIEW_ENFORCEMENT"), "blocking", "review_mode_not_configured"),
         (("settings", "get", "OUROBOROS_TASK_REVIEW_MODE"), "auto", "task_review_not_disabled"),
+        (("settings", "get", "MCP_TOOL_TIMEOUT_SEC"), 21, "mcp_timeout_not_bounded"),
     ],
 )
 def test_missing_provider_model_budget_or_review_is_typed_and_stops_before_mcp(
@@ -470,6 +519,10 @@ def _write_live_overlay_fixture(
                 "bootstrap_mode": "deferred_runtime_import_hooks",
                 "bootstrap_sha256": bootstrap_hash,
                 "finalize_transport_retry": "exception_group_once",
+                "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+                "managed_task_schema": preflight.MANAGED_TASK_SCHEMA,
+                "mcp_refresh_timeout_seconds": 20,
+                "gateway_mcp_tool_count": 6,
                 "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
             }
         ),

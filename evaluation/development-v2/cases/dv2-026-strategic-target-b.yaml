@@ -1,0 +1,22 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-026-strategic-target-b
+split: development
+language: en
+summary: Paraphrase of the supported strategic dependency.
+features: [synthetic-public, paraphrase, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule006-paraphrase, counterpart: dv2-025-strategic-target-a, relation: same_meaning_paraphrase, role: variant}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.clearing.core: {criticality: mission_critical, target_status: strategic}
+          syn.identity.core: {criticality: mission_critical, target_status: strategic}
+  head:
+    files:
+      proposals/clearing.md: |
+        # Identity lookup
+
+        `syn.clearing.core` calls the supported strategic service `syn.identity.core`; neither system is scheduled for elimination.
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

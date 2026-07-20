@@ -62,11 +62,19 @@ MAX_LOCKED_FIXTURE_FILES = 4_096
 MAX_LOCKED_FIXTURE_BYTES = 32 * 1024 * 1024
 
 
+class _IndentedSafeDumper(yaml.SafeDumper):
+    """Emit only newly inserted YAML fragments with readable indentation."""
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False):
+        return super().increase_indent(flow, False)
+
+
 @dataclass(frozen=True)
 class LockedEvaluationInputs:
     """Exact human-approved bytes used by both sides of the fitness gate."""
 
     corpus: Mapping[str, Any]
+    corpus_lock_payload: bytes
     corpus_payload: bytes
     corpus_sha256: str
     fixture_files: tuple[tuple[str, bytes], ...]
@@ -493,6 +501,193 @@ def _target_file(mutation: Mapping[str, Any]) -> str:
     return filename
 
 
+def _node_mapping(
+    node: yaml.Node | None, *, label: str
+) -> dict[str, tuple[yaml.Node, yaml.Node]]:
+    if not isinstance(node, yaml.MappingNode):
+        raise ValueError(f"{label} must be a YAML mapping")
+    result: dict[str, tuple[yaml.Node, yaml.Node]] = {}
+    for key, value in node.value:
+        if not isinstance(key, yaml.ScalarNode) or key.value in result:
+            raise ValueError(f"{label} has an invalid or duplicate key")
+        result[key.value] = (key, value)
+    return result
+
+
+def _dump_fragment(value: Any, *, indent: int) -> str:
+    """Serialize a new node without re-emitting its surrounding document."""
+
+    dumped = yaml.dump(
+        value,
+        Dumper=_IndentedSafeDumper,
+        allow_unicode=True,
+        sort_keys=False,
+        width=100,
+        default_flow_style=False,
+    ).rstrip("\n")
+    prefix = " " * indent
+    return "\n".join(prefix + line if line else "" for line in dumped.splitlines())
+
+
+def _apply_text_patches(
+    text: str, patches: Sequence[tuple[int, int, str]]
+) -> str:
+    """Apply non-overlapping character patches from right to left."""
+
+    ordered = sorted(patches, key=lambda item: (item[0], item[1]))
+    previous_end = -1
+    for start, end, _replacement in ordered:
+        if start < 0 or end < start or end > len(text) or start < previous_end:
+            raise ValueError("candidate patch contains an invalid or overlapping span")
+        previous_end = end
+    result = text
+    for start, end, replacement in reversed(ordered):
+        result = result[:start] + replacement + result[end:]
+    return result
+
+
+def _rule_nodes(text: str, rule_id: str) -> tuple[yaml.SequenceNode, yaml.MappingNode]:
+    root = yaml.compose(text, Loader=yaml.SafeLoader)
+    root_items = _node_mapping(root, label="rules document")
+    rules_pair = root_items.get("rules")
+    if rules_pair is None or not isinstance(rules_pair[1], yaml.SequenceNode):
+        raise ValueError("rules document has no YAML rules sequence")
+    rules_node = rules_pair[1]
+    matches: list[yaml.MappingNode] = []
+    for item in rules_node.value:
+        item_values = _node_mapping(item, label="rule")
+        identifier = item_values.get("id")
+        if (
+            identifier is not None
+            and isinstance(identifier[1], yaml.ScalarNode)
+            and identifier[1].value == rule_id
+        ):
+            matches.append(item)
+    if len(matches) != 1:
+        raise ValueError(f"target rule {rule_id!r} is absent or duplicated")
+    return rules_node, matches[0]
+
+
+def _replace_scalar(
+    node: yaml.Node, value: str, *, label: str
+) -> tuple[int, int, str]:
+    if not isinstance(node, yaml.ScalarNode):
+        raise ValueError(f"{label} must be a scalar")
+    return node.start_mark.index, node.end_mark.index, value
+
+
+def _patch_rule_text(
+    before: str,
+    document: Mapping[str, Any],
+    mutation: Mapping[str, Any],
+    new_version: str,
+) -> tuple[str, dict[str, Any]]:
+    """Apply a validated mutation while preserving all unrelated bytes."""
+
+    expected = dict(document)
+    expected["rules"] = [dict(rule) for rule in document["rules"]]
+    mutation_type = mutation["type"]
+    rule_id = mutation.get("rule_id")
+
+    if mutation_type == "add_rule":
+        rule = dict(mutation["rule"])
+        rule.setdefault("status", "candidate")
+        expected["rules"].append(rule)
+        root = yaml.compose(before, Loader=yaml.SafeLoader)
+        root_items = _node_mapping(root, label="rules document")
+        rules_pair = root_items.get("rules")
+        if rules_pair is None or not isinstance(rules_pair[1], yaml.SequenceNode):
+            raise ValueError("rules document has no YAML rules sequence")
+        rules_node = rules_pair[1]
+        fragment = _dump_fragment([rule], indent=rules_node.start_mark.column)
+        insertion = rules_node.end_mark.index
+        separator = "\n" if before[:insertion].endswith("\n") else "\n\n"
+        return _apply_text_patches(
+            before, [(insertion, insertion, separator + fragment + "\n")]
+        ), expected
+
+    if not isinstance(rule_id, str):
+        raise ValueError("mutation requires a target rule")
+    _rules_node, target_node = _rule_nodes(before, rule_id)
+    target_values = _node_mapping(target_node, label=f"rule {rule_id}")
+    expected_rule = next(rule for rule in expected["rules"] if rule["id"] == rule_id)
+    patches: list[tuple[int, int, str]] = []
+
+    if mutation_type == "add_exception":
+        exception = dict(mutation["exception"])
+        exception.setdefault(
+            "id", f"EXC-{rule_id}-{len(expected_rule.get('exceptions', [])) + 1:03d}"
+        )
+        exception["added_in"] = new_version
+        expected_rule.setdefault("exceptions", []).append(exception)
+        pair = target_values.get("exceptions")
+        if pair is None or not isinstance(pair[1], yaml.SequenceNode):
+            raise ValueError(f"rule {rule_id} has no exceptions sequence")
+        key_node, sequence_node = pair
+        if not sequence_node.value or sequence_node.flow_style:
+            start = sequence_node.start_mark.index
+            if start > key_node.end_mark.index and before[start - 1 : start] == " ":
+                start -= 1
+            replacement = "\n" + _dump_fragment(
+                list(expected_rule["exceptions"]),
+                indent=key_node.start_mark.column + 2,
+            )
+            patches.append((start, sequence_node.end_mark.index, replacement))
+        else:
+            insertion = sequence_node.end_mark.index - sequence_node.end_mark.column
+            fragment = _dump_fragment(
+                [exception], indent=key_node.start_mark.column + 2
+            )
+            patches.append((insertion, insertion, fragment + "\n"))
+    elif mutation_type == "adjust_severity":
+        expected_rule["severity"] = mutation["new_severity"]
+        if "severity" not in target_values:
+            raise ValueError(f"rule {rule_id} has no severity")
+        patches.append(
+            _replace_scalar(
+                target_values["severity"][1],
+                mutation["new_severity"],
+                label="severity",
+            )
+        )
+    elif mutation_type == "activate_rule":
+        expected_rule["status"] = "active"
+        if "status" not in target_values:
+            raise ValueError(f"rule {rule_id} has no status")
+        patches.append(
+            _replace_scalar(target_values["status"][1], "active", label="status")
+        )
+    elif mutation_type == "deprecate_rule":
+        expected_rule["status"] = "deprecated"
+        expected_rule["deprecated_reason"] = mutation["reason"]
+        expected_rule["deprecated_evidence"] = mutation["evidence"]
+        if "status" not in target_values:
+            raise ValueError(f"rule {rule_id} has no status")
+        if "deprecated_reason" in target_values or "deprecated_evidence" in target_values:
+            raise ValueError("deprecation metadata already exists")
+        status_key, status_node = target_values["status"]
+        patches.append(_replace_scalar(status_node, "deprecated", label="status"))
+        line_end = before.find("\n", status_node.end_mark.index)
+        if line_end < 0:
+            insertion = len(before)
+            prefix = "\n"
+        else:
+            insertion = line_end + 1
+            prefix = ""
+        metadata = _dump_fragment(
+            {
+                "deprecated_reason": mutation["reason"],
+                "deprecated_evidence": mutation["evidence"],
+            },
+            indent=status_key.start_mark.column,
+        )
+        patches.append((insertion, insertion, prefix + metadata + "\n"))
+    else:
+        raise ValueError(f"unsupported mutation applicator: {mutation_type}")
+
+    return _apply_text_patches(before, patches), expected
+
+
 def apply_mutation(src_rules: str | Path, dst_rules: str | Path,
                    mutation: Mapping[str, Any], new_version: str) -> tuple[str, str]:
     """Apply one already-validated mutation to a disposable rules copy."""
@@ -505,33 +700,10 @@ def apply_mutation(src_rules: str | Path, dst_rules: str | Path,
     target = destination / filename
     before = target.read_text(encoding="utf-8")
     document = strict_load_yaml(target, expected_type=dict)
-    rules = document["rules"]
-    mutation_type = mutation["type"]
-    rule_id = mutation.get("rule_id")
-
-    if mutation_type == "add_exception":
-        rule = next(rule for rule in rules if rule["id"] == rule_id)
-        exception = dict(mutation["exception"])
-        exception.setdefault("id", f"EXC-{rule_id}-{len(rule.get('exceptions', [])) + 1:03d}")
-        exception["added_in"] = new_version
-        rule.setdefault("exceptions", []).append(exception)
-    elif mutation_type == "adjust_severity":
-        next(rule for rule in rules if rule["id"] == rule_id)["severity"] = mutation["new_severity"]
-    elif mutation_type == "add_rule":
-        rule = dict(mutation["rule"])
-        rule.setdefault("status", "candidate")
-        rules.append(rule)
-    elif mutation_type == "activate_rule":
-        next(rule for rule in rules if rule["id"] == rule_id)["status"] = "active"
-    elif mutation_type == "deprecate_rule":
-        rule = next(rule for rule in rules if rule["id"] == rule_id)
-        rule["status"] = "deprecated"
-        rule["deprecated_reason"] = mutation["reason"]
-        rule["deprecated_evidence"] = mutation["evidence"]
-    else:
-        raise ValueError(f"unsupported mutation applicator: {mutation_type}")
-
-    after = yaml.safe_dump(document, allow_unicode=True, sort_keys=False, width=100)
+    after, expected = _patch_rule_text(before, document, mutation, new_version)
+    reproduced = strict_load_yaml_text(after, source=target, expected_type=dict)
+    if reproduced != expected:
+        raise ValueError("format-preserving mutation does not match expected semantics")
     target.write_text(after, encoding="utf-8")
     # Loading the full candidate validates duplicate IDs, detect operators and
     # security policy before fitness sees it.
@@ -678,6 +850,7 @@ def _verify_locked_corpus(
         )
     return LockedEvaluationInputs(
         corpus=corpus,
+        corpus_lock_payload=lock_payload,
         corpus_payload=corpus_payload,
         corpus_sha256=corpus_hash,
         fixture_files=fixture_files,
@@ -688,13 +861,62 @@ def _verify_locked_corpus(
     )
 
 
+def _distilled_precedent_text(text: str, *, source: str | Path, version: str) -> str:
+    """Patch only precedent lifecycle fields and preserve every other byte."""
+
+    metadata, _body = parse_frontmatter(text, source=str(source))
+    if metadata.get("status") != "pending":
+        raise ValueError("only a pending precedent can be distilled")
+    if not text.startswith("---\n"):
+        raise ValueError("precedent frontmatter must use LF delimiters")
+    delimiter = text.find("\n---\n", 4)
+    if delimiter < 0:
+        raise ValueError("precedent frontmatter closing delimiter is missing")
+    metadata_start = 4
+    metadata_text = text[metadata_start:delimiter]
+    values = _node_mapping(
+        yaml.compose(metadata_text, Loader=yaml.SafeLoader),
+        label="precedent frontmatter",
+    )
+    if "status" not in values:
+        raise ValueError("precedent has no lifecycle status")
+    status_node = values["status"][1]
+    patches: list[tuple[int, int, str]] = [
+        (
+            metadata_start + status_node.start_mark.index,
+            metadata_start + status_node.end_mark.index,
+            "distilled",
+        )
+    ]
+    distilled = values.get("distilled_in")
+    if distilled is not None:
+        patches.append(
+            (
+                metadata_start + distilled[1].start_mark.index,
+                metadata_start + distilled[1].end_mark.index,
+                version,
+            )
+        )
+    else:
+        status_end = metadata_start + status_node.end_mark.index
+        line_end = text.find("\n", status_end)
+        if line_end < 0 or line_end > delimiter:
+            line_end = delimiter
+        patches.append((line_end + 1, line_end + 1, f"distilled_in: {version}\n"))
+    result = _apply_text_patches(text, patches)
+    result_metadata, _ = parse_frontmatter(result, source=str(source))
+    if (
+        result_metadata.get("status") != "distilled"
+        or result_metadata.get("distilled_in") != version
+    ):
+        raise ValueError("distilled precedent patch failed semantic verification")
+    return result
+
+
 def _distilled_precedent(path: Path, version: str) -> str:
-    text = path.read_text(encoding="utf-8")
-    metadata, body = parse_frontmatter(text, source=str(path))
-    metadata["status"] = "distilled"
-    metadata["distilled_in"] = version
-    return "---\n" + yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False).rstrip() \
-        + "\n---\n" + body.lstrip("\n")
+    return _distilled_precedent_text(
+        path.read_text(encoding="utf-8"), source=path, version=version
+    )
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -868,8 +1090,11 @@ def run_cycle(*, max_attempts: int = 3) -> int:
                             print(f"      - {check['id']}: {check['description']}")
                     continue
 
-                today = dt.date.today().isoformat()
-                branch = f"skill/evolution-{today}-{changed_rule or mutation_type}"
+                today = dt.datetime.strptime(cycle_id[4:12], "%Y%m%d").date().isoformat()
+                cycle_suffix = cycle_id.rsplit("-", 1)[-1]
+                branch = (
+                    f"skill/evolution-{today}-{changed_rule or mutation_type}-{cycle_suffix}"
+                )
                 report = markdown_report(base, candidate, checks)
                 pr_body = render_pr_body({
                     "version_from": version, "version_to": new_version,

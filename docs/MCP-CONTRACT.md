@@ -1,15 +1,16 @@
 # AGA MCP contract
 
 The MCP session layer exposes a stateless Streamable HTTP endpoint at `/mcp`;
-bounded immutable review state is retained by `ReviewService` and addressed by
-opaque digests. It implements the subset used by the pinned ArchTool configuration:
+bounded immutable review and remediation state is retained by the trusted
+services and addressed by opaque digests. It implements the subset used by the
+pinned ArchTool configuration:
 `initialize`, `notifications/initialized`, `ping`, `tools/list` and
 `tools/call`. The locally supported protocol version is exactly
 `2025-11-25`; an unknown date-based initialize request is negotiated down to
 that version, and every later GET/DELETE/POST request must send
 `MCP-Protocol-Version: 2025-11-25`.
 
-The four tools are:
+The six gateway tools are:
 
 | Tool | Purpose |
 |---|---|
@@ -17,6 +18,12 @@ The four tools are:
 | `aga_seaf_lookup` | Read one entity from evidence already bound to the prepared review. |
 | `aga_parse_diagram` | Parse one prepared PlantUML/Mermaid artifact without accepting a client filesystem path. |
 | `aga_finalize_review` | Validate semantic JSON against prepared tasks/evidence, merge with deterministic findings and compute a fail-closed verdict. |
+| `aga_prepare_remediation` | Prepare one deterministic SEAF-004 candidate from an exact trusted finalized review and immutable registered Git revision. |
+| `aga_finalize_remediation` | First-write finalize the exact prepared candidate and return a trusted minimal diff without writing, committing, pushing, approving or merging. |
+
+Gateway discovery must return exactly all six tools. Before a model call, the
+managed worker receives only its stage subset: the four review tools for
+`aga:review`, or the two remediation tools for `aga:remediate`.
 
 ## HTTP framing and no-batch policy
 

@@ -33,8 +33,34 @@ from tools.llm import LLMSchemaError, merge_findings, validate_finding
 
 
 SEMANTIC_RULE_IDS = ("PRIN-004", "PRIN-005", "PRIN-006", "PRIN-007")
+SEMANTIC_PREDICATES: dict[str, tuple[str, ...]] = {
+    "PRIN-004": (
+        "changed_target_builds_duplicate_capability",
+        "existing_reusable_candidate_identified",
+        "same_capability_established",
+    ),
+    "PRIN-005": (
+        "changed_target_writes_or_masters_domain_data",
+        "existing_master_identified",
+        "same_domain_established",
+        "read_only_replication_excluded",
+    ),
+    "PRIN-006": (
+        "source_is_mission_critical",
+        "new_dependency_exists",
+        "dependency_target_status_is_eliminate",
+    ),
+    "PRIN-007": (
+        "significant_architectural_choice_exists",
+        "technology_pattern_or_tradeoff_identified",
+        "adr_absent_or_quality_insufficient",
+    ),
+}
 SEMANTIC_STATUSES = frozenset(
     {"completed", "incomplete", "error", "timeout", "unavailable"}
+)
+PREDICATE_STATUSES = frozenset(
+    {"satisfied", "not_satisfied", "mixed", "not_applicable", "unknown"}
 )
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}$")
 REVISION_RE = re.compile(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$")
@@ -47,6 +73,59 @@ SCOPE_KIND_ALIASES = {
     "diagram": {"diagram"},
 }
 MAX_TEXT_CHARS = 16_000
+_INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "instruction_override",
+        re.compile(r"\b(?:ignore|disregard|override)\b.{0,80}\b(?:instruction|policy|rule)s?\b", re.I | re.S),
+    ),
+    (
+        "tool_flow_override",
+        re.compile(r"\b(?:do\s+not|never|stop)\b.{0,48}\b(?:call|invoke|use)\b.{0,48}\btools?\b", re.I | re.S),
+    ),
+    (
+        "verdict_override",
+        re.compile(r"\b(?:approve|auto-approve|request_changes|verdict)\b.{0,64}\b(?:change|review|pr|now|instead)\b", re.I | re.S),
+    ),
+    (
+        "severity_override",
+        re.compile(r"\b(?:set|change|replace|override)\b.{0,48}\bseverity\b", re.I | re.S),
+    ),
+    (
+        "output_contract_override",
+        re.compile(r"\b(?:return|emit|output|replace)\b.{0,64}\b(?:json|source_ref|schema)\b", re.I | re.S),
+    ),
+)
+
+_MARKDOWN_ADR_DIRECTORIES = frozenset({"adrs", "decisions"})
+_MARKDOWN_ADR_ID_RE = re.compile(
+    r"ADR-[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*\Z"
+)
+
+
+def _markdown_adr_entity_id(path: str) -> str | None:
+    """Derive a standalone ADR identity from a narrow trusted path shape.
+
+    Repository content remains untrusted; only the already-normalised Git path
+    is used for identity.  README and other Markdown files in ADR directories
+    are intentionally ignored, while an ADR-prefixed malformed filename fails
+    closed instead of silently disappearing from PRIN-007 scope.
+    """
+
+    candidate = PurePosixPath(path)
+    if (
+        candidate.suffix.lower() != ".md"
+        or not any(part in _MARKDOWN_ADR_DIRECTORIES for part in candidate.parts[:-1])
+    ):
+        return None
+    entity_id = candidate.stem
+    if not entity_id.startswith("ADR-"):
+        return None
+    if len(entity_id) > 128 or _MARKDOWN_ADR_ID_RE.fullmatch(entity_id) is None:
+        raise ReviewServiceError(
+            "markdown_adr_invalid_id",
+            "changed Markdown ADR filename has an invalid entity ID",
+        )
+    return entity_id
 
 
 class ReviewServiceError(RuntimeError):
@@ -424,6 +503,15 @@ class ReviewService:
             for key in ("source_ref", "statement", "severity", "scope"):
                 if key not in rule:
                     raise ValueError(f"semantic rule {rule_id} is missing {key}")
+            predicates = rule.get("predicates", SEMANTIC_PREDICATES[rule_id])
+            if (
+                not isinstance(predicates, (list, tuple))
+                or tuple(predicates) != SEMANTIC_PREDICATES[rule_id]
+            ):
+                raise ValueError(
+                    f"semantic rule {rule_id} has an invalid predicate contract"
+                )
+            rule["predicates"] = list(SEMANTIC_PREDICATES[rule_id])
         self._catalog = catalog
         self._policy = dict(verdict_policy or loaded_policy)
         initial_verdicts = self._policy.get("verdict_policy")
@@ -603,6 +691,53 @@ class ReviewService:
                     allowed_extensions={".puml", ".plantuml", ".mmd"},
                 )
 
+            markdown_adrs: list[dict[str, Any]] = []
+            for changed in snapshot.changed_artifacts:
+                entity_id = _markdown_adr_entity_id(changed.path)
+                if entity_id is None:
+                    continue
+                if changed.status == "deleted":
+                    raise ReviewServiceError(
+                        "markdown_adr_deleted",
+                        "a deleted Markdown ADR requires conservative human review",
+                    )
+                text = snapshot.read_materialized_text(
+                    changed.path,
+                    allowed_extensions={".md"},
+                )
+                if "\x00" in text:
+                    raise ReviewServiceError(
+                        "markdown_adr_invalid_content",
+                        "changed Markdown ADR contains an invalid NUL character",
+                    )
+                artifact_data = {"id": entity_id, "body": text}
+                if len(_canonical_json(artifact_data).encode("utf-8")) > (
+                    self._max_artifact_bytes
+                ):
+                    raise ReviewServiceError(
+                        "markdown_adr_too_large",
+                        "changed Markdown ADR exceeds the prepared evidence limit",
+                    )
+                source_ref = changed.source_ref.as_dict()
+                source_pointer = f"/seaf.change.adr/{entity_id}"
+                source_ref["pointer"] = source_pointer
+                markdown_adrs.append(
+                    {
+                        "entity_id": entity_id,
+                        "artifact": changed.path,
+                        "kind": "adr",
+                        "data": artifact_data,
+                        "source_ref": source_ref,
+                        "content_source_ref": None,
+                        "change_status": "changed",
+                        # The whole immutable Markdown blob backs one canonical
+                        # ADR entity. Field-level pointers cannot be inferred
+                        # safely from line diffs, so the entity root is the
+                        # smallest trusted changed target.
+                        "changed_pointers": [source_pointer],
+                    }
+                )
+
         artifacts: list[dict[str, Any]] = []
         kind_by_collection = {
             "systems": "system_passport",
@@ -679,6 +814,20 @@ class ReviewService:
                         "changed_pointers": changed_pointers,
                     }
                 )
+        entity_ids = {str(item["entity_id"]) for item in artifacts}
+        for markdown_adr in markdown_adrs:
+            entity_id = str(markdown_adr["entity_id"])
+            if entity_id in entity_ids:
+                raise ReviewServiceError(
+                    "markdown_adr_duplicate_id",
+                    "Markdown ADR identity conflicts with another prepared artifact",
+                )
+            entity_ids.add(entity_id)
+            artifacts.append(markdown_adr)
+        if len(artifacts) > self._max_artifacts:
+            raise ReviewServiceError(
+                "prepare_limit", "too many native and Markdown ADR artifacts"
+            )
         return {
             "artifacts": artifacts,
             "deterministic_findings": native_result["deterministic_findings"],
@@ -1042,6 +1191,7 @@ class ReviewService:
                     "entity_id": entity_id,
                     "artifact": artifact,
                     "kind": kind,
+                    "data_classification": "untrusted-repository-data",
                     "digest": _sha256_text(data_json),
                     "evidence_ref": "",  # assigned after the review digest is known
                     "data_json": data_json,
@@ -1223,6 +1373,117 @@ class ReviewService:
             )
         return errors
 
+    def _reference_context(
+        self,
+        artifacts: Sequence[Mapping[str, Any]],
+    ) -> tuple[list[str], list[str], list[dict[str, str]]]:
+        """Resolve trusted-parser references inside the prepared evidence only."""
+
+        from tools.repository_snapshot import extract_trusted_entity_references
+        from tools.validation import ValidationError
+
+        referenced: set[str] = set()
+        errors: list[dict[str, str]] = []
+        for artifact in artifacts:
+            if artifact.get("change_status") != "changed":
+                continue
+            try:
+                data = _strict_json_loads(artifact["data_json"])
+                if not isinstance(data, Mapping):
+                    continue
+                extracted = extract_trusted_entity_references(
+                    str(artifact.get("kind") or ""), data
+                )
+            except (KeyError, TypeError, UnicodeError, ValueError, ValidationError):
+                errors.append(
+                    {
+                        "code": "reference_parse_incomplete",
+                        "message": (
+                            "trusted entity-reference parser could not complete "
+                            "within its safety bounds"
+                        ),
+                    }
+                )
+                continue
+            referenced.update(
+                value
+                for value in extracted
+                if value != artifact.get("entity_id")
+            )
+
+        by_id = {str(item["entity_id"]): item for item in artifacts}
+        unresolved: set[str] = set()
+        for entity_id in referenced:
+            target = by_id.get(entity_id)
+            if target is None:
+                unresolved.add(entity_id)
+                continue
+            # A resolved system reference still lacks the context required by
+            # PRIN-006 when its passport omits either decisive field.
+            if target.get("kind") in {"system", "system_passport", "seaf.app.system"}:
+                try:
+                    target_data = _strict_json_loads(target["data_json"])
+                except (KeyError, TypeError, UnicodeError, ValueError):
+                    unresolved.add(entity_id)
+                    continue
+                if not isinstance(target_data, Mapping) or any(
+                    target_data.get(field) is None or target_data.get(field) == ""
+                    for field in ("criticality", "target_status")
+                ):
+                    unresolved.add(entity_id)
+
+        if unresolved:
+            errors.append(
+                {
+                    "code": "unresolved_entity_references",
+                    "message": (
+                        "one or more mandatory entity references are absent or "
+                        "lack criticality/target_status context"
+                    ),
+                }
+            )
+        return sorted(referenced), sorted(unresolved), errors
+
+    def _security_observations(
+        self,
+        artifacts: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Record prompt-injection-shaped repository data without executing it."""
+
+        observations: list[dict[str, Any]] = []
+        for artifact in artifacts:
+            try:
+                data = _strict_json_loads(artifact["data_json"])
+            except (KeyError, TypeError, UnicodeError, ValueError):
+                continue
+            patterns: set[str] = set()
+            stack: list[Any] = [data]
+            visited = 0
+            while stack and visited < 4096:
+                value = stack.pop()
+                visited += 1
+                if isinstance(value, Mapping):
+                    stack.extend(value.values())
+                elif isinstance(value, list):
+                    stack.extend(value)
+                elif isinstance(value, str):
+                    bounded = value[:MAX_TEXT_CHARS]
+                    patterns.update(
+                        code
+                        for code, pattern in _INJECTION_PATTERNS
+                        if pattern.search(bounded) is not None
+                    )
+            if patterns:
+                observations.append(
+                    {
+                        "code": "untrusted_instruction_like_data",
+                        "entity_id": artifact["entity_id"],
+                        "evidence_ref": artifact.get("evidence_ref", ""),
+                        "patterns": sorted(patterns),
+                    }
+                )
+        return observations
+
     def _normalise_review_context(
         self,
         callback_result: Mapping[str, Any],
@@ -1278,6 +1539,7 @@ class ReviewService:
             statement = raw_rule["statement"]
             severity = raw_rule["severity"]
             scope = raw_rule["scope"]
+            predicates = raw_rule.get("predicates", SEMANTIC_PREDICATES[rule_id])
             if (
                 not isinstance(source_ref, str)
                 or not source_ref
@@ -1287,6 +1549,8 @@ class ReviewService:
                 or not isinstance(scope, list)
                 or not scope
                 or any(not isinstance(item, str) or not item for item in scope)
+                or not isinstance(predicates, (list, tuple))
+                or tuple(predicates) != SEMANTIC_PREDICATES[rule_id]
             ):
                 raise ReviewServiceError(
                     "prepare_schema_error", f"semantic rule {rule_id} is invalid"
@@ -1303,6 +1567,7 @@ class ReviewService:
                     _identifier(item, f"semantic_rule_catalog.{rule_id}.scope")
                     for item in scope
                 ],
+                "predicates": list(SEMANTIC_PREDICATES[rule_id]),
             }
 
         policy = _clone(raw_policy)
@@ -1404,6 +1669,18 @@ class ReviewService:
                     "message": "one or more requested entity IDs were not prepared",
                 }
             )
+        referenced_entity_ids, unresolved_reference_ids, reference_errors = (
+            self._reference_context(artifacts)
+        )
+        errors.extend(reference_errors)
+        security_projection = [
+            {
+                "code": item["code"],
+                "entity_id": item["entity_id"],
+                "patterns": item["patterns"],
+            }
+            for item in self._security_observations(artifacts)
+        ]
 
         review_material = {
             "repository_id": repository_id,
@@ -1416,6 +1693,7 @@ class ReviewService:
                     "entity_id": item["entity_id"],
                     "artifact": item["artifact"],
                     "kind": item["kind"],
+                    "data_classification": item["data_classification"],
                     "digest": item["digest"],
                     "provenance_json": item["provenance_json"],
                     "source_provenance": item["source_provenance"],
@@ -1426,6 +1704,9 @@ class ReviewService:
                 for item in artifacts
             ],
             "deterministic_findings": deterministic,
+            "referenced_entity_ids": referenced_entity_ids,
+            "unresolved_reference_ids": unresolved_reference_ids,
+            "security_observations": security_projection,
             "review_provenance_json": provenance_json,
             "semantic_rule_catalog": catalog,
             "verdict_policy": policy,
@@ -1440,6 +1721,7 @@ class ReviewService:
                     "digest": artifact["digest"],
                 },
             )
+        security_observations = self._security_observations(artifacts)
 
         by_artifact: dict[str, list[dict[str, Any]]] = {}
         for artifact in artifacts:
@@ -1511,6 +1793,7 @@ class ReviewService:
                 "review_digest": review_digest,
                 "rule_id": rule_id,
                 "source_ref": rule["source_ref"],
+                "predicate_ids": list(SEMANTIC_PREDICATES[rule_id]),
                 "entity_ids": [item["entity_id"] for item in changed],
                 "context_entity_ids": [item["entity_id"] for item in context],
                 "evidence_refs": [item["evidence_ref"] for item in relevant],
@@ -1524,9 +1807,25 @@ class ReviewService:
                     "severity": rule["severity"],
                     "source_ref": rule["source_ref"],
                     "instruction": rule["statement"],
+                    "predicate_ids": task_material["predicate_ids"],
                     "entity_ids": task_material["entity_ids"],
                     "context_entity_ids": task_material["context_entity_ids"],
                     "evidence_refs": task_material["evidence_refs"],
+                    "trusted_instruction": {
+                        "schema": "aga.trusted-semantic-instruction/v1",
+                        "rule_id": rule_id,
+                        "severity": rule["severity"],
+                        "source_ref": rule["source_ref"],
+                        "statement": rule["statement"],
+                        "predicate_ids": task_material["predicate_ids"],
+                    },
+                    "untrusted_artifact_envelope": {
+                        "schema": "aga.untrusted-artifact-envelope/v1",
+                        "data_classification": "untrusted-repository-data",
+                        "entity_ids": task_material["entity_ids"],
+                        "context_entity_ids": task_material["context_entity_ids"],
+                        "evidence_refs": task_material["evidence_refs"],
+                    },
                 }
             )
         task_digest = self._opaque(
@@ -1546,6 +1845,9 @@ class ReviewService:
             "deterministic_findings": deterministic,
             "semantic_tasks": tasks,
             "artifacts": artifacts,
+            "referenced_entity_ids": referenced_entity_ids,
+            "unresolved_reference_ids": unresolved_reference_ids,
+            "security_observations": security_observations,
             "analysis_errors": errors,
             "review_provenance_json": provenance_json,
             "incomplete": incomplete,
@@ -1600,6 +1902,15 @@ class ReviewService:
     ) -> dict[str, Any]:
         stored = self._get_review(review_id, review_digest)
         safe_entity = _identifier(entity_id, "entity_id")
+        allowed_entities = set(stored.prepared["referenced_entity_ids"])
+        for task in stored.prepared["semantic_tasks"]:
+            allowed_entities.update(task["entity_ids"])
+            allowed_entities.update(task["context_entity_ids"])
+        if safe_entity not in allowed_entities:
+            raise ReviewServiceError(
+                "entity_lookup_not_allowed",
+                "entity ID is outside the trusted prepared lookup allowlist",
+            )
         entity = stored.artifacts.get(safe_entity)
         if entity is None:
             raise ReviewServiceError("entity_not_found", "entity is not in prepared evidence")
@@ -1662,47 +1973,296 @@ class ReviewService:
         result = _require_mapping(semantic_result, "semantic_result")
         _strict_keys(
             result,
-            allowed={"status", "completed_rule_ids", "findings", "error"},
+            allowed={
+                "status",
+                "completed_rule_ids",
+                "findings",
+                "rule_results",
+                "error",
+            },
             required={"status"},
             field="semantic_result",
         )
         status = result["status"]
         if not isinstance(status, str) or status not in SEMANTIC_STATUSES:
             raise ReviewInputError("has an unknown status", field="semantic_result.status")
-        raw_completed = result.get("completed_rule_ids", [])
-        if not isinstance(raw_completed, list):
-            raise ReviewInputError("must be an array", field="semantic_result.completed_rule_ids")
-        completed = [
-            _identifier(item, f"semantic_result.completed_rule_ids[{index}]")
-            for index, item in enumerate(raw_completed)
-        ]
-        if len(set(completed)) != len(completed):
-            raise ReviewInputError(
-                "must contain unique rule IDs", field="semantic_result.completed_rule_ids"
-            )
-        unknown_rules = sorted(set(completed) - set(SEMANTIC_RULE_IDS))
-        if unknown_rules:
-            raise ReviewInputError(
-                "contains a rule outside the prepared semantic tasks",
-                field="semantic_result.completed_rule_ids",
-            )
-        completed = [rule_id for rule_id in SEMANTIC_RULE_IDS if rule_id in completed]
-
-        raw_findings = result.get("findings", [])
-        if not isinstance(raw_findings, list):
-            raise ReviewInputError("must be an array", field="semantic_result.findings")
-        if len(raw_findings) > self._max_findings:
-            raise ReviewInputError("contains too many findings", field="semantic_result.findings")
-        if status in {"error", "timeout", "unavailable"} and (completed or raw_findings):
-            raise ReviewInputError(
-                "failed agent status cannot claim completed rules or findings",
-                field="semantic_result",
-            )
         error_message = _bounded_text(result.get("error", ""), "semantic_result.error")
         if status == "completed" and error_message:
             raise ReviewInputError(
                 "completed status cannot include an error",
                 field="semantic_result.error",
+            )
+
+        raw_rule_results = result.get("rule_results", [])
+        if not isinstance(raw_rule_results, list):
+            raise ReviewInputError("must be an array", field="semantic_result.rule_results")
+        if len(raw_rule_results) > len(SEMANTIC_RULE_IDS):
+            raise ReviewInputError(
+                "contains too many rule results", field="semantic_result.rule_results"
+            )
+        if status in {"error", "timeout", "unavailable"} and raw_rule_results:
+            raise ReviewInputError(
+                "failed agent status cannot claim rule results",
+                field="semantic_result.rule_results",
+            )
+
+        completed: list[str] = []
+        derived_findings: list[Mapping[str, Any]] = []
+        rule_predicate_checks: dict[str, dict[str, Mapping[str, Any]]] = {}
+        mixed_rule_ids: set[str] = set()
+        seen_rule_results: set[str] = set()
+        prepared_tasks = {
+            task["rule_id"]: task for task in stored.prepared["semantic_tasks"]
+        }
+        rule_result_fields = {
+            "rule_id",
+            "applicable",
+            "complete",
+            "evaluated_entity_ids",
+            "predicate_checks",
+            "findings",
+            "error",
+        }
+        predicate_check_fields = {
+            "predicate_id",
+            "status",
+            "evidence",
+            "evidence_refs",
+        }
+        for result_index, raw_rule_result in enumerate(raw_rule_results):
+            result_field = f"semantic_result.rule_results[{result_index}]"
+            rule_result = _require_mapping(raw_rule_result, result_field)
+            _strict_keys(
+                rule_result,
+                allowed=rule_result_fields,
+                required=rule_result_fields,
+                field=result_field,
+            )
+            rule_id = _identifier(rule_result["rule_id"], f"{result_field}.rule_id")
+            if rule_id not in SEMANTIC_RULE_IDS or rule_id in seen_rule_results:
+                raise ReviewInputError(
+                    "must identify one unique prepared semantic rule",
+                    field=f"{result_field}.rule_id",
+                )
+            seen_rule_results.add(rule_id)
+            task = prepared_tasks[rule_id]
+            applicable = rule_result["applicable"]
+            complete = rule_result["complete"]
+            if type(applicable) is not bool or applicable != bool(task["entity_ids"]):
+                raise ReviewInputError(
+                    "must match whether the prepared rule has changed targets",
+                    field=f"{result_field}.applicable",
+                )
+            if type(complete) is not bool:
+                raise ReviewInputError("must be a boolean", field=f"{result_field}.complete")
+            rule_error = _bounded_text(rule_result["error"], f"{result_field}.error")
+            if complete and rule_error:
+                raise ReviewInputError(
+                    "a complete rule result cannot contain an error",
+                    field=f"{result_field}.error",
+                )
+            if not complete and not rule_error:
+                raise ReviewInputError(
+                    "an incomplete rule result must explain its error",
+                    field=f"{result_field}.error",
+                )
+
+            raw_evaluated = rule_result["evaluated_entity_ids"]
+            if not isinstance(raw_evaluated, list):
+                raise ReviewInputError(
+                    "must be an array", field=f"{result_field}.evaluated_entity_ids"
+                )
+            evaluated = [
+                _identifier(value, f"{result_field}.evaluated_entity_ids[{index}]")
+                for index, value in enumerate(raw_evaluated)
+            ]
+            if len(set(evaluated)) != len(evaluated) or any(
+                value not in task["entity_ids"] for value in evaluated
+            ):
+                raise ReviewInputError(
+                    "must contain unique changed targets from this prepared task",
+                    field=f"{result_field}.evaluated_entity_ids",
+                )
+            if complete and evaluated != task["entity_ids"]:
+                raise ReviewInputError(
+                    "must cover every changed target in prepared order",
+                    field=f"{result_field}.evaluated_entity_ids",
+                )
+
+            raw_checks = rule_result["predicate_checks"]
+            if not isinstance(raw_checks, list):
+                raise ReviewInputError(
+                    "must be an array", field=f"{result_field}.predicate_checks"
+                )
+            checks: dict[str, Mapping[str, Any]] = {}
+            for check_index, raw_check in enumerate(raw_checks):
+                check_field = f"{result_field}.predicate_checks[{check_index}]"
+                check = _require_mapping(raw_check, check_field)
+                _strict_keys(
+                    check,
+                    allowed=predicate_check_fields,
+                    required=predicate_check_fields,
+                    field=check_field,
+                )
+                predicate_id = _identifier(
+                    check["predicate_id"], f"{check_field}.predicate_id"
+                )
+                if (
+                    predicate_id not in SEMANTIC_PREDICATES[rule_id]
+                    or predicate_id in checks
+                ):
+                    raise ReviewInputError(
+                        "must identify one unique required predicate for this rule",
+                        field=f"{check_field}.predicate_id",
+                    )
+                predicate_status = check["status"]
+                if predicate_status not in PREDICATE_STATUSES:
+                    raise ReviewInputError(
+                        "has an unknown predicate status", field=f"{check_field}.status"
+                    )
+                check_evidence = _bounded_text(
+                    check["evidence"], f"{check_field}.evidence"
+                )
+                check_refs = check["evidence_refs"]
+                if (
+                    not isinstance(check_refs, list)
+                    or len(set(check_refs)) != len(check_refs)
+                    or any(not isinstance(ref, str) for ref in check_refs)
+                    or any(ref not in task["evidence_refs"] for ref in check_refs)
+                ):
+                    raise ReviewInputError(
+                        "must contain unique evidence refs from this prepared task",
+                        field=f"{check_field}.evidence_refs",
+                    )
+                if predicate_status == "not_applicable":
+                    if applicable or check_evidence or check_refs:
+                        raise ReviewInputError(
+                            "not_applicable is allowed only for an empty task and has no evidence",
+                            field=check_field,
+                        )
+                elif not check_evidence.strip() or not check_refs:
+                    raise ReviewInputError(
+                        "an applicable predicate check requires prepared evidence",
+                        field=check_field,
+                    )
+                if complete and predicate_status == "unknown":
+                    raise ReviewInputError(
+                        "a complete rule result cannot contain an unknown predicate",
+                        field=f"{check_field}.status",
+                    )
+                checks[predicate_id] = check
+            if complete and tuple(checks) != SEMANTIC_PREDICATES[rule_id]:
+                raise ReviewInputError(
+                    "must cover every required predicate in prepared order",
+                    field=f"{result_field}.predicate_checks",
+                )
+            if complete and any(
+                check["status"] == "mixed" for check in checks.values()
+            ):
+                mixed_rule_ids.add(rule_id)
+            if not applicable and complete and any(
+                check["status"] != "not_applicable" for check in checks.values()
+            ):
+                raise ReviewInputError(
+                    "an empty task must mark every predicate not_applicable",
+                    field=f"{result_field}.predicate_checks",
+                )
+            if complete and applicable:
+                grounded_entity_ids = {
+                    stored.evidence[ref]
+                    for check in checks.values()
+                    for ref in check["evidence_refs"]
+                }
+                missing_evidence = [
+                    entity_id
+                    for entity_id in evaluated
+                    if entity_id not in grounded_entity_ids
+                ]
+                if missing_evidence:
+                    raise _SemanticEvidenceError(
+                        "predicate evidence must collectively cover every evaluated "
+                        "changed target, not context alone",
+                        field=f"{result_field}.predicate_checks",
+                    )
+
+            child_findings = rule_result["findings"]
+            if not isinstance(child_findings, list):
+                raise ReviewInputError("must be an array", field=f"{result_field}.findings")
+            if len(child_findings) + len(derived_findings) > self._max_findings:
+                raise ReviewInputError(
+                    "contains too many findings", field="semantic_result.rule_results"
+                )
+            if not complete and child_findings:
+                raise ReviewInputError(
+                    "an incomplete child result cannot publish findings",
+                    field=f"{result_field}.findings",
+                )
+            if (
+                complete
+                and applicable
+                and not child_findings
+                and checks
+                and all(check.get("status") == "satisfied" for check in checks.values())
+            ):
+                raise ReviewInputError(
+                    "a fully satisfied predicate set cannot drop its child finding",
+                    field=f"{result_field}.findings",
+                )
+            for child_index, child in enumerate(child_findings):
+                if not isinstance(child, Mapping) or child.get("rule_id") != rule_id:
+                    raise ReviewInputError(
+                        "child findings must retain their rule result rule_id",
+                        field=f"{result_field}.findings[{child_index}].rule_id",
+                    )
+            if complete:
+                completed.append(rule_id)
+            derived_findings.extend(child_findings)
+            rule_predicate_checks[rule_id] = checks
+
+        completed = [rule_id for rule_id in SEMANTIC_RULE_IDS if rule_id in completed]
+        raw_completed = result.get("completed_rule_ids")
+        if raw_completed is not None:
+            if not isinstance(raw_completed, list) or raw_completed != completed:
+                raise ReviewInputError(
+                    "must equal the completed child rule results in canonical order",
+                    field="semantic_result.completed_rule_ids",
+                )
+        raw_top_findings = result.get("findings")
+        if raw_top_findings is not None:
+            if not isinstance(raw_top_findings, list) or _canonical_json(
+                raw_top_findings
+            ) != _canonical_json(derived_findings):
+                raise ReviewInputError(
+                    "must exactly mirror child findings; aggregation cannot rewrite them",
+                    field="semantic_result.findings",
+                )
+        raw_findings = list(derived_findings)
+        if status in {"error", "timeout", "unavailable"} and (
+            completed or raw_findings or result.get("completed_rule_ids") or result.get("findings")
+        ):
+            raise ReviewInputError(
+                "failed agent status cannot claim completed rules or findings",
+                field="semantic_result",
+            )
+        if status == "completed" and (
+            completed != list(SEMANTIC_RULE_IDS)
+            or len(seen_rule_results) != len(SEMANTIC_RULE_IDS)
+        ):
+            # Keep this a valid, but incomplete, governance result.  The
+            # conservative gate below will never approve it.
+            completed = [rule_id for rule_id in SEMANTIC_RULE_IDS if rule_id in completed]
+        if mixed_rule_ids:
+            # ``mixed`` is an explicit uncertainty signal.  Preserve a valid
+            # agent response for auditability, but make the governance result
+            # incomplete so the conservative gate requires human review.
+            status = "incomplete"
+            error_message = (
+                "mixed predicate status requires human review: "
+                + ", ".join(
+                    rule_id
+                    for rule_id in SEMANTIC_RULE_IDS
+                    if rule_id in mixed_rule_ids
+                )
             )
 
         accepted: list[dict[str, Any]] = []
@@ -1717,6 +2277,7 @@ class ReviewService:
             "evidence_refs",
             "source_ref",
             "suggested_fix",
+            "predicate_evidence",
         }
         for index, raw in enumerate(raw_findings):
             finding = _require_mapping(raw, f"semantic_result.findings[{index}]")
@@ -1801,6 +2362,71 @@ class ReviewService:
                 raise ReviewInputError(
                     "must include evidence for finding.entity_id",
                     field=f"semantic_result.findings[{index}].evidence_refs",
+                )
+            finding_evidence_text = _bounded_text(
+                finding["evidence"],
+                f"semantic_result.findings[{index}].evidence",
+                allow_empty=False,
+            )
+
+            raw_predicate_evidence = finding["predicate_evidence"]
+            predicate_field = f"semantic_result.findings[{index}].predicate_evidence"
+            if not isinstance(raw_predicate_evidence, list):
+                raise ReviewInputError("must be an array", field=predicate_field)
+            predicate_evidence: dict[str, Mapping[str, Any]] = {}
+            for predicate_index, raw_predicate in enumerate(raw_predicate_evidence):
+                item_field = f"{predicate_field}[{predicate_index}]"
+                item = _require_mapping(raw_predicate, item_field)
+                _strict_keys(
+                    item,
+                    allowed={"predicate_id", "evidence", "evidence_refs"},
+                    required={"predicate_id", "evidence", "evidence_refs"},
+                    field=item_field,
+                )
+                predicate_id = _identifier(
+                    item["predicate_id"], f"{item_field}.predicate_id"
+                )
+                if (
+                    predicate_id not in SEMANTIC_PREDICATES[rule_id]
+                    or predicate_id in predicate_evidence
+                ):
+                    raise ReviewInputError(
+                        "must identify one unique required predicate for this finding",
+                        field=f"{item_field}.predicate_id",
+                    )
+                evidence_text = _bounded_text(
+                    item["evidence"], f"{item_field}.evidence", allow_empty=False
+                )
+                predicate_refs = item["evidence_refs"]
+                if (
+                    not isinstance(predicate_refs, list)
+                    or not predicate_refs
+                    or len(set(predicate_refs)) != len(predicate_refs)
+                    or any(ref not in refs for ref in predicate_refs)
+                ):
+                    raise ReviewInputError(
+                        "must be a non-empty subset of finding.evidence_refs",
+                        field=f"{item_field}.evidence_refs",
+                    )
+                if evidence_text not in finding_evidence_text:
+                    raise ReviewInputError(
+                        "must preserve the predicate evidence in finding.evidence",
+                        field=f"{item_field}.evidence",
+                    )
+                rule_check = rule_predicate_checks[rule_id].get(predicate_id)
+                if rule_check is None or rule_check.get("status") not in {
+                    "satisfied",
+                    "mixed",
+                }:
+                    raise ReviewInputError(
+                        "finding predicates must be satisfied by the complete rule result",
+                        field=f"{item_field}.predicate_id",
+                    )
+                predicate_evidence[predicate_id] = item
+            if tuple(predicate_evidence) != SEMANTIC_PREDICATES[rule_id]:
+                raise ReviewInputError(
+                    "must cover every required predicate in prepared order",
+                    field=predicate_field,
                 )
 
             location_field = f"semantic_result.findings[{index}].location"
@@ -1895,11 +2521,13 @@ class ReviewService:
                 semantic_result, stored
             )
         except _SemanticEvidenceError as exc:
-            # A syntactically valid agent response with an unbound location is
-            # a completed transport call but an incomplete governance review.
+            # A syntactically valid agent response with unbound evidence is a
+            # completed transport call but an incomplete governance review.
             # Do not accept any semantic finding from that response.
             status, completed, semantic, observations = "incomplete", [], [], []
-            agent_error = "semantic finding location is not bound to prepared evidence"
+            agent_error = (
+                "semantic result evidence is not bound to prepared changed targets"
+            )
             semantic_validation_error = {
                 "code": "semantic_validation_error",
                 "message": agent_error,
@@ -1950,7 +2578,10 @@ class ReviewService:
             for observation in observations
         )
         semantic_complete = (
-            status == "completed" and not missing and not low_confidence_risk
+            status == "completed"
+            and not missing
+            and not low_confidence_risk
+            and not stored.prepared["unresolved_reference_ids"]
         )
         if semantic_validation_error is not None:
             analysis_errors.append(semantic_validation_error)
@@ -1986,7 +2617,11 @@ class ReviewService:
         except LLMSchemaError as exc:
             raise ReviewServiceError("merge_error", "finding merge failed closed") from exc
 
-        incomplete = bool(stored.prepared["incomplete"] or not semantic_complete)
+        incomplete = bool(
+            stored.prepared["incomplete"]
+            or stored.prepared["unresolved_reference_ids"]
+            or not semantic_complete
+        )
         verdict = "incomplete" if incomplete else verdict_from(merged, stored.policy)
         escalate = incomplete or verdict == "request_changes_escalate"
         result = {
@@ -2071,6 +2706,10 @@ ARTIFACT_SCHEMA: dict[str, Any] = {
         "entity_id": {"type": "string", "pattern": ID_RE.pattern},
         "artifact": {"type": "string"},
         "kind": {"type": "string", "pattern": ID_RE.pattern},
+        "data_classification": {
+            "type": "string",
+            "const": "untrusted-repository-data",
+        },
         "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "evidence_ref": {"type": "string", "pattern": DIGEST_RE.pattern},
         "data_json": {"type": "string"},
@@ -2096,6 +2735,7 @@ ARTIFACT_SCHEMA: dict[str, Any] = {
         "entity_id",
         "artifact",
         "kind",
+        "data_classification",
         "digest",
         "evidence_ref",
         "data_json",
@@ -2174,6 +2814,11 @@ TASK_SCHEMA: dict[str, Any] = {
         "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
         "source_ref": {"type": "string"},
         "instruction": {"type": "string"},
+        "predicate_ids": {
+            "type": "array",
+            "items": {"type": "string", "pattern": ID_RE.pattern},
+            "uniqueItems": True,
+        },
         "entity_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
         "context_entity_ids": {
             "type": "array",
@@ -2181,6 +2826,57 @@ TASK_SCHEMA: dict[str, Any] = {
             "uniqueItems": True,
         },
         "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+        "trusted_instruction": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "schema": {
+                    "type": "string",
+                    "const": "aga.trusted-semantic-instruction/v1",
+                },
+                "rule_id": {"type": "string", "enum": list(SEMANTIC_RULE_IDS)},
+                "severity": {"type": "string", "enum": ["blocker", "major", "minor"]},
+                "source_ref": {"type": "string"},
+                "statement": {"type": "string"},
+                "predicate_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": ID_RE.pattern},
+                    "uniqueItems": True,
+                },
+            },
+            "required": [
+                "schema",
+                "rule_id",
+                "severity",
+                "source_ref",
+                "statement",
+                "predicate_ids",
+            ],
+        },
+        "untrusted_artifact_envelope": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "schema": {
+                    "type": "string",
+                    "const": "aga.untrusted-artifact-envelope/v1",
+                },
+                "data_classification": {
+                    "type": "string",
+                    "const": "untrusted-repository-data",
+                },
+                "entity_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+                "context_entity_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+                "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+            },
+            "required": [
+                "schema",
+                "data_classification",
+                "entity_ids",
+                "context_entity_ids",
+                "evidence_refs",
+            ],
+        },
     },
     "required": [
         "task_id",
@@ -2189,9 +2885,12 @@ TASK_SCHEMA: dict[str, Any] = {
         "severity",
         "source_ref",
         "instruction",
+        "predicate_ids",
         "entity_ids",
         "context_entity_ids",
         "evidence_refs",
+        "trusted_instruction",
+        "untrusted_artifact_envelope",
     ],
 }
 
@@ -2204,6 +2903,20 @@ def _object_schema(properties: Mapping[str, Any], required: Sequence[str]) -> di
         "required": list(required),
     }
 
+
+PREDICATE_EVIDENCE_SCHEMA = _object_schema(
+    {
+        "predicate_id": {"type": "string", "pattern": ID_RE.pattern},
+        "evidence": {"type": "string"},
+        "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "pattern": DIGEST_RE.pattern},
+            "minItems": 1,
+            "uniqueItems": True,
+        },
+    },
+    ["predicate_id", "evidence", "evidence_refs"],
+)
 
 SEMANTIC_FINDING_INPUT_SCHEMA = _object_schema(
     {
@@ -2251,6 +2964,11 @@ SEMANTIC_FINDING_INPUT_SCHEMA = _object_schema(
             ),
         },
         "suggested_fix": {"type": "string"},
+        "predicate_evidence": {
+            "type": "array",
+            "items": PREDICATE_EVIDENCE_SCHEMA,
+            "minItems": 1,
+        },
     },
     [
         "rule_id",
@@ -2262,6 +2980,56 @@ SEMANTIC_FINDING_INPUT_SCHEMA = _object_schema(
         "evidence_refs",
         "source_ref",
         "suggested_fix",
+        "predicate_evidence",
+    ],
+)
+PREDICATE_CHECK_SCHEMA = _object_schema(
+    {
+        "predicate_id": {"type": "string", "pattern": ID_RE.pattern},
+        "status": {
+            "type": "string",
+            "enum": sorted(PREDICATE_STATUSES),
+            "description": (
+                "unknown or mixed is uncertainty and makes the governance "
+                "result incomplete plus human review"
+            ),
+        },
+        "evidence": {"type": "string"},
+        "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "pattern": DIGEST_RE.pattern},
+            "uniqueItems": True,
+            "description": (
+                "Across all checks in a complete applicable rule, refs must "
+                "collectively cover every evaluated changed target; context "
+                "refs may only supplement target refs."
+            ),
+        },
+    },
+    ["predicate_id", "status", "evidence", "evidence_refs"],
+)
+RULE_RESULT_SCHEMA = _object_schema(
+    {
+        "rule_id": {"type": "string", "enum": list(SEMANTIC_RULE_IDS)},
+        "applicable": {"type": "boolean"},
+        "complete": {"type": "boolean"},
+        "evaluated_entity_ids": {
+            "type": "array",
+            "items": {"type": "string", "pattern": ID_RE.pattern},
+            "uniqueItems": True,
+        },
+        "predicate_checks": {"type": "array", "items": PREDICATE_CHECK_SCHEMA},
+        "findings": {"type": "array", "items": SEMANTIC_FINDING_INPUT_SCHEMA},
+        "error": {"type": "string"},
+    },
+    [
+        "rule_id",
+        "applicable",
+        "complete",
+        "evaluated_entity_ids",
+        "predicate_checks",
+        "findings",
+        "error",
     ],
 )
 SEMANTIC_RESULT_SCHEMA = _object_schema(
@@ -2275,6 +3043,11 @@ SEMANTIC_RESULT_SCHEMA = _object_schema(
         "findings": {
             "type": "array",
             "items": SEMANTIC_FINDING_INPUT_SCHEMA,
+        },
+        "rule_results": {
+            "type": "array",
+            "items": RULE_RESULT_SCHEMA,
+            "uniqueItems": True,
         },
         "error": {"type": "string"},
     },
@@ -2314,6 +3087,36 @@ TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
                 "deterministic_findings": {"type": "array", "items": FINDING_OUTPUT_SCHEMA},
                 "semantic_tasks": {"type": "array", "items": TASK_SCHEMA},
                 "artifacts": {"type": "array", "items": ARTIFACT_SCHEMA},
+                "referenced_entity_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": ID_RE.pattern},
+                    "uniqueItems": True,
+                },
+                "unresolved_reference_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": ID_RE.pattern},
+                    "uniqueItems": True,
+                },
+                "security_observations": {
+                    "type": "array",
+                    "items": _object_schema(
+                        {
+                            "code": {
+                                "type": "string",
+                                "const": "untrusted_instruction_like_data",
+                            },
+                            "entity_id": {"type": "string", "pattern": ID_RE.pattern},
+                            "evidence_ref": {"type": "string", "pattern": DIGEST_RE.pattern},
+                            "patterns": {
+                                "type": "array",
+                                "items": {"type": "string", "pattern": ID_RE.pattern},
+                                "minItems": 1,
+                                "uniqueItems": True,
+                            },
+                        },
+                        ["code", "entity_id", "evidence_ref", "patterns"],
+                    ),
+                },
                 "analysis_errors": {"type": "array", "items": ANALYSIS_ERROR_SCHEMA},
                 "incomplete": {"type": "boolean"},
             },
@@ -2330,6 +3133,9 @@ TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
                 "deterministic_findings",
                 "semantic_tasks",
                 "artifacts",
+                "referenced_entity_ids",
+                "unresolved_reference_ids",
+                "security_observations",
                 "analysis_errors",
                 "incomplete",
             ],
@@ -2472,6 +3278,8 @@ __all__ = [
     "ReviewInputError",
     "ReviewService",
     "ReviewServiceError",
+    "RULE_RESULT_SCHEMA",
+    "SEMANTIC_PREDICATES",
     "SEMANTIC_RULE_IDS",
     "TOOL_DEFINITIONS",
 ]

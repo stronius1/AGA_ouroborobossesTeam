@@ -1,0 +1,21 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-025-strategic-target-a
+split: development
+language: en
+summary: First wording of a critical dependency on a strategic supported target.
+features: [synthetic-public, paraphrase, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule006-paraphrase, counterpart: dv2-026-strategic-target-b, relation: same_meaning_paraphrase, role: source}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.clearing.core: {criticality: mission_critical, target_status: strategic}
+          syn.identity.core: {criticality: mission_critical, target_status: strategic}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          identity_lookup: {from: syn.clearing.core, to: syn.identity.core, purpose: supported identity lookup}
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

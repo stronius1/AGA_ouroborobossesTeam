@@ -1,0 +1,138 @@
+@page {
+  size: A4;
+  margin: 13mm 16mm 14mm;
+}
+
+:root {
+  color: #172033;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-size: 10.2pt;
+  line-height: 1.34;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 178mm;
+}
+
+header#title-block-header {
+  border-bottom: 3px solid #3157d5;
+  margin-bottom: 1.4rem;
+  padding-bottom: 0.7rem;
+}
+
+h1 {
+  color: #152043;
+  font-size: 24pt;
+  line-height: 1.08;
+  margin: 0 0 0.55rem;
+}
+
+h2 {
+  border-bottom: 1px solid #cbd3e6;
+  break-after: avoid-page;
+  color: #1f3268;
+  font-size: 15pt;
+  line-height: 1.15;
+  margin: 1.2rem 0 0.5rem;
+  page-break-after: avoid;
+  padding-bottom: 0.18rem;
+}
+
+h2 + * {
+  break-before: avoid-page;
+  page-break-before: avoid;
+}
+
+h3 {
+  color: #243b78;
+  font-size: 12pt;
+  margin: 0.9rem 0 0.35rem;
+}
+
+p,
+li {
+  orphans: 3;
+  widows: 3;
+}
+
+ul,
+ol {
+  padding-left: 1.35rem;
+}
+
+li + li {
+  margin-top: 0.12rem;
+}
+
+blockquote {
+  border-left: 4px solid #3157d5;
+  color: #2d3d68;
+  margin: 0.8rem 0;
+  padding: 0.15rem 0 0.15rem 0.8rem;
+}
+
+code {
+  background: #f0f3fa;
+  border-radius: 3px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+  padding: 0.08em 0.22em;
+}
+
+pre {
+  background: #f4f6fb;
+  border: 1px solid #dce2ef;
+  border-radius: 5px;
+  break-inside: avoid-page;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 8.4pt;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding: 0.65rem;
+  page-break-inside: avoid;
+  white-space: pre-wrap;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 8.5pt;
+  margin: 0.65rem 0 0.9rem;
+  page-break-inside: avoid;
+  table-layout: fixed;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #cbd3e0;
+  overflow-wrap: anywhere;
+  padding: 0.35rem 0.42rem;
+  vertical-align: top;
+}
+
+th {
+  background: #e9eef9;
+  color: #1c2f60;
+  text-align: left;
+}
+
+tr:nth-child(even) td {
+  background: #f8f9fc;
+}
+
+a {
+  color: #2349bc;
+  text-decoration: none;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #cbd3e0;
+}

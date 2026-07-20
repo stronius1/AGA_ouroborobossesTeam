@@ -558,11 +558,38 @@ def test_capture_scanner_preserves_semantic_slash_values_and_urls() -> None:
             "endpoint": "/mcp",
             "reference": "https://example.invalid/synthetic/path",
             "artifact": "model/components.yaml",
+            "canonical_defect": "SEAF-004:/seaf.app.integrations/demo.flow/to",
             "nested_artifact": "synthetic_only/value",
             "source_ref": "aga-skill/rules/principles.yaml#/rules/5",
         }
     )
     e2e._assert_sanitized({"artifact": "model_dir/synthetic_file.yaml"})
+    e2e._assert_sanitized(
+        {
+            "location": "/seaf.app.integrations/demo.flow/to",
+            "evidence": (
+                'The changed pointer "/seaf.app.integrations/demo.flow/to" '
+                "was modified."
+            ),
+        }
+    )
+    with pytest.raises(ValueError, match="absolute local path"):
+        e2e._assert_sanitized(
+            {
+                "location": "/seaf.app.integrations/demo.flow/to",
+                "evidence": (
+                    'The changed pointer "/seaf.app.integrations/demo.flow/to" '
+                    "was modified; debug file: /private/tmp/secret.json"
+                ),
+            }
+        )
+    for invalid_defect in (
+        "SEAF-004:/etc/passwd",
+        "SEAF-004:/seaf.app.integrations/../etc/passwd",
+        "SEAF-004:/seaf.app.integrations/~1private~1tmp~1repo",
+    ):
+        with pytest.raises(ValueError, match="absolute local path"):
+            e2e._assert_sanitized({"canonical_defect": invalid_defect})
     for path in (
         "/private/tmp/repo",
         "/components/../tmp/repo",
@@ -739,6 +766,64 @@ def test_trusted_receipts_collapse_exact_idempotent_finalize_retry() -> None:
         "aga_prepare_review",
         "aga_finalize_review",
     ]
+
+
+def test_trusted_receipts_accept_one_attested_digest_binding_repair() -> None:
+    review_hash = hashlib.sha256(REVIEW_ID.encode("utf-8")).hexdigest()
+    prepare = {
+        "tool": "aga_prepare_review",
+        "args_sha256": "a" * 64,
+        "status": "ok",
+        "output_status": "ready",
+        "output_incomplete": False,
+        "output_sha256": "b" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    rejected = {
+        "tool": "aga_finalize_review",
+        "args_sha256": "c" * 64,
+        "status": "error",
+        "output_sha256": "d" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": "rvw_" + "9" * 64,
+        "task_digest": TASK_DIGEST,
+        "error_code": "review_digest_mismatch",
+        "error_type": "review_service_error",
+    }
+    repaired = {
+        "tool": "aga_finalize_review",
+        "args_sha256": "e" * 64,
+        "status": "ok",
+        "output_status": "completed",
+        "output_incomplete": False,
+        "output_sha256": "f" * 64,
+        "review_id_sha256": review_hash,
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+    metadata = {
+        "tool_names": ["aga_prepare_review", "aga_finalize_review"],
+        "prepare_output_sha256": "b" * 64,
+        "final_output_sha256": "f" * 64,
+        "final_digest_binding": "trusted_prepare_once",
+    }
+    final = {
+        "status": "completed",
+        "review_digest": REVIEW_DIGEST,
+        "task_digest": TASK_DIGEST,
+    }
+
+    summary = e2e._trusted_receipts(
+        [prepare, rejected, repaired],
+        review_id=REVIEW_ID,
+        metadata=metadata,
+        final=final,
+    )
+
+    assert summary["final_digest_binding"] == "trusted_prepare_once"
+    assert summary["finalize"]["output_sha256"] == "f" * 64
 
 
 def test_trusted_finalize_receipt_requires_valid_args_sha256() -> None:
@@ -957,6 +1042,19 @@ def test_local_project_registration_is_bounded_correlated_and_secret_free(
     assert captured["timeout"] == 5.0
     assert captured["read_limit"] == 65_537
     assert b"sk-or-v1-" not in request.data
+
+
+def test_inference_control_is_explicitly_nondeterministic_and_hashable() -> None:
+    control = e2e.INFERENCE_CONTROL
+
+    assert control == {
+        "temperature": {"requested": False, "value": None},
+        "top_p": {"requested": False, "value": None},
+        "seed": {"supported": False, "value": None},
+        "provider_sampling_determinism_claimed": False,
+        "mitigation": "five_distinct_repeats_conservative_gate",
+    }
+    assert len(e2e._sha256_json(control)) == 64
 
 
 def test_local_project_registration_rejects_wrong_correlation(

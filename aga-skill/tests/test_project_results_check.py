@@ -267,6 +267,52 @@ def test_results_reject_metric_denominator_inconsistency() -> None:
     assert any("full trusted all-case PASS" in error for error in errors)
 
 
+def test_supply_chain_warning_closes_only_for_immutable_action_and_image_pins(
+    tmp_path: Path,
+) -> None:
+    workflow = tmp_path / ".github/workflows/ci.yml"
+    dockerfile = tmp_path / "aga-skill/Dockerfile.mcp"
+    workflow.parent.mkdir(parents=True)
+    dockerfile.parent.mkdir(parents=True)
+    workflow.write_text(
+        "steps:\n  - uses: actions/checkout@" + "a" * 40 + " # v4.3.1\n",
+        encoding="utf-8",
+    )
+    dockerfile.write_text(
+        "FROM python:3.12.7-slim-bookworm@sha256:" + "b" * 64 + "\n",
+        encoding="utf-8",
+    )
+
+    warnings = checker.supply_chain_warnings(tmp_path)
+
+    assert all("GitHub Actions" not in warning for warning in warnings)
+    assert all("Docker base" not in warning for warning in warnings)
+    assert any("Python dependency" in warning for warning in warnings)
+    assert any("OS package" in warning for warning in warnings)
+
+
+def test_supply_chain_warning_rejects_mutable_tags(tmp_path: Path) -> None:
+    workflow = tmp_path / ".github/workflows/ci.yml"
+    dockerfile = tmp_path / "aga-skill/Dockerfile.mcp"
+    workflow.parent.mkdir(parents=True)
+    dockerfile.parent.mkdir(parents=True)
+    workflow.write_text(
+        "steps:\n  - uses: actions/checkout@v4\n", encoding="utf-8"
+    )
+    dockerfile.write_text(
+        "FROM python:3.12.7-slim-bookworm\n", encoding="utf-8"
+    )
+
+    warnings = checker.supply_chain_warnings(tmp_path)
+
+    assert any("GitHub Actions" in warning for warning in warnings)
+    assert any("Docker base" in warning for warning in warnings)
+
+
+def test_repository_supply_chain_controls_are_fully_pinned() -> None:
+    assert checker.supply_chain_warnings(REPOSITORY_ROOT) == []
+
+
 def test_fixture_results_cannot_be_relabelled_as_release_results() -> None:
     fixture = json.loads(FIXTURE_RESULTS.read_text(encoding="utf-8"))
     fixture["mode"] = "real"

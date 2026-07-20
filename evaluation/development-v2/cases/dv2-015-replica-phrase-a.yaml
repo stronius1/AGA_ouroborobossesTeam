@@ -1,0 +1,23 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-015-replica-phrase-a
+split: development
+language: en
+summary: First wording for a one-way read model that cannot update master data.
+features: [synthetic-public, read-only-replica, paraphrase, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: negative, PRIN-006: not_targeted, PRIN-007: not_targeted}
+metamorphic: {pair_id: rule005-paraphrase, counterpart: dv2-016-replica-phrase-b, relation: same_meaning_paraphrase, role: source}
+change:
+  base:
+    files:
+      architecture/data-domains.yaml: |
+        domains:
+          merchant_profile:
+            master_system: syn.merchant.core
+  head:
+    files:
+      proposals/merchant.yaml: |
+        proposal:
+          consumer: syn.analytics
+          domain: merchant_profile
+          mode: read_only_one_way_replication
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

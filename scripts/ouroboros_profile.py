@@ -29,17 +29,22 @@ from typing import Any, Callable, Mapping, Sequence
 import urllib.request
 import uuid
 
+try:
+    from scripts.ouroboros_models import MODEL_ENV, selected_model_id
+except ModuleNotFoundError:  # direct ``python scripts/...`` entrypoint
+    from ouroboros_models import MODEL_ENV, selected_model_id
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PINNED_VERSION = "6.64.1"
 PINNED_SOURCE_COMMIT = "554b3eeeca345298d6dcc5711195ea9acec450bd"
-MODEL_ID = "deepseek/deepseek-v4-pro"
+MODEL_ID = selected_model_id()
 PROFILE_SCHEMA = "aga.ouroboros-profile/v1"
 PID_SCHEMA = "aga.ouroboros-profile-pid/v1"
-OVERLAY_ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v3"
+OVERLAY_ATTESTATION_SCHEMA = "aga.ouroboros-runtime-overlay/v4"
 DEFAULT_GATEWAY_PORT = 8765
 DEFAULT_PROFILE_RELATIVE = Path(".local/share/aga-ouroboros-v6.64.1/home")
-SKILL_SOURCE = REPOSITORY_ROOT / "ouroboros-skill" / "aga-review"
+SKILL_SOURCE = REPOSITORY_ROOT / "ouroboros-skill" / "aga-review-v1.1"
 RUNTIME_OVERLAY_SCRIPT = REPOSITORY_ROOT / "scripts" / "ouroboros_runtime_overlay.py"
 RUNTIME_OVERLAY_BOOTSTRAP = (
     REPOSITORY_ROOT / "scripts" / "ouroboros_overlay_bootstrap" / "sitecustomize.py"
@@ -53,7 +58,12 @@ MCP_TOOL_NAMES = (
     "aga_seaf_lookup",
     "aga_parse_diagram",
     "aga_finalize_review",
+    "aga_prepare_remediation",
+    "aga_finalize_remediation",
 )
+MANAGED_TASK_SCHEMA = "aga.ouroboros-managed-task/v1"
+MCP_REFRESH_TIMEOUT_SECONDS = 20
+WORKER_PYTHON_ENV = "AGA_OUROBOROS_WORKER_PYTHON"
 SECRET_PATTERN = re.compile(
     r"sk-or-v1-[A-Za-z0-9_-]{20,}"
 )
@@ -310,6 +320,7 @@ def _managed_settings() -> dict[str, Any]:
         "OUROBOROS_MAX_WORKERS": 1,
         "OUROBOROS_MODEL_MAX_CONCURRENCY": 1,
         "MCP_ENABLED": True,
+        "MCP_TOOL_TIMEOUT_SEC": MCP_REFRESH_TIMEOUT_SECONDS,
         "MCP_SERVERS": _mcp_server_settings(),
     }
 
@@ -404,6 +415,19 @@ def initialize_profile(paths: ProfilePaths) -> Mapping[str, Any]:
     }
 
 
+def synchronize_profile(paths: ProfilePaths) -> Mapping[str, Any]:
+    """Refresh managed settings and skill bytes without replacing the key."""
+
+    credential_present = configure_public_settings(paths)
+    skill_hash = sync_skill(paths)
+    return {
+        "schema": PROFILE_SCHEMA,
+        "status": "synced",
+        "credential_present": credential_present,
+        "skill": {"name": SKILL_NAME, "sha256": skill_hash},
+    }
+
+
 def _default_key_reader() -> str:
     return getpass.getpass("OpenRouter API key (input hidden): ")
 
@@ -467,6 +491,14 @@ def runtime_environment(
             "NO_PROXY": "127.0.0.1,localhost,::1",
             "no_proxy": "127.0.0.1,localhost,::1",
             "PYTHONUNBUFFERED": "1",
+            "AGA_OUROBOROS_PROFILE_HOME": str(paths.profile_home),
+            "AGA_OUROBOROS_VENV_DIR": str(paths.venv_dir),
+            "AGA_OUROBOROS_SOURCE_DIR": str(paths.source_dir),
+            "AGA_OUROBOROS_BIN": str(paths.executable),
+            "AGA_OUROBOROS_PYTHON": str(paths.python_executable),
+            WORKER_PYTHON_ENV: str(paths.python_executable),
+            OVERLAY_SOURCE_ENV: str(paths.source_dir),
+            MODEL_ENV: MODEL_ID,
         }
     )
     return environment
@@ -653,6 +685,10 @@ def _validate_overlay_attestation(paths: ProfilePaths, pid: int) -> None:
         "bootstrap_mode": "deferred_runtime_import_hooks",
         "bootstrap_sha256": bootstrap_sha256,
         "finalize_transport_retry": "exception_group_once",
+        "worker_discovery_contract": "synchronous_exact_stage_fail_closed",
+        "managed_task_schema": MANAGED_TASK_SCHEMA,
+        "mcp_refresh_timeout_seconds": MCP_REFRESH_TIMEOUT_SECONDS,
+        "gateway_mcp_tool_count": len(MCP_TOOL_NAMES),
         "aga_post_task_policy": "skip_synthetic_public_memory_synthesis",
     }
     if record != expected or not _owned_runtime_process(paths, pid):
@@ -1047,14 +1083,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "init":
             _emit(initialize_profile(paths))
         elif arguments.command == "sync":
-            digest = sync_skill(paths)
-            _emit(
-                {
-                    "schema": PROFILE_SCHEMA,
-                    "status": "synced",
-                    "skill": {"name": SKILL_NAME, "sha256": digest},
-                }
-            )
+            _emit(synchronize_profile(paths))
         elif arguments.command == "configure-key":
             _emit(configure_key(paths))
         elif arguments.command == "start":

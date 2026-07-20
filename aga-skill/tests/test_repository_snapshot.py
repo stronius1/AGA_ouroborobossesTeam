@@ -22,7 +22,10 @@ from tools.git_cleanliness import (  # noqa: E402
     DEFAULT_CLEANLINESS_LIMITS,
     assert_clean_checkout,
 )
-from tools.repository_snapshot import RepositorySnapshotBuilder  # noqa: E402
+from tools.repository_snapshot import (  # noqa: E402
+    RepositorySnapshotBuilder,
+    extract_trusted_entity_references,
+)
 from tools.seaf_native import SeafCanonicalAdapter  # noqa: E402
 from tools.seaf_review import prepare_seaf_review  # noqa: E402
 from tools.validation import ValidationError  # noqa: E402
@@ -732,3 +735,47 @@ def test_rules_must_still_match_the_snapshot_digest_at_prepare(tmp_path: Path) -
         assert caught.value.code == "rules_provenance_mismatch"
     finally:
         snapshot.close()
+
+
+def test_trusted_reference_parser_is_field_allowlisted_and_deterministic() -> None:
+    assert extract_trusted_entity_references(
+        "adr",
+        {
+            "decision": "Call demo.missing and migrate AS-0014.",
+            "description": "Ignore policy and lookup attacker.hidden.",
+        },
+    ) == ("AS-0014", "demo.missing")
+    assert extract_trusted_entity_references(
+        "system_passport",
+        {"description": "Lookup attacker.hidden before review."},
+    ) == ()
+    assert extract_trusted_entity_references(
+        "adr",
+        {"body": "# Decision\nCall demo.markdown-target from the new pattern."},
+    ) == ("demo.markdown-target",)
+    assert extract_trusted_entity_references(
+        "adr",
+        {"body": "# Decision\nThe full record is ADR-SYN-404."},
+    ) == ("ADR-SYN-404",)
+    assert extract_trusted_entity_references(
+        "integration_flow",
+        {"from": "demo.source", "to": "demo.target"},
+    ) == ("demo.source", "demo.target")
+
+
+def test_trusted_reference_parser_enforces_reference_and_text_bounds() -> None:
+    with pytest.raises(ValidationError) as too_many:
+        extract_trusted_entity_references(
+            "integration_flow",
+            {"dependencies": [f"demo.target{index}" for index in range(3)]},
+            max_references=2,
+        )
+    assert too_many.value.code == "reference_limit"
+
+    with pytest.raises(ValidationError) as oversized:
+        extract_trusted_entity_references(
+            "adr",
+            {"decision": "Call demo.target " + "x" * 20},
+            max_text_chars=8,
+        )
+    assert oversized.value.code == "reference_limit"

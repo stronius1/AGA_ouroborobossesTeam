@@ -1,0 +1,22 @@
+schema: aga.synthetic-development-case/v2
+id: dv2-030-direction-control
+split: development
+language: en
+summary: The same native integration targets a strategic replacement and stays clean under SEAF-004 and PRIN-006.
+features: [synthetic-public, structural-seaf004-control, metamorphic-control, clean]
+coverage: {PRIN-004: not_targeted, PRIN-005: not_targeted, PRIN-006: negative, PRIN-007: not_targeted}
+metamorphic: {pair_id: structural-seaf004-contract, counterpart: dv2-029-dependency-direction, relation: deterministic_predicate_flip, role: control}
+change:
+  base:
+    files:
+      architecture/systems.yaml: |
+        systems:
+          syn.availability.core: {criticality: mission_critical, target_status: strategic}
+          syn.old.monitor: {criticality: low, target_status: eliminate}
+          syn.monitor.current: {criticality: medium, target_status: strategic}
+  head:
+    files:
+      architecture/integrations.yaml: |
+        integrations:
+          monitor_query: {from: syn.availability.core, to: syn.monitor.current, mode: synchronous}
+expected: {status: complete, verdict: approve, findings: [], unresolved_context: []}

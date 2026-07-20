@@ -47,6 +47,12 @@ EXPECTED_TOOLS = (
     "aga_parse_diagram",
     "aga_finalize_review",
 )
+REMEDIATION_MCP_TOOLS = (
+    "aga_prepare_remediation",
+    "aga_finalize_remediation",
+)
+MANAGED_TASK_SCHEMA = "aga.ouroboros-managed-task/v1"
+REVIEW_MCP_STAGE = "review"
 # Pinned v6.64.1 ``_WORKSPACE_ALLOWED_TOOLS``.  The review obtains all evidence
 # through AGA, so withholding every native workspace capability is both safer
 # and simpler than trying to distinguish reads from command/write side effects.
@@ -115,6 +121,7 @@ FAILED_STATUSES = frozenset(
 BAD_ARTIFACT_STATUSES = frozenset(
     {"failed", "pending", "finalizing", "missing"}
 )
+TASK_RECONCILIATION_LIMIT = 10
 # ``tasks list --limit 500`` returns the full public task projection.  A small
 # dedicated AGA history can therefore exceed one MiB even though every
 # individual trusted result remains bounded separately.  Eight MiB keeps the
@@ -309,6 +316,8 @@ class BoundedCommandRunner:
 
 ReceiptSource = Callable[[], Sequence[Mapping[str, Any]]]
 ProjectRegistrar = Callable[[str], None]
+FinalizeDigestRepair = Callable[..., Mapping[str, Any]]
+FinalizeTransportRepair = Callable[..., Mapping[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -327,6 +336,14 @@ class OuroborosBackendConfig:
     max_json_bytes: int = 1_048_576
     server_id: str = "aga"
     receipt_source: ReceiptSource | None = None
+    # Trusted, in-process recovery for a model that copied one opaque prepare
+    # digest incorrectly.  The callback is never exposed as an MCP tool and
+    # may only reuse the semantic payload retained by the local MCP server.
+    finalize_digest_repair: FinalizeDigestRepair | None = None
+    # Trusted recovery for a schema-valid finalize whose MCP HTTP response was
+    # cancelled ambiguously. The callback reuses only the exact in-process
+    # payload whose complete hash appears in the private receipt journal.
+    finalize_transport_repair: FinalizeTransportRepair | None = None
     # The v6.64.1 worker waits for its periodic 300-second project-registry
     # reconcile when an explicit isolated project id has not been registered
     # before task creation.  A trusted loopback-only runner may supply this
@@ -335,8 +352,12 @@ class OuroborosBackendConfig:
     # The frozen 16-case semantic basket contains no diagram artifacts.  Its
     # trusted runner withholds the optional diagram tool at the task-contract
     # layer while preflight still verifies that the MCP server exposes all
-    # four integration tools.
+    # six gateway tools and the review worker receives only its stage subset.
     disable_diagram_tool: bool = False
+    # Controlled review scenarios carry all semantic evidence in prepare.
+    # Withholding lookup prevents an unnecessary model-generated correlation
+    # argument from turning an otherwise valid review into a service error.
+    disable_lookup_tool: bool = False
     # This must only be enabled from a successful trusted preflight that has
     # verified every runtime model route, including post-task synthesis.  The
     # public v6.64.1 event stream can omit those auxiliary physical attempts.
@@ -436,6 +457,14 @@ class OuroborosTaskBackend(TaskBackend):
             config.project_registrar
         ):
             raise ValueError("project_registrar must be callable")
+        if config.finalize_digest_repair is not None and not callable(
+            config.finalize_digest_repair
+        ):
+            raise ValueError("finalize_digest_repair must be callable")
+        if config.finalize_transport_repair is not None and not callable(
+            config.finalize_transport_repair
+        ):
+            raise ValueError("finalize_transport_repair must be callable")
         if config.gateway_url:
             parsed_gateway = urlsplit(config.gateway_url)
             hostname = parsed_gateway.hostname or ""
@@ -463,12 +492,26 @@ class OuroborosTaskBackend(TaskBackend):
             raise ValueError("all_model_routes_pinned must be a boolean attestation")
         if not isinstance(config.disable_diagram_tool, bool):
             raise ValueError("disable_diagram_tool must be a boolean")
+        if not isinstance(config.disable_lookup_tool, bool):
+            raise ValueError("disable_lookup_tool must be a boolean")
         if not ID_RE.fullmatch(config.server_id):
             raise ValueError("server_id must be a non-path identifier")
-        self._disabled_tools = DISABLED_WORKSPACE_TOOLS + (
-            (f"mcp_{config.server_id}__aga_parse_diagram",)
-            if config.disable_diagram_tool
-            else ()
+        self._disabled_tools = (
+            DISABLED_WORKSPACE_TOOLS
+            + tuple(
+                f"mcp_{config.server_id}__{name}"
+                for name in REMEDIATION_MCP_TOOLS
+            )
+            + (
+                (f"mcp_{config.server_id}__aga_parse_diagram",)
+                if config.disable_diagram_tool
+                else ()
+            )
+            + (
+                (f"mcp_{config.server_id}__aga_seaf_lookup",)
+                if config.disable_lookup_tool
+                else ()
+            )
         )
         if (
             config.task_timeout_seconds <= 0
@@ -513,6 +556,8 @@ class OuroborosTaskBackend(TaskBackend):
         self._tasks: dict[str, _BackendTask] = {}
         self._idempotency: dict[str, tuple[str, str]] = {}
         self._ambiguous_idempotency: dict[str, str] = {}
+        self._trusted_final_overrides: dict[str, dict[str, Any]] = {}
+        self._transport_finalize_repairs: set[str] = set()
 
     def _argv(self, *parts: str) -> list[str]:
         argv = list(self.config.command_prefix)
@@ -520,6 +565,11 @@ class OuroborosTaskBackend(TaskBackend):
             argv.extend(("--url", self.config.gateway_url))
         argv.extend(parts)
         return argv
+
+    def _logical_task_name(self) -> str:
+        """Return the sealed logical task name for result projections."""
+
+        return "aga:review"
 
     def _run(self, *parts: str, timeout: float | None = None) -> CommandResult:
         command_timeout = float(
@@ -614,6 +664,40 @@ class OuroborosTaskBackend(TaskBackend):
         # and cross-review project-facts contamination.
         return "aga-" + hashlib.sha256(_canonical_bytes(request)).hexdigest()[:32]
 
+    def _managed_task_metadata(
+        self,
+        request: Mapping[str, Any],
+        prompt_sha256: str,
+    ) -> dict[str, Any]:
+        """Return the sealed review-stage worker contract.
+
+        Stage-specific backends may override this protected projection, while
+        the public payload and caller configuration remain unable to widen the
+        tool allowlist.
+        """
+
+        return {
+            "aga_review_id": request["review_id"],
+            "aga_idempotency_key": request["idempotency_key"],
+            "aga_prompt_sha256": prompt_sha256,
+            "aga_runtime_contract": MANAGED_TASK_SCHEMA,
+            "aga_mcp_stage": REVIEW_MCP_STAGE,
+            "aga_expected_mcp_tools": list(EXPECTED_TOOLS),
+            "data_classification": "synthetic-public",
+            "expected_model_id": self.config.model_id,
+            "allowed_resources": {"network": True, "web": False},
+            "disabled_tools": list(self._disabled_tools),
+        }
+
+    def _managed_task_projection_matches(
+        self,
+        metadata: Mapping[str, Any],
+        request: Mapping[str, Any],
+        prompt_sha256: str,
+    ) -> bool:
+        expected = self._managed_task_metadata(request, prompt_sha256)
+        return all(metadata.get(key) == value for key, value in expected.items())
+
     def schedule_task(
         self, task_name: str, payload: Mapping[str, Any] | None = None
     ) -> str:
@@ -649,15 +733,7 @@ class OuroborosTaskBackend(TaskBackend):
 
         prompt = self._prompt(request)
         prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-        metadata_values = {
-            "aga_review_id": request["review_id"],
-            "aga_idempotency_key": idem,
-            "aga_prompt_sha256": prompt_sha256,
-            "data_classification": "synthetic-public",
-            "expected_model_id": self.config.model_id,
-            "allowed_resources": {"network": True, "web": False},
-            "disabled_tools": list(self._disabled_tools),
-        }
+        metadata_values = self._managed_task_metadata(request, prompt_sha256)
         metadata = json.dumps(
             metadata_values,
             sort_keys=True,
@@ -768,12 +844,21 @@ class OuroborosTaskBackend(TaskBackend):
     ) -> str | None:
         idem = str(request["idempotency_key"])
         try:
-            completed = self._run("tasks", "list", "--limit", "500")
+            # A newly scheduled task must be at the head of the runtime ledger.
+            # Keeping this window small is important: task projections include
+            # full logs and 500 historical tasks can exceed the bounded CLI
+            # pipe before a paid remediation task is even created.
+            completed = self._run(
+                "tasks", "list", "--limit", str(TASK_RECONCILIATION_LIMIT)
+            )
             if completed.returncode != 0:
                 raise OuroborosContractError("task reconciliation command failed")
             parsed = _strict_json(completed.stdout, "task reconciliation output")
             tasks = parsed.get("tasks") if isinstance(parsed, Mapping) else None
-            if not isinstance(tasks, list) or len(tasks) > 500:
+            if (
+                not isinstance(tasks, list)
+                or len(tasks) > TASK_RECONCILIATION_LIMIT
+            ):
                 raise OuroborosContractError("task reconciliation output is invalid")
             matches: list[Mapping[str, Any]] = []
             for item in tasks:
@@ -784,15 +869,11 @@ class OuroborosTaskBackend(TaskBackend):
                     continue
                 if (
                     item.get("project_id") == project_id
-                    and metadata.get("aga_review_id") == request["review_id"]
-                    and metadata.get("aga_idempotency_key") == idem
-                    and metadata.get("aga_prompt_sha256") == prompt_sha256
-                    and metadata.get("data_classification") == "synthetic-public"
-                    and metadata.get("expected_model_id") == self.config.model_id
-                    and metadata.get("allowed_resources")
-                    == {"network": True, "web": False}
-                    and metadata.get("disabled_tools")
-                    == list(self._disabled_tools)
+                    and self._managed_task_projection_matches(
+                        metadata,
+                        request,
+                        prompt_sha256,
+                    )
                 ):
                     matches.append(item)
             if not matches:
@@ -857,7 +938,7 @@ class OuroborosTaskBackend(TaskBackend):
         del message  # External/provider text is never part of a trusted result.
         result = TaskResult(
             task_id=record.task_id,
-            task_name="aga:review",
+            task_name=self._logical_task_name(),
             status=TaskStatus.FAILED,
             error=f"{code}: review did not produce a trusted result",
             metadata={
@@ -914,16 +995,11 @@ class OuroborosTaskBackend(TaskBackend):
         metadata = external.get("metadata")
         if not isinstance(metadata, Mapping):
             raise OuroborosContractError("task result metadata is missing")
-        expected = {
-            "aga_review_id": record.request["review_id"],
-            "aga_idempotency_key": record.request["idempotency_key"],
-            "data_classification": "synthetic-public",
-            "expected_model_id": self.config.model_id,
-            "aga_prompt_sha256": record.prompt_sha256,
-            "allowed_resources": {"network": True, "web": False},
-            "disabled_tools": list(self._disabled_tools),
-        }
-        if any(metadata.get(key) != value for key, value in expected.items()):
+        if not self._managed_task_projection_matches(
+            metadata,
+            record.request,
+            record.prompt_sha256,
+        ):
             raise OuroborosContractError("task result metadata correlation mismatch")
         contract = external.get("task_contract")
         if not isinstance(contract, Mapping):
@@ -979,6 +1055,40 @@ class OuroborosTaskBackend(TaskBackend):
         return True
 
     @staticmethod
+    def _external_finalize_recovery_candidate(result: Mapping[str, Any]) -> bool:
+        """Allow only a provider failure after an already-issued finalize.
+
+        The trusted tool/receipt path still has to prove and replay the exact
+        schema-valid finalize before this candidate can become successful.
+        """
+
+        if str(result.get("status") or "").lower() != "completed":
+            return False
+        bundle = result.get("artifact_bundle")
+        axes = result.get("outcome_axes")
+        if not isinstance(bundle, Mapping) or not isinstance(axes, Mapping):
+            return False
+        lifecycle = axes.get("lifecycle")
+        execution = axes.get("execution")
+        artifacts = axes.get("artifacts")
+        objective = axes.get("objective")
+        return (
+            str(result.get("artifact_status") or "").lower() == "ready_no_changes"
+            and str(bundle.get("status") or "").lower() == "ready_no_changes"
+            and isinstance(lifecycle, Mapping)
+            and str(lifecycle.get("status") or "").lower() == "completed"
+            and isinstance(execution, Mapping)
+            and str(execution.get("status") or "").lower() == "best_effort"
+            and execution.get("reason_code") == "provider_unavailable"
+            and execution.get("failure") is None
+            and execution.get("policy_denials") in (None, [])
+            and isinstance(artifacts, Mapping)
+            and str(artifacts.get("status") or "").lower() == "ready_no_changes"
+            and isinstance(objective, Mapping)
+            and str(objective.get("status") or "").lower() == "not_evaluated"
+        )
+
+    @staticmethod
     def _external_artifact_pending(result: Mapping[str, Any]) -> bool:
         bundle = result.get("artifact_bundle")
         bundle_status = (
@@ -1003,6 +1113,7 @@ class OuroborosTaskBackend(TaskBackend):
             raise OuroborosContractError("tool log entries are invalid or oversized")
         selected: list[tuple[int, str, Mapping[str, Any]]] = []
         seen_calls: dict[tuple[str, str], Mapping[str, Any]] = {}
+        recoverable_finalize_indexes: set[int] = set()
         for index, raw in enumerate(entries):
             if not isinstance(raw, Mapping):
                 continue
@@ -1019,6 +1130,7 @@ class OuroborosTaskBackend(TaskBackend):
                 ):
                     marker = "⚠️ MCP_TOOL_ERROR:"
                     body = preview.split(marker, 1)[1].strip()
+                    service_error: Mapping[str, Any] | None = None
                     if body.startswith("{") and body.endswith("}"):
                         try:
                             service_error = _strict_json(body, "MCP service error")
@@ -1030,13 +1142,30 @@ class OuroborosTaskBackend(TaskBackend):
                             and isinstance(service_error.get("code"), str)
                             and ID_RE.fullmatch(service_error["code"]) is not None
                         ):
-                            raise OuroborosMCPServiceError(
-                                f"{tool} returned AGA service error "
-                                f"{service_error['code']}"
+                            if (
+                                tool == "aga_finalize_review"
+                                and service_error["code"]
+                                in {"review_digest_mismatch", "task_digest_mismatch"}
+                                and self.config.finalize_digest_repair is not None
+                            ):
+                                recoverable_finalize_indexes.add(index)
+                            else:
+                                raise OuroborosMCPServiceError(
+                                    f"{tool} returned AGA service error "
+                                    f"{service_error['code']}"
+                                )
+                    if index not in recoverable_finalize_indexes:
+                        if (
+                            tool == "aga_finalize_review"
+                            and service_error is None
+                            and self.config.finalize_transport_repair is not None
+                        ):
+                            recoverable_finalize_indexes.add(index)
+                            self._transport_finalize_repairs.add(record.task_id)
+                        else:
+                            raise OuroborosMCPTransportError(
+                                f"{tool} returned an MCP transport error"
                             )
-                    raise OuroborosMCPTransportError(
-                        f"{tool} returned an MCP transport error"
-                    )
                 logged_task_id = raw.get("task_id")
                 call_id = raw.get("tool_call_id")
                 if (
@@ -1092,7 +1221,13 @@ class OuroborosTaskBackend(TaskBackend):
                 raise OuroborosContractError(
                     "prepare/finalize must be executed by the root review task"
                 )
-        for _, tool, entry in selected:
+        for index, tool, entry in selected:
+            if index in recoverable_finalize_indexes:
+                if tool != "aga_finalize_review":
+                    raise OuroborosContractError(
+                        "only a final finalize failure can be repaired"
+                    )
+                continue
             status = str(entry.get("status") or "").lower()
             if entry.get("is_error") is not False or status != "ok":
                 raise OuroborosContractError(f"{tool} receipt reports failure")
@@ -1137,7 +1272,11 @@ class OuroborosTaskBackend(TaskBackend):
             if (
                 not isinstance(args, Mapping)
                 or args.get("review_id") != record.request["review_id"]
-                or args.get("review_digest") != finalize_args[0]["review_digest"]
+                or (
+                    not recoverable_finalize_indexes
+                    and args.get("review_digest")
+                    != finalize_args[0]["review_digest"]
+                )
                 or not isinstance(args.get("entity_id"), str)
             ):
                 raise OuroborosContractError(
@@ -1155,6 +1294,10 @@ class OuroborosTaskBackend(TaskBackend):
         record: _BackendTask,
         finalize_args: Sequence[Mapping[str, Any]],
     ) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+        if len(finalize_args) != 1:
+            raise OuroborosContractError(
+                "trusted AGA prepare/finalize receipt is missing"
+            )
         source = self.config.receipt_source
         if source is None:
             raise OuroborosContractError("trusted AGA receipt source is not configured")
@@ -1175,24 +1318,37 @@ class OuroborosTaskBackend(TaskBackend):
                 record.request["review_id"].encode("utf-8")
             ).hexdigest()
         ]
-        prepares = [
-            (index, item)
-            for index, item in enumerate(matching)
-            if item.get("tool") == "aga_prepare_review"
-        ]
+        expected_prepare_args = {
+            "repository_id": record.request["repository_id"],
+            "base": record.request["base"],
+            "head": record.request["head"],
+            "review_id": record.request["review_id"],
+        }
+        expected_prepare_hash = hashlib.sha256(
+            _canonical_bytes(expected_prepare_args)
+        ).hexdigest()
+        # One review id may retain receipts from an earlier failed attempt.
+        # Bind this validation to the finalize digests in the current task log,
+        # then select only the closest preceding prepare receipt.  This keeps
+        # the append-only audit trail without mixing independent model tasks.
         finalizes = [
             (index, item)
             for index, item in enumerate(matching)
             if item.get("tool") == "aga_finalize_review"
+            and item.get("review_digest") == finalize_args[0].get("review_digest")
+            and item.get("task_digest") == finalize_args[0].get("task_digest")
         ]
-        # The managed runtime may replay one idempotent physical finalize when
-        # MCP 1.28.1 raises a post-success transport ExceptionGroup.  Ouroboros
-        # records one logical tool row, while the in-process AGA service then
-        # records either one receipt (first attempt did not arrive) or two
-        # identical receipts (the first attempt committed before teardown).
+        first_finalize_index = finalizes[0][0] if finalizes else -1
+        prepare_candidates = [
+            (index, item)
+            for index, item in enumerate(matching)
+            if item.get("tool") == "aga_prepare_review"
+            and item.get("args_sha256") == expected_prepare_hash
+            and index < first_finalize_index
+        ]
+        prepares = prepare_candidates[-1:]
         if (
-            len(finalize_args) != 1
-            or len(prepares) != 1
+            len(prepares) != 1
             or len(finalizes) not in {1, 2}
         ):
             raise OuroborosContractError("trusted AGA prepare/finalize receipt is missing")
@@ -1200,25 +1356,218 @@ class OuroborosTaskBackend(TaskBackend):
         finalize_index, finalize = finalizes[0]
         if prepare_index >= finalize_index:
             raise OuroborosContractError("trusted AGA receipts are unordered")
-        finalize_fields = (
-            "args_sha256",
-            "status",
-            "output_status",
-            "output_incomplete",
-            "output_sha256",
-            "review_digest",
-            "task_digest",
-        )
-        finalize_projection = {
-            key: finalize.get(key) for key in finalize_fields
-        }
-        if any(
-            {key: item.get(key) for key in finalize_fields} != finalize_projection
-            for _index, item in finalizes[1:]
+        if prepare.get("status") not in {"ok", "incomplete"}:
+            raise OuroborosContractError("trusted prepare receipt failed")
+        if (
+            prepare.get("output_incomplete") is True
+            or prepare.get("status") == "incomplete"
+            or prepare.get("output_status") != "ready"
         ):
-            raise OuroborosContractError(
-                "trusted finalize retry conflicts with the logical finalize"
+            raise OuroborosContractError("AGA prepare was incomplete")
+        if prepare.get("args_sha256") != expected_prepare_hash:
+            raise OuroborosContractError("trusted prepare arguments mismatch")
+
+        transport_repaired = record.task_id in self._transport_finalize_repairs
+        if transport_repaired:
+            repair = self.config.finalize_transport_repair
+            if repair is None or len(finalizes) not in {1, 2}:
+                raise OuroborosContractError(
+                    "trusted finalize transport repair is not configured"
+                )
+            first_hash = finalize.get("args_sha256")
+            if SHA256_RE.fullmatch(str(first_hash or "")) is None:
+                raise OuroborosContractError(
+                    "trusted transport-error finalize input hash is missing"
+                )
+            for _index, receipt in finalizes:
+                receipt_status = receipt.get("status")
+                transport_error = (
+                    receipt_status == "error"
+                    and receipt.get("error_type") is None
+                    and receipt.get("error_code") is None
+                )
+                response_lost_after_commit = (
+                    receipt_status in {"ok", "incomplete"}
+                    and SHA256_RE.fullmatch(
+                        str(receipt.get("output_sha256") or "")
+                    )
+                    is not None
+                )
+                if (
+                    not (transport_error or response_lost_after_commit)
+                    or receipt.get("args_sha256") != first_hash
+                    or receipt.get("review_digest") != finalize_args[0].get("review_digest")
+                    or receipt.get("task_digest") != finalize_args[0].get("task_digest")
+                ):
+                    raise OuroborosContractError(
+                        "trusted finalize transport-error receipts conflict"
+                    )
+            try:
+                repaired_final = repair(
+                    review_id=record.request["review_id"],
+                    review_digest=finalize_args[0]["review_digest"],
+                    task_digest=finalize_args[0]["task_digest"],
+                    args_sha256=first_hash,
+                )
+            except Exception as exc:
+                raise OuroborosContractError(
+                    "trusted finalize transport repair failed"
+                ) from exc
+            if not isinstance(repaired_final, Mapping):
+                raise OuroborosContractError(
+                    "trusted finalize transport repair returned invalid output"
+                )
+            self._trusted_final_overrides[record.task_id] = dict(repaired_final)
+            try:
+                refreshed = source()
+            except Exception as exc:
+                raise OuroborosContractError(
+                    "trusted AGA receipt source is unavailable after transport repair"
+                ) from exc
+            matching = [
+                item
+                for item in refreshed
+                if isinstance(item, Mapping)
+                and item.get("review_id_sha256")
+                == hashlib.sha256(
+                    record.request["review_id"].encode("utf-8")
+                ).hexdigest()
+            ]
+            refreshed_finalizes = [
+                (index, item)
+                for index, item in enumerate(matching)
+                if item.get("tool") == "aga_finalize_review"
+            ]
+            if len(refreshed_finalizes) != len(finalizes) + 1:
+                raise OuroborosContractError(
+                    "trusted finalize transport repair receipt is missing"
+                )
+            repaired_index, repaired_receipt = refreshed_finalizes[-1]
+            if repaired_index <= finalizes[-1][0]:
+                raise OuroborosContractError(
+                    "trusted finalize transport repair receipts are unordered"
+                )
+            override_hash = hashlib.sha256(
+                _canonical_bytes(self._trusted_final_overrides[record.task_id])
+            ).hexdigest()
+            if repaired_receipt.get("output_sha256") != override_hash:
+                raise OuroborosContractError(
+                    "trusted finalize transport repair output hash mismatch"
+                )
+            finalizes = refreshed_finalizes
+            finalize = repaired_receipt
+
+        repaired = finalize.get("status") == "error" and not transport_repaired
+        if repaired:
+            if (
+                finalize.get("error_type") != "review_service_error"
+                or finalize.get("error_code")
+                not in {"review_digest_mismatch", "task_digest_mismatch"}
+            ):
+                raise OuroborosContractError(
+                    "trusted finalize receipt contains a non-repairable error"
+                )
+            for key in ("review_digest", "task_digest"):
+                if finalize.get(key) != finalize_args[0].get(key):
+                    raise OuroborosContractError(
+                        f"rejected finalize {key} does not match the public call"
+                    )
+            if all(
+                prepare.get(key) == finalize_args[0].get(key)
+                for key in ("review_digest", "task_digest")
+            ):
+                raise OuroborosContractError(
+                    "digest repair was requested without a digest mismatch"
+                )
+            if len(finalizes) == 1:
+                repair = self.config.finalize_digest_repair
+                if repair is None:
+                    raise OuroborosContractError(
+                        "trusted finalize digest repair is not configured"
+                    )
+                try:
+                    repaired_final = repair(
+                        review_id=record.request["review_id"],
+                        review_digest=prepare.get("review_digest"),
+                        task_digest=prepare.get("task_digest"),
+                    )
+                except Exception as exc:
+                    raise OuroborosContractError(
+                        "trusted finalize digest repair failed"
+                    ) from exc
+                if not isinstance(repaired_final, Mapping):
+                    raise OuroborosContractError(
+                        "trusted finalize digest repair returned invalid output"
+                    )
+                self._trusted_final_overrides[record.task_id] = dict(repaired_final)
+                try:
+                    refreshed = source()
+                except Exception as exc:
+                    raise OuroborosContractError(
+                        "trusted AGA receipt source is unavailable after repair"
+                    ) from exc
+                matching = [
+                    item
+                    for item in refreshed
+                    if isinstance(item, Mapping)
+                    and item.get("review_id_sha256")
+                    == hashlib.sha256(
+                        record.request["review_id"].encode("utf-8")
+                    ).hexdigest()
+                ]
+                finalizes = [
+                    (index, item)
+                    for index, item in enumerate(matching)
+                    if item.get("tool") == "aga_finalize_review"
+                ]
+            if len(finalizes) != 2 or record.task_id not in self._trusted_final_overrides:
+                raise OuroborosContractError(
+                    "trusted digest repair receipt is missing"
+                )
+            repaired_index, repaired_receipt = finalizes[1]
+            if repaired_index <= finalize_index:
+                raise OuroborosContractError("trusted digest repair receipts are unordered")
+            finalize = repaired_receipt
+            for key in ("review_digest", "task_digest"):
+                if finalize.get(key) != prepare.get(key):
+                    raise OuroborosContractError(
+                        f"trusted repaired finalize {key} mismatch"
+                    )
+            override_hash = hashlib.sha256(
+                _canonical_bytes(self._trusted_final_overrides[record.task_id])
+            ).hexdigest()
+            if finalize.get("output_sha256") != override_hash:
+                raise OuroborosContractError(
+                    "trusted digest repair output hash mismatch"
+                )
+        elif not transport_repaired:
+            # MCP 1.28.1 may replay one byte-identical idempotent finalize
+            # after a post-success transport ExceptionGroup.
+            finalize_fields = (
+                "args_sha256",
+                "status",
+                "output_status",
+                "output_incomplete",
+                "output_sha256",
+                "review_digest",
+                "task_digest",
             )
+            finalize_projection = {
+                key: finalize.get(key) for key in finalize_fields
+            }
+            if any(
+                {key: item.get(key) for key in finalize_fields} != finalize_projection
+                for _index, item in finalizes[1:]
+            ):
+                raise OuroborosContractError(
+                    "trusted finalize retry conflicts with the logical finalize"
+                )
+            for _index, receipt in finalizes:
+                for key in ("review_digest", "task_digest"):
+                    if receipt.get(key) != finalize_args[0].get(key):
+                        raise OuroborosContractError(
+                            f"trusted finalize {key} mismatch"
+                        )
         # The packaged CLI deliberately sanitizes deeply nested tool arguments
         # in tools.jsonl (for example, evidence_refs become ``_depth_limit``
         # markers).  Therefore a hash recomputed from the public log projection
@@ -1228,38 +1577,20 @@ class OuroborosTaskBackend(TaskBackend):
         # still contain the same well-formed hash of its complete input on both
         # physical attempts, and the exact trusted output hash is checked
         # against the terminal answer below.
-        for _index, receipt in finalizes:
+        receipts_to_validate = (
+            [finalize]
+            if repaired or transport_repaired
+            else [item for _index, item in finalizes]
+        )
+        for receipt in receipts_to_validate:
             if SHA256_RE.fullmatch(str(receipt.get("args_sha256") or "")) is None:
                 raise OuroborosContractError(
                     "trusted finalize input hash is missing"
                 )
-            for key in ("review_digest", "task_digest"):
-                if receipt.get(key) != finalize_args[0].get(key):
-                    raise OuroborosContractError(
-                        f"trusted finalize {key} mismatch"
-                    )
-        if prepare.get("status") not in {"ok", "incomplete"}:
-            raise OuroborosContractError("trusted prepare receipt failed")
-        if (
-            prepare.get("output_incomplete") is True
-            or prepare.get("status") == "incomplete"
-            or prepare.get("output_status") != "ready"
-        ):
-            raise OuroborosContractError("AGA prepare was incomplete")
-        expected_prepare_args = {
-            "repository_id": record.request["repository_id"],
-            "base": record.request["base"],
-            "head": record.request["head"],
-            "review_id": record.request["review_id"],
-        }
-        if prepare.get("args_sha256") != hashlib.sha256(
-            _canonical_bytes(expected_prepare_args)
-        ).hexdigest():
-            raise OuroborosContractError("trusted prepare arguments mismatch")
         for key in ("review_digest", "task_digest"):
-            if prepare.get(key) != finalize_args[0].get(key):
+            if not repaired and prepare.get(key) != finalize_args[0].get(key):
                 raise OuroborosContractError(f"trusted prepare {key} mismatch")
-            if finalize.get(key) != finalize_args[0].get(key):
+            if not repaired and finalize.get(key) != finalize_args[0].get(key):
                 raise OuroborosContractError(f"trusted finalize {key} mismatch")
         if not isinstance(finalize.get("output_sha256"), str):
             raise OuroborosContractError("trusted finalize output hash is missing")
@@ -1283,15 +1614,20 @@ class OuroborosTaskBackend(TaskBackend):
         prepare_receipt: Mapping[str, Any],
         finalize_receipt: Mapping[str, Any],
     ) -> TaskResult:
-        raw_final = external.get("result")
-        if isinstance(raw_final, str):
+        trusted_override = self._trusted_final_overrides.get(record.task_id)
+        if trusted_override is not None:
+            final = dict(trusted_override)
+            final_answer_envelope = "trusted_prepare_digest_binding"
+        else:
+            raw_final = external.get("result")
+        if trusted_override is None and isinstance(raw_final, str):
             if len(raw_final.encode("utf-8")) > self.config.max_json_bytes:
                 raise OuroborosContractError("final AGA JSON exceeded its bound")
             parsed, final_answer_envelope = _strict_final_json(raw_final)
             if not isinstance(parsed, Mapping):
                 raise OuroborosContractError("final task answer must be a JSON object")
             final = dict(parsed)
-        else:
+        elif trusted_override is None:
             raise OuroborosContractError("task result does not contain final AGA JSON")
         expected_receipt_hash = finalize_receipt.get("output_sha256")
         projection_repair = "none"
@@ -1378,13 +1714,16 @@ class OuroborosTaskBackend(TaskBackend):
             "final_output_sha256": expected_hash,
             "final_answer_envelope": final_answer_envelope,
             "final_projection_repair": projection_repair,
+            "final_digest_binding": (
+                "trusted_prepare_once" if trusted_override is not None else "none"
+            ),
             "aga_final": final,
         }
         if is_incomplete:
             metadata["error_code"] = "aga_incomplete"
             return TaskResult(
                 task_id=record.task_id,
-                task_name="aga:review",
+                task_name=self._logical_task_name(),
                 status=TaskStatus.FAILED,
                 findings=tuple(dict(item) for item in final["findings"]),
                 observations=tuple(dict(item) for item in final["observations"]),
@@ -1393,7 +1732,7 @@ class OuroborosTaskBackend(TaskBackend):
             )
         return TaskResult(
             task_id=record.task_id,
-            task_name="aga:review",
+            task_name=self._logical_task_name(),
             status=TaskStatus.SUCCEEDED,
             findings=tuple(dict(item) for item in final["findings"]),
             observations=tuple(dict(item) for item in final["observations"]),
@@ -1882,7 +2221,7 @@ class OuroborosTaskBackend(TaskBackend):
         if status in PENDING_STATUSES:
             return TaskResult(
                 task_id=task_id,
-                task_name="aga:review",
+                task_name=self._logical_task_name(),
                 status=TaskStatus.PENDING,
                 metadata={"external_status": status},
             )
@@ -1907,11 +2246,16 @@ class OuroborosTaskBackend(TaskBackend):
         if self._external_artifact_pending(external):
             return TaskResult(
                 task_id=task_id,
-                task_name="aga:review",
+                task_name=self._logical_task_name(),
                 status=TaskStatus.PENDING,
                 metadata={"external_status": "artifact_finalizing"},
             )
-        if not self._external_success(external):
+        external_success = self._external_success(external)
+        finalize_recovery_candidate = (
+            self.config.finalize_transport_repair is not None
+            and self._external_finalize_recovery_candidate(external)
+        )
+        if not external_success and not finalize_recovery_candidate:
             return self._failure(
                 record,
                 "external_objective_failed",
@@ -1946,6 +2290,16 @@ class OuroborosTaskBackend(TaskBackend):
                 prepare_receipt,
                 finalize_receipt,
             )
+            if (
+                not external_success
+                and record.task_id not in self._transport_finalize_repairs
+            ):
+                return self._failure(
+                    record,
+                    "external_objective_failed",
+                    "provider failure was not preceded by a recoverable exact finalize",
+                    external_status=status,
+                )
         except CommandTimeoutError:
             if deadline is not None:
                 raise
@@ -1996,7 +2350,7 @@ class OuroborosTaskBackend(TaskBackend):
                 record.cost_finalization_pending = True
             return TaskResult(
                 task_id=task_id,
-                task_name="aga:review",
+                task_name=self._logical_task_name(),
                 status=TaskStatus.PENDING,
                 metadata={
                     "external_status": "cost_finalizing",
@@ -2095,7 +2449,7 @@ class OuroborosTaskBackend(TaskBackend):
             )
             result = TaskResult(
                 task_id=task_id,
-                task_name="aga:review",
+                task_name=self._logical_task_name(),
                 status=TaskStatus.TIMED_OUT,
                 error=error,
                 metadata={
@@ -2129,6 +2483,10 @@ __all__ = [
     "CommandRunner",
     "CommandTimeoutError",
     "DISABLED_WORKSPACE_TOOLS",
+    "EXPECTED_TOOLS",
+    "MANAGED_TASK_SCHEMA",
+    "REMEDIATION_MCP_TOOLS",
+    "REVIEW_MCP_STAGE",
     "OuroborosBackendConfig",
     "OuroborosBackendError",
     "OuroborosContractError",

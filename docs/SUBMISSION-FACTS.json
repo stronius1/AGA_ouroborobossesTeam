@@ -1,0 +1,157 @@
+{
+  "schema": "aga.submission-facts/v1",
+  "as_of": "2026-07-20",
+  "product": {
+    "name": "AGA + Ouroboros",
+    "advisory_only": true,
+    "auto_merge": false,
+    "data_classification": "synthetic-public"
+  },
+  "local_demo": {
+    "scenario_nodes": 11,
+    "scenario_flows": 9,
+    "golden_cases": 26,
+    "baseline_cases_passed": 25,
+    "candidate_cases_passed": 26,
+    "behavior_changed_case_ids": [
+      "pr-15"
+    ],
+    "negative_control_case_ids": [
+      "pr-16"
+    ],
+    "gate_checks": 5,
+    "model_cost_usd": 0.0
+  },
+  "deterministic_rule_fitness": {
+    "evidence": "docs/evidence/snapshots/deterministic-2026-07-15-v2/README.md",
+    "baseline": {
+      "cases_evaluated": 26,
+      "cases_passed": 25,
+      "precision": 0.9524,
+      "recall": 1.0,
+      "blocker_recall": 1.0,
+      "exact_case_accuracy": 0.9615,
+      "weighted_cost": 2.0
+    },
+    "candidate": {
+      "cases_evaluated": 26,
+      "cases_passed": 26,
+      "precision": 1.0,
+      "recall": 1.0,
+      "blocker_recall": 1.0,
+      "exact_case_accuracy": 1.0,
+      "weighted_cost": 0.0
+    },
+    "measurement_boundary": "deterministic golden-corpus rule fitness; not semantic release evidence"
+  },
+  "controlled_live_self_evolution": {
+    "evidence": "docs/evidence/ouroboros-self-evolution-v1.json",
+    "status": "local_candidate_ready",
+    "task_count": 3,
+    "known_cost_usd": 0.113183,
+    "gate_passed": true,
+    "human_review_required": true,
+    "auto_merge": false,
+    "measurement_boundary": "one synthetic-public review/remediation/re-review E2E; not a broad quality release"
+  },
+  "semantic_evaluation": {
+    "canonical_results_status": "not_run",
+    "canonical_trusted_cases_evaluated": 0,
+    "fixture": {
+      "cases_evaluated": 16,
+      "cases_passed": 16,
+      "release_evidence": false
+    },
+    "historical_frozen_run": {
+      "evidence": "docs/evidence/ouroboros/frozen-run-failure-sanitized.json",
+      "cases_evaluated": 16,
+      "cases_passed": 10,
+      "precision": 0.5,
+      "recall": 0.5,
+      "blocker_recall": 0.5,
+      "outcome_accuracy": 0.8125,
+      "schema_valid_rate": 1.0,
+      "unsafe_approve_count": 2,
+      "known_cost_usd": 0.409884,
+      "release_gate": "FAIL"
+    },
+    "measurement_boundary": "no current trusted all-case PASS; the old holdout is disclosed and must not be reused"
+  },
+  "semantic_development_v2": {
+    "lock": "evaluation/development-v2/corpus.lock.json",
+    "case_count": 48,
+    "independent_human_review_status": "pending",
+    "series_state": "pre_measurement",
+    "required_repeated_runs": 5,
+    "trusted_measurement_status": "blocked",
+    "release_evidence": false,
+    "measurement_boundary": "development-only corpus and strict scorer; no model-quality result until human review, freeze, and five repeated runs"
+  },
+  "proposal_delta": {
+    "proposal_demo_prs": 13,
+    "mvp_golden_cases": 26,
+    "mvp_semantic_cases": 16,
+    "mvp_development_v2_cases": 48,
+    "proposal_systems": 15,
+    "mvp_generated_scenario_nodes": 11,
+    "proposal_auto_approve": true,
+    "mvp_advisory_approve_without_merge": true
+  },
+  "business_case": {
+    "classification": "proposal scenario; not measured production ROI",
+    "assumptions": {
+      "prs_per_week": 30,
+      "manual_minutes_per_pr": 50,
+      "quick_share": 0.65,
+      "quick_minutes_per_pr": 3,
+      "escalated_minutes_per_pr": 15,
+      "architects": 4,
+      "working_weeks_per_year": 48,
+      "loaded_architect_hour_rub": 4000,
+      "model_cost_usd_per_pr": 2,
+      "rub_per_usd": 95
+    },
+    "derived": {
+      "manual_hours_per_week": 25.0,
+      "agent_hours_per_week": 3.6,
+      "saved_hours_per_week_team": 21.4,
+      "saved_hours_per_week_per_architect": 5.35,
+      "annual_gross_effect_rub": 4108800,
+      "annual_model_cost_rub": 273600,
+      "annual_effect_after_model_calls_rub": 3835200,
+      "gross_value_to_model_cost": 15.017544
+    }
+  },
+  "local_submission_artifacts": {
+    "project_results_pdf": {
+      "path": "docs/AGA-Ouroboros-Project-Results.pdf",
+      "sha256": "72e113099caea5c3ee51237775aafd79dce8f0324fbe85c0e436c34aed028b31",
+      "sources": [
+        {
+          "path": "docs/PROJECT-RESULTS.md",
+          "sha256": "11152dec475fe795c8f175b9817c7a63f9efb82c7b17d0015b20ef449dfa294e"
+        },
+        {
+          "path": "docs/project-results.css",
+          "sha256": "7094d7e1884681270566a57bf33eb76f38af2826b15728d0caa859d5a1c45815"
+        }
+      ]
+    },
+    "presentation_pptx": {
+      "path": "docs/AGA-Ouroboros-Project-Results.pptx",
+      "sha256": "ae7006c402826e4124c825929f660f531278e39bd8cf9abb3962c581178f7420",
+      "slides": 8,
+      "sources": [
+        {
+          "path": "docs/PRESENTATION.md",
+          "sha256": "f86636faf77b0f36f2f44c0c0e23712045b62dc1e6f99f087ff81235a6324ee2"
+        }
+      ]
+    }
+  },
+  "publication": {
+    "public_repository_url": null,
+    "demo_video_url": null,
+    "project_results_pdf_url": null
+  }
+}
