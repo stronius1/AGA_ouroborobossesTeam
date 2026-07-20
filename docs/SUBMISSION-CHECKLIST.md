@@ -18,19 +18,24 @@
 
 ## Чистый публичный repository
 
-- [ ] Создан public remote; URL записан в
-  `publication.public_repository_url`.
-- [ ] Submission commit содержит все required файлы, новые docs и evidence.
-- [ ] Submodule revisions доступны публичному клонировщику и совпадают с pins.
+- [x] Создан public remote; URL записан в
+  `publication.public_repository_url`
+  (`https://github.com/stronius1/AGA_ouroborobossesTeam`).
+- [x] Submission commit содержит все required файлы, новые docs и evidence
+  (`docs/evidence/ouroboros-self-evolution-v1.json` присутствует —
+  результаты, а не только код).
+- [x] Submodule revisions доступны публичному клонировщику и совпадают с pins
+  (проверено clean-clone: `seaf-core`@`60ce335`, `seaf-archtool-core`@`83c82ab`).
 - [x] GitHub Actions закреплены commit SHA, container base image — digest.
 - [x] Python wheels для CI/container снабжены SHA-256 и устанавливаются через
   `--require-hashes`.
 - [x] OS packages берутся из датированного Debian snapshot.
-- [ ] В отдельном временном каталоге выполнены `git clone --recurse-submodules`,
-  `make bootstrap` и `make demo-verify`.
-- [ ] После clean-clone verification `git status --short` пуст.
+- [x] В отдельном временном каталоге выполнены `git clone --recurse-submodules`,
+  fresh venv, `make verify-pins` и `make demo-verify` — оба EXIT 0.
+- [x] После clean-clone verification `git status --short` пуст.
 - [ ] Проверены LICENSE/THIRD_PARTY и отсутствие private profile settings,
-  credentials, local paths и sensitive PDF metadata/content.
+  credentials, local paths и sensitive PDF metadata/content — root `LICENSE`
+  всё ещё отсутствует, выбор лицензии за владельцем (см. блокер ниже).
 
 ## Project Results и презентация
 
@@ -78,10 +83,12 @@
 
 ## Текущие внешние блокеры на 20 июля 2026
 
-- [ ] Public repository URL отсутствует.
+- [x] Public repository URL: `https://github.com/stronius1/AGA_ouroborobossesTeam`.
 - [ ] Demo video URL отсутствует.
 - [ ] Public Project Results PDF URL отсутствует; локальный PDF собран.
-- [ ] Public clean-clone verification не выполнена.
+- [x] Public clean-clone verification выполнена (`/tmp/clean-clone-test`:
+  submodules OK, `make verify-pins` OK, `make demo-verify` EXIT 0,
+  `git status --short` пуст).
 - [ ] Root `LICENSE` отсутствует; вариант лицензирования должен выбрать
   владелец до публикации.
 - [ ] Independent human review, freeze и пять прогонов development-v2 не
